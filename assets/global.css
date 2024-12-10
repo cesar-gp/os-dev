@@ -1,0 +1,664 @@
+@font-face {
+    font-family: 'Charter';
+    src: url('fonts/Charter-BoldItalic.woff2') format('woff2'),
+        url('fonts/Charter-BoldItalic.woff') format('woff');
+    font-weight: bold;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Charter';
+    src: url('fonts/Charter-Regular.woff2') format('woff2'),
+        url('fonts/Charter-Regular.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Charter';
+    src: url('fonts/Charter-Bold.woff2') format('woff2'),
+        url('fonts/Charter-Bold.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Charter';
+    src: url('fonts/Charter-Italic.woff2') format('woff2'),
+        url('fonts/Charter-Italic.woff') format('woff');
+    font-weight: normal;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Jost*';
+    src: url('fonts/Jost-Bold.woff2') format('woff2'),
+        url('fonts/Jost-Bold.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Jost*';
+    src: url('fonts/Jost-BoldItalic.woff2') format('woff2'),
+        url('fonts/Jost-BoldItalic.woff') format('woff');
+    font-weight: bold;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Jost*';
+    src: url('fonts/Jost-Semi.woff2') format('woff2'),
+        url('fonts/Jost-Semi.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Jost*';
+    src: url('fonts/Jost-SemiItalic.woff2') format('woff2'),
+        url('fonts/Jost-SemiItalic.woff') format('woff');
+    font-weight: normal;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Jost*';
+    src: url('fonts/Jost-Book.woff2') format('woff2'),
+        url('fonts/Jost-Book.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Jost*';
+    src: url('fonts/Jost-BookItalic.woff2') format('woff2'),
+        url('fonts/Jost-BookItalic.woff') format('woff');
+    font-weight: normal;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Jost*';
+    src: url('fonts/Jost-Medium.woff2') format('woff2'),
+        url('fonts/Jost-Medium.woff') format('woff');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Jost*';
+    src: url('fonts/Jost-MediumItalic.woff2') format('woff2'),
+        url('fonts/Jost-MediumItalic.woff') format('woff');
+    font-weight: 500;
+    font-style: italic;
+    font-display: swap;
+}
+
+:root {
+	--bg: #010319;
+	--textcolor: #C5CAE9;
+}
+
+* {
+	margin: 0px;
+}
+
+body {
+	color: var(--textcolor);
+	background-color: var(--bg);
+	font-family: "Charter";
+}
+
+nav {
+	padding: 30px;
+	padding-bottom: 0px;
+}
+
+h1, h2, h3 {
+	font-family: "Jost*";
+	padding-top: 25px;
+	padding-bottom: 5px;
+}
+
+h1 {
+	font-size: 2.5em;
+	
+}
+
+h2 {
+	font-size: 1.75em;
+}
+
+h3 {
+	font-size: 1.5em;
+}
+
+hr {
+	margin-bottom: 10px;
+}
+
+hr.line {
+	border: none;
+	margin-bottom: 2px;
+	height: 3px;
+	background-color: black;
+}
+
+p, ul, ol, span {
+	font-size: 1.1em;
+}
+
+p, ul, ol {
+	padding-top: 5px;
+	line-height: 1.5em;
+	padding-bottom: 20px;
+	text-align: justify;
+}
+
+ul.multicol, ol.multicol {
+	columns: 2;
+}
+
+li {
+	line-height: 1.5em;
+	padding-bottom: 5px;
+}
+
+pre, samp, code {
+	font-family: monospace, monospace;
+}
+
+pre {
+	margin-bottom: 15px;
+}
+
+samp {
+	padding: 0px 5px;
+	border-radius: 5px;
+	background-color: #181818;
+}
+
+samp.nobg {
+	background: none;
+}
+
+a:link {
+	color: #CE93D8;
+}
+
+a:hover {
+	color: #FFB74D;
+}
+
+a:visited {
+	color: #F06292;
+}
+
+a:active {
+	color: #FF8A65;
+}
+
+button {
+	cursor: pointer;
+	background-color: #0D47A1;
+
+	border: none;
+	border-radius: 50vw;
+
+	padding: 10px 25px;
+
+	color: #E3F2FD;
+	font-family: "Jost*";
+	font-size: 1em;
+
+	transition: 0.2s;
+}
+
+button:hover {
+	color: #EDE7F6;
+	background-color: #311B92;
+	transition: 0.2s;
+}
+
+button:active {
+	color: #F1F8E9;
+	background-color: #33691E;
+	transition: 0.2s;
+}
+
+table, th, td {
+	padding: 10px;
+	border-collapse: collapse;
+}
+
+th, td {
+	color: #adbac7;
+	background-color: #22272e;
+	border-top: 2px solid var(--bg);
+	border-left: 2px solid var(--bg);
+	border-right: 2px solid var(--bg);
+	font-family: monospace, monospace;
+}
+
+table.memory {
+	table-layout: fixed;
+	width: 100%;
+	border: none;
+}
+
+table.memory th, table.memory td {
+	text-align: center;
+	width: 15px;
+}
+
+table.memory th {
+	border: none;
+	color: #FFE0B2;
+	background-color: #455A64;
+	padding: 0px;
+}
+
+table.memory td {
+	padding-top: 10px;
+	padding-bottom: 10px;
+}
+
+table.memory.vertical {
+	width: auto;
+}
+
+table.memory.vertical th, table.memory.vertical td {
+	width: auto;
+}
+
+table.memory.vertical th {
+	padding: 10px;
+	text-align: right;
+}
+
+table.memory.vertical td {
+	text-align: left;
+}
+
+table.memory.big th {
+	text-align: right;
+	border-right: 2px solid white;
+	padding-right: 5px;
+}
+
+table.memory.big td {
+	height: 30px;
+}
+
+table.legend th, table.legend td {
+	border: none;
+}
+
+table.stylized {
+	border: none;
+	font-size: 0.9em;
+}
+
+table.stylized thead {
+	background-color: lightgray;
+}
+
+table.stylized thead tr {
+	border-bottom: 2px solid #9E9E9E;
+}
+
+table.stylized tbody tr {
+	border-top: 1px solid #9E9E9E;
+	border-bottom: 1px solid #9E9E9E;
+}
+
+table.stylized tr.odd {
+	background-color: lightgray;
+}
+
+table.stylized th, table.stylized td {
+	border: none;
+}
+
+table.stylized th.centered-cell, table.stylized td.centered-cell {
+	text-align: center;
+}
+
+.block {
+	display: block;
+}
+
+.flex {
+	display: flex;
+}
+
+.flex.col {
+	flex-direction: column;
+}
+
+.flex.row {
+	flex-direction: row;
+}
+
+.flex.nostretch {
+	align-items: flex-start;
+}
+
+.flex.hleft {
+	justify-content: flex-start;
+}
+
+.flex.hright {
+	justify-content: flex-end;
+}
+
+.flex.hcentered {
+	justify-content: center;
+}
+
+.flex.vtop {
+	align-items: flex-start;
+}
+
+.flex.vbottom {
+	align-items: flex-end;
+}
+
+.flex.vcentered {
+	align-items: center;
+}
+
+.flex.nospaced {
+	gap: 0px;
+}
+
+.flex.smallspaced {
+	gap: 5px;
+}
+
+.flex.spaced {
+	gap: 10px;
+}
+
+.flex.bigspaced {
+	gap: 20px;
+}
+
+.flex.extraspaced {
+	gap: 40px;
+}
+
+.fixed {
+	position: fixed;
+}
+
+.fixed.hleft {
+	left: 0;
+}
+
+.fixed.hcenter {
+	left: 50vw;
+	right: 50vw;
+}
+
+.fixed.hright {
+	right: 0;
+}
+
+.fixed.vtop {
+	top: 0;
+}
+
+.fixed.vcenter {
+	top: 50vh;
+	bottom: 50vh;
+}
+
+.fixed.vright {
+	bottom: 0;
+}
+
+.card {
+	padding-left: 15px;
+	padding-right: 15px;
+	padding-top: 10px;
+	padding-bottom: 10px;
+	color: #E8EAF6;
+	background-color: #1A237E;
+	border: 2px solid #7986CB;
+}
+
+.square {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+
+	padding: 10px;
+	background-color: #22272E;
+
+	font-family: monospace, monospace;
+}
+
+.file .filename {
+	display: flex;
+	flex-direction: row;
+
+	gap: 5px;
+	font-weight: bold;
+	color: #F69D50;
+}
+
+.file .body {
+	white-space: pre;
+	padding: 0;
+	opacity: 0.8;
+}
+
+.file.asm .filename:before {
+	content: url('icons/file-text.svg');
+}
+
+.file.asm .body.auto:after {
+	content: 'mov eax, 1\a mov ebx, 2\a ...';
+}
+
+.file.bin .filename:before {
+	content: url('icons/hash.svg');
+}
+
+.file.bin .body.auto:after {
+	content: '66 B8 01 00\a 00 00 66 BB\a ...';
+}
+
+.file.elf .filename:before {
+	content: url('icons/terminal.svg');
+}
+
+.file.elf .body.auto:after {
+	content: '7F 45 4C 46\a 01 01 01 00\a ...';
+}
+
+.nopad {
+	padding: 0px;
+}
+
+.smallpad {
+	padding: 5px;
+}
+
+.pad {
+	padding: 10px;
+}
+
+.bigpad {
+	padding: 20px;
+}
+
+.extrapad {
+	padding: 40px;
+}
+
+.nopad-left {
+	padding-left: 0px;
+}
+
+.nopad-right {
+	padding-right: 0px;
+}
+
+.nopad-top {
+	padding-top: 0px;
+}
+
+.nopad-bottom {
+	padding-bottom: 0px;
+}
+
+.noborder-left {
+	border-left: none;
+}
+
+.noborder-right {
+	border-right: none;
+}
+
+.noborder-top {
+	border-top: none;
+}
+
+.noborder-bottom {
+	border-bottom: none;
+}
+
+.indent {
+	padding-left: 8vw;
+}
+
+.w2 {
+	min-width: 50%;
+	width: 50%;
+	max-width: 50%;
+}
+
+.h2 {
+	min-height: 50%;
+	height: 50%;
+	max-height: 50%;
+}
+
+.w4 {
+	min-width: 25%;
+	width: 25%;
+	max-width: 25%;
+}
+
+.h4 {
+	min-height: 25%;
+	height: 25%;
+	max-height: 25%;
+}
+
+.w8 {
+	min-width: 12.5%;
+	width: 12.5%;
+	max-width: 12.5%;
+}
+
+.h8 {
+	min-height: 12.5%;
+	height: 12.5%;
+	max-height: 12.5%;
+}
+
+.smalltext {
+	font-size: 0.7em;
+}
+
+.hidden {
+	opacity: 0;
+}
+
+.hleft {
+	float: left;
+	margin-right: auto;
+}
+
+.hright {
+	float: right;
+	margin-left: auto;
+}
+
+.hcenter {
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.vtop {
+	float: top;
+	margin-bottom: auto;
+}
+
+.vcenter {
+	margin-top: auto;
+	margin-bottom: auto;
+}
+
+.vbottom {
+	float: bottom;
+	margin-top: auto;
+}
+
+.centered-text {
+	text-align: center;
+}
+
+.monospace {
+	font-family: monospace, monospace;
+}
+
+#content {
+	padding-top: 0px;
+	padding-bottom: 20px;
+	padding-left: 15vw;
+	padding-right: 15vw;
+}
+
+#navigator {
+	height: 100vh;
+	padding: 0px 50px;
+
+	color: var(--textcolor);
+	text-decoration: none;
+	text-align: center;
+	line-height: 100vh;
+	transition: 0.2s;
+}
+
+#navigator:hover {
+	background-color: rgba(0, 0, 0, 0.3);
+	transition: 0.2s;
+}
+
+#footer {
+	display: flex;
+	flex-direction: row;
+
+	justify-content: center;
+	align-items: center;
+	gap: 20px;
+
+	text-align: center;
+	padding-top: 40px;
+}

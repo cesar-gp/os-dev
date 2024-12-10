@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+
+<head>
+	<title>Manual de OSDev</title>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" type="text/css" href="assets/global.css">
+	<link rel="stylesheet" href="assets/lib/highlight/styles/github-dark-dimmed.css">
+</head>
+<body class="flex col spaced">
+	<a id="navigator" class="flex col hcentered vcentered fixed hleft" href="03.html">
+		<img width="40" height="40" src="assets/icons/chevron-left.svg">
+	</a>
+	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="05.html">
+		<img width="40" height="40" src="assets/icons/chevron-right.svg">
+	</a>
+	<div id="content">
+		<h1>Capítulo 4: Estructura de FAT12 y lectura de disco</h1>
+		<hr>
+		<p>
+			Nuestro disco ya tiene un sistema de archivos, pero no tiene ningún archivo dentro. Sus primeros 512 bytes contienen información crucial para iniciar FAT12, pero no hemos escrito ningún archivo como tal. La pregunta con la que empezaremos este capítulo es una de mis favoritas: <b>¿qué ocurre exactamente cuando creamos un archivo en un disco?</b>
+		</p>
+		<h2>Tabla de contenidos</h2>
+		<hr>
+		<p>
+			[por hacer]
+		</p>
+		<h2>Estructura de FAT12</h2>
+		<hr>
+		<p>
+			Tras añadir los <i>headers</i> y formatearlo, nuestro disco ha pasado a tener 4 secciones. <b>Este es un mapa de los primeros 24 kilobytes (48 sectores) del disco</b>, en el que se ven las 3 primeras secciones y el inicio de la cuarta:
+		</p>
+		<p>
+			<table class="memory big">
+				<tr>
+					<th colspan="16">8 KB</th>
+					<th colspan="16">16 KB</th>
+					<th colspan="16">24 KB</th>
+				</tr>
+				<tr>
+					<td style="background-color: #009E73"></td>
+					<td style="background-color: #50B4E9" colspan="18"></td>
+					<td style="background-color: #E69F00" colspan="14"></td>
+					<td style="background-color: #CC79A7" colspan="15"></td>
+				</tr>
+			</table>
+			<br>
+			<table class="legend">
+				<tr>
+					<td style="background-color: #009E73"></td>
+					<td>Sección reservada</td>
+					<td class="hidden"></td>
+					<td style="background-color: #50B4E9"></td>
+					<td>Sección de FAT</td>
+					<td class="hidden"></td>
+					<td style="background-color: #E69F00"></td>
+					<td>Carpeta raíz</td>
+					<td class="hidden"></td>
+					<td style="background-color: #CC79A7"></td>
+					<td>Sección de datos</td>
+				</tr>
+			</table>
+		</p>
+		<p>
+			Si has decidido emular un floppy que no sea de 3 pulgadas y media o has cambiado los <i>headers</i> de alguna forma, es probable que las fronteras entre secciones sean ligeramente distintas, pero las secciones serán las mismas. También es importante aclarar que <b>la sección de datos ocupa todo el resto del disco</b>, no solamente los 7,5 KB que se ven en la tabla.
+		</p>
+		<p>
+			Si tienes curiosidad por un mapa del disco entero, aquí lo tienes:
+		</p>
+		<table class="memory big">
+			<tr>
+				<th colspan="720">360 KB</th>
+				<th colspan="720">720 KB</th>
+				<th colspan="720">1080 KB</th>
+				<th colspan="720">1440 KB</th>
+			</tr>
+			<tr>
+				<td style="background-color: #009E73"></td>
+				<td style="background-color: #50B4E9" colspan="18"></td>
+				<td style="background-color: #E69F00" colspan="14"></td>
+				<td class="noborder-right" style="background-color: #CC79A7" colspan="1000"></td>
+				<td class="noborder-left noborder-right" style="background-color: #CC79A7" colspan="1000"></td>
+				<td class="noborder-left" style="background-color: #CC79A7" colspan="847"></td>
+			</tr>
+		</table>
+		<h3>Geometría del disco</h3>
+		<p>
+			Dentro de nuestros <i>headers</i> hemos definido muchas variables interesantes. Ahora mismo nos interesan solo algunas, entre las que se incluyen:
+		</p>
+		<ul>
+			<li><samp>bdb_bytes_per_sector</samp>: <b>512</b> bytes por cada sector.</li>
+			<li><samp>bdb_sectors_per_track</samp>: 18 sectores por cilindro (o <i>track</i>).</li>
+			<li><samp>bdb_heads</samp>: 2 cabezales en el disco.</li>
+		</ul>
+		<p>
+			La definición más importante de estas 3 es la que indica que <b>un sector equivale a 512 bytes</b>. Un <a href="https://es.wikipedia.org/wiki/Sector_(inform%C3%A1tica)">sector</a> es una porción de la memoria que funciona como <i>unidad mínima de lectura</i>, y su longitud depende de la geometría del disco.
+		</p>
+		<p>
+			Cuando leemos datos que están localizados en el disco, lo que hacemos <b>cargarlos en alguna parte de la RAM, sector a sector</b>. Es decir, si queremos leer un archivo que ocupe 1 KB, el proceso a realizar será el siguiente:
+		</p>
+		<ol>
+			<li>Localizar alguna parte de la RAM que esté libre y tenga espacio para escribir todo el archivo: pongamos que nos quedamos con la dirección <samp>0x50000</samp>.</li>
+			<li>Leer el primer sector del archivo hacia <samp>0x50000</samp> y apuntar nuestro puntero hacia <samp>0x50200</samp> (512 bytes para delante).</li>
+			<li>Leer el segundo sector del archivo hacia <samp>0x50200</samp>, y terminar la operación de lectura.</li>
+		</ol>
+		<p>
+			Volveremos a esto cuando tengamos que leer archivos, pero por ahora lo más importante es que entiendas que <b>no se puede leer el disco byte a byte, la unidad mínima de lectura es un sector</b>.
+		</p>
+		<p>
+			Existen dos formas de definir la dirección de un sector dentro del disco. La más moderna y fácil es el LBA o <a href="https://es.wikipedia.org/wiki/Direccionamiento_de_bloque_l%C3%B3gico"><i>Logical Block Addressing</i></a>, y la más antigua (que usaremos únicamente en el <a href="03.html#imprimir-texto">modo real</a> del procesador) es el CHS o <a href="https://es.wikipedia.org/wiki/Cilindro-Cabezal-Sector"><i>Cylinder-Head-Sector</i></a>. El LBA indica <b>el sector en el que se encuentra una parte del disco si empezamos a contar desde cero</b>. El <i>boot sector</i> sería 0, el siguiente 1, 2... y así hasta 2879. Su cálculo es sorprendentemente simple.
+		</p>
+		<p>
+			<div class="flex row bigspaced nostretch">
+				<img width="40%" class="card" src="assets/04/chs.png">
+				<div style="flex: 1;">
+					<p>
+						Para hablar del direccionamiento CHS hay que tratar primero la arquitectura de un <a href="https://es.wikipedia.org/wiki/Unidad_de_disco_duro">disco duro</a>. El esquema de la izquierda, creado por el usuario de Wikipedia <a href="https://commons.wikimedia.org/wiki/User:LionKimbro">LionKimbro</a>, la ilustra muy bien.
+					</p>
+					<p>
+						El <i>cabezal</i> es la unidad más grande de las 3. En el caso de nuestro disco (<i>3½" DSHD 1.44 MB</i>) existen únicamente 2 cabezales.
+					</p>
+					<p>
+						Los <i>cilindros</i> son las secciones concéntricas que incluye un cabezal. En nuestro disco hay un total de 80 cilindros por cabezal.
+					</p>
+					<p>
+						Los <i>sectores</i> son secciones cónicas que atraviesan todos los cilindros del disco. En nuestro caso, existen 18 sectores por cilindro.
+					</p>
+					<p>
+						Lo lógico sería que el direccionamiento fuera Cabezal-Cilindro-Sector (o HCS), pero... <i>sencillamente no es así</i>. Así que habrá que acostumbrarse.
+					</p>
+				</div>
+			</div>
+		</p>
+		<p>
+			Existe una equivalencia clara entre los dos sistemas de direccionamiento. Por ejemplo, el LBA <samp>0</samp> apunta al mismo sector que el CHS <samp>0, 0, 1</samp>; el LBA <samp>1</samp> es el CHS <samp>0, 0, 2</samp>; el LBA <samp>19</samp> es el CHS <samp>0, 1, 1</samp>... y así sucesivamente.
+		</p>
+		<p>
+			Este sistema está completamente obsoleto hoy en día, pero es necesario conocerlo porque <b>vamos a utilizar la función de la BIOS <a href="https://www.ctyme.com/intr/rb-0607.htm">INT 13/AH=02h</a> para leer sectores del disco</b>, y esta función exige que le proporciones la dirección CHS del disco que quieres leer. Crearemos un "traductor" de LBA a CHS para librarnos de este problema cuanto antes.
+		</p>
+		<h3>La sección reservada</h3>
+		<p>
+			<b>Los <i>headers</i> que hemos definido y todo el código que escribamos en nuestra <i>stage1</i> se encuentra en el <i>boot sector</i></b>, que es el primer sector de la sección reservada. Merece la pena destacar que este sector es <i>lo único que hemos cargado a la RAM hasta ahora</i>. Aquí tienes un mapa de dicho sector:
+		</p>
+		<p>
+			<table class="memory big">
+				<tr>
+					<th colspan="128">128 B</th>
+					<th colspan="128">256 B</th>
+					<th colspan="128">384 B</th>
+					<th colspan="128">512 B</th>
+				</tr>
+				<tr>
+					<td style="background-color: #009E73" colspan="72"></td>
+					<td style="background-color: #50B4E9" colspan="438"></td>
+					<td style="background-color: #E69F00" colspan="2"></td>
+				</tr>
+			</table>
+			<br>
+			<table class="legend">
+				<tr>
+					<td style="background-color: #009E73"></td>
+					<td>Headers</td>
+					<td class="hidden"></td>
+					<td style="background-color: #50B4E9"></td>
+					<td>Nuestro código</td>
+					<td class="hidden"></td>
+					<td style="background-color: #E69F00"></td>
+					<td>Firma</td>
+				</tr>
+			</table>
+		</p>
+		<p>
+			Dentro de la sección reservada también <b>puede haber una cantidad arbitraria de sectores reservados para el sistema</b>. Estos sectores serían los siguientes partiendo desde el <i>boot sector</i>, aunque nosotros no hemos reservado ninguno. Esto se puede configurar mediante la variable <samp>bdb_reserved_sectors</samp>, a la que hemos dado un valor de 1 (para reservar únicamente el <i>boot sector</i>).
+		</p>
+		<h3>La sección de FAT</h3>
+		<p>
+			La sección de FAT (<a href="https://es.wikipedia.org/wiki/Tabla_de_asignaci%C3%B3n_de_archivos"><i>File Allocation Tables</i></a>) es <b>un mapa de la sección de datos</b>, que está dividida en <i>clusters</i>. A continuación, explicaremos qué es un cluster, su papel en la sección de datos y cómo esto afecta a la sección de FAT.
+		</p>
+		<p>
+			Puedes configurar cuántos sectores conforman un cluster usando la variable <samp>bdb_sectors_per_cluster</samp>, declarada en el header. <b>Nosotros le hemos dado el valor de <samp>1</samp>, por lo que un cluster es equivalente a un sector</b>. Igualmente, debemos programar nuestro bootloader teniendo en cuenta que esto podría cambiar cuando nuestro sistema operativo crezca.
+		</p>
+		<p>
+			En los clusters de la sección de datos se guarda el contenido de los archivos. Pongamos que los primeros 16 clusters de la sección de datos tienen la siguiente estructura:
+		</p>
+		<p>
+			<table class="memory">
+				<tr>
+					<th>0</th>
+					<th>1</th>
+					<th>2</th>
+					<th>3</th>
+					<th>4</th>
+					<th>5</th>
+					<th>6</th>
+					<th>7</th>
+				</tr>
+				<tr>
+					<td colspan="6">archivo.txt</td>
+					<td colspan="2">carpeta</td>
+				</tr>
+				<tr>
+					<th>8</th>
+					<th>9</th>
+					<th>10</th>
+					<th>11</th>
+					<th>12</th>
+					<th>13</th>
+					<th>14</th>
+					<th>15</th>
+				</tr>
+				<tr>
+					<td colspan="4">programa.bin</td>
+					<td colspan="4">imagen.png</td>
+				</tr>
+			</table>
+		</p>
+		<p>
+			Aquí tenemos un archivo de texto (<samp>archivo.txt</samp>) que ocupa 6 clusters, una carpeta que ocupa 2 clusters, un ejecutable de 4 clusters y un archivo de imagen que ocupa otros 4. <b>La sección de FAT resume esta información</b> para que el sistema no tenga que recorrerse la <i>data section</i> entera si quiere buscar un archivo.
+		</p>
+		<p>
+			La sección de FAT incluye una información parecida a la de este mapa. Concretamente, <b>incluye una <a href="https://es.wikipedia.org/wiki/Lista_enlazada">lista enlazada</a> que nos muestra los clusters que ocupa cada archivo</b>. Una lista enlazada es una secuencia no lineal en la que cada valor contiene el siguiente al que hay que apuntar. Aquí tienes una <i>linked list</i> básica:
+		</p>
+		<p>
+			<table class="memory">
+				<tr>
+					<th>0</th>
+					<th>1</th>
+					<th>2</th>
+					<th>3</th>
+					<th>4</th>
+					<th>5</th>
+					<th>6</th>
+					<th>7</th>
+				</tr>
+				<tr>
+					<td>1</td>
+					<td>2</td>
+					<td>3</td>
+					<td>7</td>
+					<td>5</td>
+					<td>100</td>
+					<td>4</td>
+					<td>6</td>
+				</tr>
+			</table>
+		</p>
+		<p>
+			Para leer la lista en orden, debemos empezar en el índice <samp>0</samp> y dirigirnos al índice que hay guardado ahí, luego al índice guardado en el siguiente valor, y así sucesivamente. Vamos a asumir que el valor <samp>100</samp> marca el fin de la lista. En ese caso, el orden sería el siguiente:
+		</p>
+		<p>
+			<div class="flex row bigspaced nostretch hcentered vcentered">
+				<samp>0</samp>
+				<img src="assets/icons/arrow-right.svg">
+				<samp>1</samp>
+				<img src="assets/icons/arrow-right.svg">
+				<samp>2</samp>
+				<img src="assets/icons/arrow-right.svg">
+				<samp>3</samp>
+				<img src="assets/icons/arrow-right.svg">
+				<samp>7</samp>
+				<img src="assets/icons/arrow-right.svg">
+				<samp>6</samp>
+				<img src="assets/icons/arrow-right.svg">
+				<samp>4</samp>
+				<img src="assets/icons/arrow-right.svg">
+				<samp>5</samp>
+				<img src="assets/icons/arrow-right.svg">
+				<samp>[FIN DE LISTA]</samp>
+			</div>
+		</p>
+		<p>
+			¿Ves cómo se puede trasladar esto a un resumen de la <i>data section</i>? ¿No? Normal. Es complicado verlo al principio. Para resumir la <i>data section</i> de la que hemos hecho el mapa antes, usando como indicador de final de archivo el número <samp>0xFFF</samp> podríamos crear esta <i>linked list</i>:
+		</p>
+		<p>
+			<table class="memory">
+				<tr>
+					<th>0</th>
+					<th>1</th>
+					<th>2</th>
+					<th>3</th>
+					<th>4</th>
+					<th>5</th>
+					<th>6</th>
+					<th>7</th>
+				</tr>
+				<tr>
+					<td style="border-right: 2px dashed var(--bg)">1</td>
+					<td class="noborder-left" style="border-right: 2px dashed var(--bg)">2</td>
+					<td class="noborder-left" style="border-right: 2px dashed var(--bg)">3</td>
+					<td class="noborder-left" style="border-right: 2px dashed var(--bg)">4</td>
+					<td class="noborder-left" style="border-right: 2px dashed var(--bg)">5</td>
+					<td class="noborder-left">0xFFF</td>
+					<td style="border-right: 2px dashed var(--bg)">7</td>
+					<td class="noborder-left">0xFFF</td>
+				</tr>
+				<tr>
+					<th>8</th>
+					<th>9</th>
+					<th>10</th>
+					<th>11</th>
+					<th>12</th>
+					<th>13</th>
+					<th>14</th>
+					<th>15</th>
+				</tr>
+				<tr>
+					<td style="border-right: 2px dashed var(--bg)">9</td>
+					<td class="noborder-left" style="border-right: 2px dashed var(--bg)">10</td>
+					<td class="noborder-left" style="border-right: 2px dashed var(--bg)">11</td>
+					<td class="noborder-left">0xFFF</td>
+					<td style="border-right: 2px dashed var(--bg)">13</td>
+					<td class="noborder-left" style="border-right: 2px dashed var(--bg)">14</td>
+					<td class="noborder-left" style="border-right: 2px dashed var(--bg)">15</td>
+					<td class="noborder-left">0xFFF</td>
+				</tr>
+			</table>
+		</p>
+		<p>
+			Si te fijas, <b>cada valor nos indica el siguiente cluster de un archivo</b>, hasta que llegamos al valor <samp>0xFFF</samp>, que nos indica que el archivo se ha acabado.
+		</p>
+		<p>
+			[SEGUIR POR AQUÍ]
+		</p>
+		<p id="footer">
+			<a href="00.html"><button>Primera página</button>
+			<a href="05.html"><button>Siguiente capítulo</button></a>
+		</p>
+	</div>
+
+	<!-- Library: highlight.js -->
+	<script src="assets/lib/highlight/highlight.min.js"></script>
+	<script>hljs.highlightAll();</script>
+</body>

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+
+<head>
+	<title>Manual de OSDev</title>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" type="text/css" href="assets/global.css">
+	<link rel="stylesheet" href="assets/lib/highlight/styles/github-dark-dimmed.css">
+</head>
+<body class="flex col spaced">
+	<a id="navigator" class="flex col hcentered vcentered fixed hleft" href="01.html">
+		<img width="40" height="40" src="assets/icons/chevron-left.svg">
+	</a>
+	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="03.html">
+		<img width="40" height="40" src="assets/icons/chevron-right.svg">
+	</a>
+	<div id="content">
+		<h1>Capítulo 2: Iniciar un sistema operativo</h1>
+		<hr>
+		<p>
+			Para iniciar nuestro sistema operativo, lo primero que debemos preguntarnos es <b>qué hace un ordenador cuando inicia</b>. Y responder a la pregunta, al menos hasta cierto punto. No nos interesa saber cómo inicia un ordenador del 2024 con Windows 11 instalado y mil programas más, pero sí saber qué hace el ordenador antes de que cargue todo eso. O más bien, preguntarnos... <b>¿cuándo entra nuestro sistema en juego?</b>
+		</p>
+		<h2>Tabla de contenidos</h2>
+		<hr>
+		<ol>
+			<li><a href="#secuencia-de-inicio">Cuándo entramos en juego: la secuencia de inicio</a></li>
+			<li><a href="#dispositivo-firma">¿Qué dispositivo?, ¿qué firma?, ¿qué dices?</a></li>
+			<li><a href="#como-escribimos">Vale, pero... ¿cómo escribimos eso?</a></li>
+			<li><a href="#como-ejecuto">Ahora tengo un archivo, ¿cómo lo ejecuto?</a></li>
+			<li><a href="#ahora-que">Y ahora, ¿qué?</a></li>
+		</ol>
+		<h2 id="secuencia-de-inicio">Cuándo entramos en juego: la <a href="https://wiki.osdev.org/Boot_Sequence">secuencia de inicio</a>.</h2>
+		<hr>
+		<p>
+			Cuando se inicia un ordenador, <b>el primer programa en ejecutarse es la BIOS o UEFI</b>. Este programa no está ni en el disco duro ni en la memoria RAM de nuestro ordenador, sino en un chip instalado en la placa base. Más concretamente, una <a href="https://es.wikipedia.org/wiki/EEPROM">EEPROM</a>: una memoria no volátil que puede ser reescrita un número limitado de veces. Al iniciarse el ordenador, el programa es copiado a la RAM y ejecutado directamente por el procesador.
+		</p>
+		<p>
+			La BIOS, al ejecutarse, hace lo siguiente:
+		</p>
+		<ol>
+			<li>Un test llamado <a href="https://en.wikipedia.org/wiki/Power-on_self-test">POST</a> que comprueba que el hardware funciona correctamente.</li>
+			<li>Definir una serie de funciones llamadas <a href="https://wiki.osdev.org/BIOS#BIOS_functions">BIOS interrupts</a> que facilitan el desarrollo de programas y sistemas operativos.</li>
+			<li>Buscar dispositivos de arranque que contengan <a href="https://wiki.osdev.org/Boot_Sequence#Master_Boot_Record">una firma concreta</a>.</li>
+			</ol>
+		<p>
+			Y aquí entramos en juego nosotros: nuestro sistema va a estar instalado en un <a href="https://es.wikipedia.org/wiki/Arranque_(inform%C3%A1tica)#Dispositivos_de_arranque">dispositivo de arranque</a> (como un disco duro o un USB). Lo primero que tenemos que hacer es <b>marcar ese dispositivo con la firma que la BIOS espera</b>, para que lo detecte y vea que puede cedernos el control.
+		</p>
+		<h2 id="dispositivo-firma">¿Qué dispositivo?, ¿qué firma?, ¿qué dices?</h2>
+		<hr>
+		<p>
+			Tranqui. A ver, <b>el dispositivo puede ser cualquier <a href="https://es.wikipedia.org/wiki/Memoria_no_vol%C3%A1til">memoria no volátil</a></b> que se pueda comunicar con nuestro ordenador. Las memorias <i>no volátiles</i> son aquellas que no pierden lo que tienen almacenado al apagarse el ordenador. Lo dicho, puede ser un disco duro, un USB e incluso un floppy. De hecho, para simplificar las cosas, de entre todos esos dispositivos emularemos un floppy.
+		</p>
+		<p>
+			La <i>firma</i> es <b>una serie de bytes colocada en una parte concreta del disco</b>. Sirve para decirle a la BIOS que es posible arrancar el ordenador desde el dispositivo. En concreto, vamos a escribir los 2 bytes <samp>0xAA55</samp> en la dirección <samp>510</samp> del disco. Como curiosidad, <b>también existen sistemas que van directamente instalados en la placa base</b>, sin necesidad de ningún dispositivo externo, como la BIOS. Estos sistemas se llaman <a href="https://es.wikipedia.org/wiki/Sistema_embebido">sistemas integrados</a>.
+		</p>
+		<p>
+			Como bien sabrás, <b>un byte es un número de ocho cifras en binario</b>, como <samp>00001111</samp> o <samp>00010010</samp>. <b>Muchas veces, por acortar, se escriben en hexadecimal</b>. Por ejemplo, estos 2 bytes que he puesto ahora serían, respectivamente, <samp>0F</samp> y <samp>12</samp>. Los números en hexadecimal se suelen prefijar con <samp>0x</samp> para diferenciarlos del decimal. Conviene <a href="00.html#sistemas-numeracion">familiarizarse con esto un poco</a> antes de meterse al redil.
+		</p>
+		<p>
+			La cosa es que <b>en un disco lo que hay es una serie de bytes</b>. Por ejemplo, si creamos el archivo <samp>disco.img</samp> y le escribimos lo siguiente con un editor hexadecimal:
+		</p>
+		<pre><code>44 49 53 43 4F 00 00 00 00 00 00 00 00 00 00 00
+53 45 52 49 45 20 44 45 20 44 41 54 4F 53 00 00</code></pre>
+		<p>
+			Habremos creado la imagen de un disco de 16 bytes, y si decodificamos los bytes usando la <a href="https://www.ascii-code.com/">tabla ASCII</a> veremos que pone esto. Vete acostumbrando a consultar la tabla ASCII cuando tengas bytes que representan texto, porque te vendrá muy bien:
+		<pre><code>D  I  S  C  O  .  .  .  .  .  .  .  .  .  .  .  
+S  E  R  I  E     D  E     D  A  T  O  S  .  .  </code></pre>
+		<p>
+			Pues en nuestro disco tiene que haber 510 bytes en los que ponga lo que sea y en los siguientes 2 debe poner <samp>55 AA</samp>.
+		</p>
+		<div class="card">
+			<h3 class="nopad-top">Un pequeño aviso sobre la <a href="https://es.wikipedia.org/wiki/Endianness"><i>endianness</i></a></h3>
+			<p>
+				La firma que tenemos que poner en el byte 510 del disco es <samp>0xAA55</samp>. Ese es un valor de 2 bytes, que cuando se pone en el disco y se lee byte a byte, se refleja como <samp>55 AA</samp> (es decir, <b>al revés</b>).
+			</p>
+			<p>
+				Tener en cuenta esto es muy importante. Un número de 32 bits con el valor <samp>0x12345678</samp> se trasladará al disco como <samp>78 56 34 12</samp>. Por tanto, podemos escribir la firma utilizando cualquiera de estas 2 opciones:
+			</p>
+			<ul>
+				<li>
+					<samp>dw 0x55AA</samp>: escribe a la RAM un valor de 2 bytes (una <i>word</i>) con el valor <samp>AA 55</samp>.
+				</li>
+				<li>
+					<samp>db 0xAA</samp>, y luego <samp>db 0x55</samp>: tiene el mismo efecto, aunque usa una instrucción distinta para cada byte.
+				</li>
+			</ul>
+			<p>
+				Esta forma de guardar los números en la memoria se llama <i>little endian</i>, y nos afectará cuando hagamos operaciones de memoria con números de diversos tamaños. <a href="https://es.wikipedia.org/wiki/Endianness">Más información en Wikipedia</a>.
+		</div>
+		<h2 id="como-escribimos">Vale, pero... ¿cómo escribimos eso?</h2>
+		<hr>
+		<p>
+			<b>No es difícil</b>, pero conviene tener unos mínimos conocimientos previos sobre <a href="https://es.wikipedia.org/wiki/Sistema_binario">sistema binario</a>, <a href="https://en.wikipedia.org/wiki/Hexadecimal">hexadecimal</a>, <a href="https://www.nasm.us/xdoc/2.16.03/html/nasmdoc0.html">NASM Assembly</a> e <a href="https://es.wikipedia.org/wiki/Imagen_de_disco">imágenes de disco</a>. También viene bien saber algo de formatos de archivo ejecutables, en concreto sobre <a href="https://es.wikipedia.org/wiki/Executable_and_Linkable_Format">ELF</a>, pero puedes no hacer caso si tienes muchas ganas de aprender. Yo personalmente he ido aprendiendo bastantes de estas cosas por el camino.
+		</p>
+		<p>
+			Bueno, pues vamos a escribir el código. <b>Assembly es el lenguaje que más libertad nos da para escribir bytes directamente a un ejecutable</b> (que luego puede transformarse en una imagen de disco), por eso vamos a usar ese lenguaje. En concreto, usaremos Assembly x86 con sintaxis de NASM.
+		</p>
+		<p>
+			En Linux, deberás descargar los siguientes paquetes (o los equivalentes para tu distribución):
+		</p>
+		<ul>
+			<li><samp><a href="https://archlinux.org/packages/extra/x86_64/nasm/">nasm</a></samp>: compilador de código Assembly.</li>
+			<li><samp><a href="https://archlinux.org/packages/core/x86_64/binutils/">binutils</a></samp>: suite de GNU para compilar y enlazar ejecutables, que suele venir preinstalada.</li>
+		</ul>
+		<p>
+			Esto se trata en mayor detalle en el <a href="00.html#conceptos-basicos">apartado sobre cómo generar ejecutables</a> de la introducción.
+		</p>
+		<p>
+			Hecho esto, crea una carpeta. Esta carpeta contendrá todos los archivos de nuestro sistema operativo, así que asegurate de organizarla bien. <b>En dicha carpeta, crea el archivo <samp>boot.asm</samp></b> (o como lo quieras llamar), y escribe en él este código:
+		</p>
+		<pre><code>; DIRECTIVAS PARA NASM
+bits 16                   ; Emite código de 16 bits.
+org 0x7C00                ; Organiza el código desde la dir. 0x7C00.
+
+; SECCIÓN DE CÓDIGO
+start:
+    jmp halt              ; Salta hacia "halt".
+
+halt:
+    hlt                   ; Detén el procesador.
+    jmp halt              ; Salta hacia "halt" si vuelve a funcionar.
+
+; SECCIÓN DE DATOS
+times 510-($-$$) db 0     ; Escribe ceros hasta el byte 510.
+dw 0xAA55                 ; Escribe la firma que espera la BIOS.</code></pre>
+		<p>
+			Si vienes de capítulos anteriores, notarás que <b>no estamos declarando las secciones usando la directiva <samp>section</samp></b>. Esto es porque estamos programando para un entorno <i>freestanding</i>, y vamos a generar un archivo binario puro. Lo que estábamos generando antes era un <a href="https://wiki.osdev.org/ELF">archivo ELF</a>, en el que sí que debes dividir tu código en secciones predefinidas.
+		</p>
+		<p>
+			Este es el código de un <b>bootloader que arranca el sistema y detiene el procesador</b>. No hace nada más, aunque tiene algunas directivas que explicaré un poco más en detalle:
+		</p>
+		<ul>
+			<li>
+				<samp>org 0x7C00</samp>: la BIOS espera que en esta dirección de la RAM haya 510 bytes de código y datos, y luego la firma. Gracias a esta directiva, <b>cuando el ejecutable se cargue en la RAM, se cargará en esa dirección</b>.<br>
+				<br>
+			</li>
+			<li>
+				<samp>times 510-($-$$) db 0</samp>: <samp>$</samp> es sustituido por la dirección actual de la memoria, <samp>$$</samp> es sustituido por el tamaño del programa hasta la dirección actual. Por tanto, aquí estamos haciendo la siguiente resta:<br>
+				<br>
+				<pre class="indent">510 - (dir. actual - tamaño hasta aquí);</pre>
+				<samp>times x "instrucción"</samp> es una directiva de NASM que repite <samp>"instrucción"</samp> <samp>x</samp> veces. Básicamente, estamos escribiendo ceros hasta que el programa ocupe 510 bytes y luego escribimos la firma <samp>AA 55</samp>, que ocupa 2 bytes.
+			</li>
+		</ul>
+		<p>
+			Existen muchos tutoriales para hacer este tipo de bootloader, llamado <b>Bare Bones Bootloader</b>. Un buen ejemplo es <a href="https://www.reinterpretcast.com/creating-a-bare-bones-bootloader">este de Joe Savage</a>.
+		</p>
+		<h2 id="como-ejecuto">Ahora tengo un archivo, ¿cómo lo ejecuto?</h2>
+		<hr>
+		<p>
+			<b>Primero hace falta <i>compilarlo</i></b>, es decir, convertirlo en ejecutable. En este caso, como estamos compilando un sistema operativo, <b>no vamos a crear un ejecutable al uso</b>, sino una <a href="https://es.wikipedia.org/wiki/Imagen_de_disco">imagen de disco iniciable</a>. Por suerte, eso con NASM y algunas utilidades preinstaladas en Linux es bastante fácil.
+		</p>
+		<ol>
+			<li>
+				<samp>nasm -f bin -o boot.obj boot.asm</samp><br>Traduce el archivo a lenguaje máquina (en formato binario puro) y guárdalo en <i>boot.obj</i>.<br>
+				<br>
+			</li>
+			<li>
+				<samp>dd if=/dev/zero of=boot.img bs=512 count=2880</samp><br>
+				Crea la imagen <i>boot.img</i> y llénala con 1440 KB de ceros.<br>
+				<br>
+			</li>
+			<li>
+				<samp>dd if=boot.bin of=boot.img conv=notrunc</samp><br>
+				Copia el contenido de <i>boot.bin</i> a los primeros 512 bytes de la imagen de disco.
+			</li>
+		</ol>
+		<p>
+			Hecho esto, puedes <b>ejecutarlo en un emulador</b>, cosa que te recomiendo, o puedes intentar ejecutar tu bootloader en tu propio ordenador. Esto último es algo más difícil.
+		</p>
+		<h3>Ejecutarlo en un emulador</h3>
+		<ol>
+			<li>Instala el paquete <a href="https://archlinux.org/packages/extra/x86_64/qemu-full/"><samp>qemu-full</samp></a> (o el equivalente en tu distribución).</li>
+			<li>Ejecuta <samp>qemu-system-i386 -fda boot.img</samp> desde la carpeta del programa.</li>
+		</ol>
+		<p>
+			Dentro del emulador, te saldrá el mensaje <i>Booting from floppy...</i>, y luego se quedará el cursor parado. <b>Eso significa que hemos hecho las cosas bien:</b> el sistema inicia y ejecuta nuestro código, que simplemente detiene el procesador. Si no lo detuviéramos, estaría reiniciándose constantemente.
+		</p>
+		<h3>Ejecutarlo en hardware real</h3>
+		<p>
+			<b>Importante:</b> antes de probar a hacer esto, asegurate de que has leído bien <a href="#deshacer-cambios-en-bios">cómo deshacer los cambios en la BIOS</a>.
+		<ol>
+			<li>Coge un USB y <b>asegurate de copiar los datos que quieras conservar</b>.</li>
+			<li>Descarga el programa <a href="https://bztsrc.gitlab.io/usbimager/">USBImager</a>.</li>
+			<li>Escribe los datos de <samp>boot.img</samp> al USB usando USBImager.</li>
+			<li>Abre la BIOS de tu ordenador (pulsa repetidamente <kbd>F1</kbd>, <kbd>F2</kbd> o <kbd>Esc</kbd> justo al iniciar el ordenador).</li>
+			<li>
+				En el menú <i>Arranque</i>, <i>Inicio</i> o <i>Boot</i> habilita las siguientes opciones si están disponibles:
+				<ul class="nopad-bottom">
+					<li>Compatibilidad con Legacy / Modo Legacy</li>
+					<li>Inicio desde USB</li>
+					<li>Iniciar dispositivos Legacy primero</li>
+				</ul>
+			</li>
+			<li>En la lista de dispositivos, lleva tu USB arriba del todo.</li>
+			<li>Cierra guardando los cambios.</li>
+		</ol>
+		<h3 id="deshacer-cambios-en-bios">
+			Cómo deshacer los cambios en la BIOS
+		</h3>
+		<p>
+			Para deshacer los cambios, <b>desconecta el USB y desmarca las siguientes opciones de la BIOS</b> si están disponibles:
+		</p>
+		<ul>
+			<li>Iniciar dispositivos Legacy primero</li>
+		</ul>
+		<p>
+			Después de esto, deberás llevar tu disco duro interno (o el dispositivo que normalmente uses para iniciar tu ordenador) arriba del todo en la lista de dispositivos de inicio. <b>Si no tienes claro cómo realizar alguna de estas cosas, busca bien cómo hacerlas antes de tocar nada en la BIOS.</b>
+		</p>
+		<h2 id="ahora-que">Y ahora, ¿qué?</h2>
+		<hr>
+		<p>
+			Estamos siguiendo un esquema llamado <a href="https://wiki.osdev.org/Bootloader#Two-Stage_Bootloader">Two-Stage Bootloader</a> que empieza con un bootloader llamado <samp>stage1</samp> (el que acabamos de crear). Este bootloader debe saltar a <samp>stage2</samp>, que prepara algunas cosas y salta hacia el <samp>kernel</samp>, considerado el primer programa del sistema operativo como tal.
+		</p>
+		<p>
+			<b>¿Y por qué dividirlo en dos partes?</b> Bueno, puede que te hayas dado cuenta de que todo nuestro código tiene que estar <i>antes de la firma</i>. Si la firma está en el byte 510, eso significa que tenemos muy poco espacio disponible. Más aún si contamos con que parte de ese espacio lo tendremos que ocupar con datos requeridos por el sistema de archivos que usemos.
+		</p>
+		<p>
+			En el siguiente capítulo todavía no vamos a saltar a la parte 2 del bootloader, pero sí que <b>aprenderemos a imprimir texto desde la stage1</b> y formatear el disco con el sistema de archivos FAT12. Estos pasos son esenciales para poder continuar hacia <samp>stage2</samp>.
+		</p>
+		<p id="footer">
+			<a href="00.html"><button>Primera página</button>
+			<a href="03.html"><button>Siguiente capítulo</button></a>
+		</p>
+	</div>
+
+	<!-- Library: highlight.js -->
+	<script src="assets/lib/highlight/highlight.min.js"></script>
+	<script>hljs.highlightAll();</script>
+</body>

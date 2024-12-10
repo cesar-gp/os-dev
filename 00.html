@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+
+<head>
+	<title>Manual de OSDev</title>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" type="text/css" href="assets/global.css">
+	<link rel="stylesheet" href="assets/lib/highlight/styles/github-dark-dimmed.css">
+</head>
+<body class="flex col spaced">
+	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="01.html">
+		<img width="40" height="40" src="assets/icons/chevron-right.svg">
+	</a>
+	<div id="content">
+		<h1>Introducción</h1>
+		<hr>
+		<h2>Tabla de contenidos</h2>
+		<hr>
+		<ol>
+			<li><a href="#preambulo">Preámbulo</a></li>
+			<li><a href="#sistemas-numeracion">Sistemas de numeración</a></li>
+			<li><a href="#conceptos-basicos">Conceptos básicos para crear programas ejecutables</a></li>
+			<li><a href="#resumen">Resumen</a></li>
+		</ol>
+		<h2 id="preambulo">Preámbulo</h2>
+		<hr>
+		<p>
+			¡Hola! Este es mi <b>manual personal de programación de <a href="https://wiki.osdev.org/Introduction#What_is_an_Operating_System?">sistemas operativos</a></b>. Aquí resumo lo que llevo aprendido sobre el tema para que no se me olvide. El proyecto empezó con una libreta en papel, pero el desorden es ya tan grande que he decidido que mejor vamos a pasar las cosas a digital.
+		</p>
+		<p>
+			La interfaz está inspirada en el libro <a href="https://practicaltypography.com/">Butterick's Practical Typography</a>, un libro maravilloso sobre tipografía. <b>Si haces click en el margen a la derecha del todo, irás al siguiente capítulo</b>. Si lo haces a la izquierda, volverás al anterior. Aquí no funciona lo de ir al anterior porque... ya sabes, es la introducción.
+		</p>
+		<p>
+			No me voy a poner aquí a hablar de la <a href="https://es.wikipedia.org/wiki/Historia_de_los_sistemas_operativos">historia de los sistemas operativos</a>, que es <a href="https://www.levenez.com/unix/">extensísima</a>, ni de programación, ni de muchas cosas que sí incluiría un manual. La idea aquí es muy simple: <b>ir al grano</b>. Intentaré explicar las cosas en detalle para que las pueda entender cualquier novato (como yo), pero no vamos a entrar a ramificaciones que tengan poco que aportar a lo que es el código como tal.
+		</p>
+		<p>
+			Bueno, pues dicho y hecho. <b>Vamos con un par de secciones que servirán como prólogo</b>, para cubrir conceptos que se suelen asumir como requerimientos previos a la hora de programar sistemas operativos. Si conoces alguno de los temas tratados, siéntete libre de saltarte la sección. Tú, como en tu casa.
+		</p>
+		<div class="card">
+			<h3 class="nopad-top">Requerimientos mínimos</h3>
+			<p>
+				Para este tutorial, se asume que tienes un ordenador de 32 o 64 bits con una distribución de Linux instalada, y sabes instalar paquetes y abrir terminales en ella. <b>Solo eso</b>.
+			</p>
+			<p>
+				Si quieres meterte a programar sistemas operativos y no sabes instalar Linux, he de admitir que tu caso es bastante raro. Simplemente <i>aprende antes</i>. Si quieres una guía detallada te recomiendo la <a href="https://www.debian.org/releases/stable/amd64/">guía de instalación de Debian</a>. <b>Si eres como yo y no te gusta perderte en detalles, te recomiendo <a href="https://youtu.be/n9q-LVM_X7o">el tutorial de Karla's Project</a></b> para instalar Ubuntu, que dura menos de media hora.
+			</p>
+		</div>
+		<h2 id="sistemas-numeracion">Sistemas de numeración y manejo de memoria</h2>
+		<hr>
+		<p>
+			Casi todas las personas aprendemos a contar usando el <a href="https://es.wikipedia.org/wiki/Sistema_de_numeraci%C3%B3n_decimal">sistema de numeración decimal</a>, o <i>numeración en base 10</i>. <b>Este sistema se caracteriza por tener 10 cifras</b>, en orden: 0, 1, 2, 3, 4, 5, 6, 7, 8 y 9. Al acabarse las cifras, se añade una más, que representa las decenas, así formamos los números 10, 11, 12... 99, luego las centenas y así sucesivamente.
+		</p>
+		<h3>Sistema de numeración binario</h3>
+		<p>
+			Existen más sistemas de numeración. Es probable que alguna vez hayas aprendido a contar en binario o <i>base 2</i>. <b>En este caso, solamente existen 2 cifras</b>: el 0 y el 1. El sistema es el mismo: 0, 1, añadimos decenas, 10, 11, añadimos centenas... Puede ser lioso al principio, pero es muy fácil. Aquí tienes los números del 0 al 10 traducidos a binario.
+		</p>
+		<pre><code>Decimal    Binario
+--         --
+0          0
+1          1
+2          10
+3          11
+4          100
+5          101
+6          110
+7          111
+8          1000
+9          1001
+10         1010</code></pre>
+		<p>
+			Si sigues con esto, acabarás desarrollando ciertos trucos para contar rápido en decimal. Por ejemplo: sabrás que los números de 4 cifras empiezan con el 8, los números de 5 con el 16... En general, <b>los números de <samp>x</samp> cifras empiezan con el número 2 elevado a <samp>x</samp></b>. Esto también aplica al sistema decimal, donde los números de <samp>x</samp> cifras empiezan con <i>10</i> elevado a <samp>x</samp>. Es aplicable a cualquier sistema de numeración.
+		</p>
+		<p>
+			Hay muchos tutoriales en Internet que explican <a href="https://www.wikihow.com/Convert-from-Binary-to-Decimal">cómo convertir números del binario al decimal</a>, <b>es muy recomendable aprender a hacerlo para coger soltura</b> a la hora de escribir usando distintos sistemas de numeración.
+		</p>
+		<h3>Sistema de numeración hexadecimal</h3>
+		<p>
+			Habrás notado que el binario tarda muy poquito en tener números de muchas cifras. Por ejemplo, a partir del 32 los números tienen ya 6 cifras, y eso los hace muy difíciles de memorizar. Por eso, se suelen "resumir" utilizando el <b>sistema de numeración hexadecimal o <i>base 16</i></b>, que tiene las cifras del 0 al 9 y, además, se extiende usando las letras de la <i>A</i> a la <i>F</i>. Aquí tienes algunos números en los 3 sistemas:
+		</p>
+		<pre><code>Decimal    Hexadecimal    Binario
+--         --             --
+0          0              0
+1          1              1
+2          2              10
+3          3              11
+...        ...            ...
+9          9              1001
+10         A              1010
+11         B              1011
+12         C              1100
+13         D              1101
+14         E              1110
+15         F              1111
+16         10             10000
+...        ...            ...
+32         20             100000</code></pre>
+		<p>
+			¿Y por qué resulta esto útil? Ahora lo veremos. Simplemente quédate con que <b>todo lo que un ordenador puede procesar se guarda en binario</b>. Pongamos que declaras en cualquier lenguaje de programación una variable <samp>a</samp> con el valor <samp>15</samp>, del tamaño de 1 byte. Por ejemplo, en C:
+		</p>
+		<pre><code class="language-c">char a = 15;</code></pre>
+		<p>
+			Esto ha guardado en algún punto de la <a href="https://en.wikipedia.org/wiki/Random-access_memory">RAM</a> del ordenador el valor <samp>1111</samp> (en hexadecimal <samp>0xF</samp> y en decimal <samp>15</samp>). Bueno, <b>en realidad lo habrá guardado con ocho cifras</b> (<samp>00001111</samp>). Esto es igual que si en decimal escribimos <samp>000015</samp>, es equivalente a escribir el número sin los ceros a la izquierda.
+		</p>
+		<p>
+			Las memorias guardan en su interior una sucesión de <i>bits</i> (cifras en binario, que pueden ser <samp>0</samp> o <samp>1</samp>). La combinación de 8 bits se llama <i>byte</i> (p. ej: <samp>00000000</samp> o <samp>10101010</samp>). <b>En un byte se pueden almacenar números del <samp>0</samp> al <samp>255</samp></b>, porque son los que caben en 8 cifras en binario.
+		</p>
+		<p>
+			Teniendo en cuenta todo esto, <b>podemos visualizar una memoria como una sucesión de <i>bytes</i></b>, que es como computan los datos la mayoría de ordenadores modernos. Por ejemplo, aquí tenemos una memoria de 4 bytes (32 <i>bits</i>):
+		</p>
+		<p>
+			<table class="memory">
+				<tr>
+					<th>0</th>
+					<th>1</th>
+					<th>2</th>
+					<th>3</th>
+				</tr>
+				<tr>
+					<td class="noborder-left">00001111</td>
+					<td>11110000</td>
+					<td>10101010</td>
+					<td class="noborder-right">10001000</td>
+				</tr>
+			</table>
+		</p>
+		<p>
+			Aquí es donde vemos la utilidad del sistema hexadecimal, que <b>nos permite resumir las 8 cifras binarias que componen un <i>byte</i> en tan solo 2 cifras hexadecimales</b>. Aquí tienes la misma memoria, pero con cada byte escrito en hexadecimal, en vez de binario.
+		</p>
+		<p>
+			<table class="memory">
+				<tr>
+					<th>0</th>
+					<th>1</th>
+					<th>2</th>
+					<th>3</th>
+				</tr>
+				<tr>
+					<td class="noborder-left">0F</td>
+					<td>F0</td>
+					<td>AA</td>
+					<td class="noborder-right">88</td>
+				</tr>
+			</table>
+		</p>
+		<p>
+			Ten en cuenta que <b>las direcciones en la memoria se cuentan desde el <samp>0</samp> y también se suelen escribir en hexadecimal</b>. Para dejar claro que es hexadecimal (y no decimal), los valores escritos en este sistema se suelen prefijar con <samp>0x</samp>. En algunos lenguajes también es válido sufijar los hexadecimales con la letra <samp>h</samp> (p. ej: <samp>0FFF<i>h</i></samp>). Por todo esto, acostúmbrate a ver tablas de memoria más parecidas a esta durante el manual:
+		</p>
+		<p>
+			<table class="memory">
+				<tr>
+					<th>0x0</th>
+					<th>0x1</th>
+					<th>0x2</th>
+					<th>0x3</th>
+				</tr>
+				<tr>
+					<td class="noborder-left">0x0F</td>
+					<td>0xF0</td>
+					<td>0xAA</td>
+					<td class="noborder-right">0x88</td>
+				</tr>
+			</table>
+		</p>
+		<p>
+			La palabra byte se puede acortar en algunos lenguajes a la letra <samp>b</samp>. Además, las combinaciones de 2 bytes, 4 bytes y 8 bytes se suelen llamar <i>word</i> (<samp>w</samp>), <i>double-word</i> (<samp>d</samp>) y <i>quad-word</i> (<samp>q</samp>), respectivamente. También te puedes encontrar nomenclaturas que se refieren a cada tipo de dato por su tamaño en bits, en ese caso serían números de <i>16 bits</i>, <i>32 bits</i> y <i>64 bits</i>, respectivamente.
+		</p>
+		<h2 id="conceptos-basicos">Conceptos básicos para crear programas ejecutables</h2>
+		<hr>
+		<p>
+			Si pretendes seguir esto <i>a fondo</i> y formarte en el asunto, te recomiendo de corazón aprender algo de <a href="https://es.wikipedia.org/wiki/Lenguaje_ensamblador_x86">lenguaje ensamblador</a> (o <i>Assembly</i>), sobre todo de su <i>dialecto</i> para los procesadores de arquitectura x86. <a href="https://github.com/0xAX/asm/blob/master/content/asm_1.md">La serie de tutoriales del usuario 0xAX en GitHub</a> es perfecta si quieres aprender desde cero.
+		</p>
+		<p>
+			Aquí <b>vamos a tratar brevemente conceptos esenciales de para generar ejecutables a partir de código Assembly</b>, entendiendo por <i>esenciales</i> aquellos sin los que no podrías abarcar ni siquiera los capítulos 1 y 2 del manual. A partir de cierto punto, empezaremos con C, y entonces habrá una iniciación a conceptos esenciales de C... en fin, ya veré qué hacemos cuando llegue a ese punto.
+		</p>
+		<p>
+			Durante todo este manual vamos a escribir <i>Assembly x86 con la sintaxis de <a href="https://www.nasm.us/">NASM</a></i>, que es el programa que vamos a usar para generar ejecutables a partir de nuestro código. Puedes descargarlo como paquete en cualquier distribución de Linux. Por ejemplo, en Arch Linux es el paquete <a href="https://archlinux.org/packages/extra/x86_64/nasm/"><samp>nasm</samp></a>.
+		<h3>Secciones de un ejecutable</h3>
+		<p>
+			El código que se escribe en <i>assembly</i> (o en cualquier <a href="https://es.wikipedia.org/wiki/Lenguaje_de_programaci%C3%B3n_compilado">lenguaje compilado</a>) se traduce después a código máquina y se escribe en un archivo que, normalmente, tiene un formato <i>ejecutable</i>. Alguna vez te habrás encontrado con un <samp>.exe</samp> en Windows... pues nosotros vamos a producir, por ahora, estructuras ejecutables un poquito más simples que esa.
+		</p>
+		<p>
+			Cuando tú escribes Assembly estando dentro de un sistema operativo como Linux, <b>las secciones del ejecutable que vas a producir están ya más o menos predefinidas</b>. Por eso, el código te va a quedar casi siempre con una estructura como esta:
+		</p>
+		<pre><code>global _start ; Se empezará a ejecutar por el símbolo "_start".
+
+section .data
+    ; Aquí se definen las variables que vamos a usar.
+
+section .text
+
+_start:
+    ; Código del programa.
+
+    ; Estas instrucciones sirven para cerrar el programa
+    ; en Linux con el código de salida "5".
+    mov eax, 1
+    mov ebx, 5
+    int 0x80</code></pre>
+		<p>
+			Programando en un entorno <i>freestanding</i> (es decir, sin sistemas operativos ni bibliotecas de las que tirar), <b>declarar estas secciones va a ser un poquito más complicado</b>, pero no te preocupes, veremos cómo se hace cuando tengamos que hacerlo.
+		</p>
+		<h3>Compilar el ejecutable</h3>
+		<p>
+			<b>Compilar es el proceso de traducir nuestro código a <a href="https://es.wikipedia.org/wiki/Lenguaje_de_m%C3%A1quina">lenguaje máquina</a> y copiar la traducción a un archivo binario</b>. Aquí es donde usamos <samp>nasm</samp> por fin. Básicamente, tienes que abrir un terminal en la carpeta donde tengas el archivo con el código y ejecutar el siguiente comando:
+		</p>
+		<pre><code>nasm -f elf -o [nombre del ejecutable final] [nombre del archivo con el código]</code></pre>
+		<p>
+			Esto <b>genera un archivo binario de <a href="https://wiki.osdev.org/ELF">formato ELF</a> con el código de tu programa traducido</b>. Es importante señalar que los corchetes (<samp>[]</samp>) solo encuadran lo que tienes que escribir, y no se deben poner en el comando final. Por ejemplo, si he escrito el código en <samp>archivo.asm</samp> y quiero generar el ejecutable <samp>binario.obj</samp>, lo haría así:
+		</p>
+		<pre><code>nasm -f elf -o binario.obj archivo.asm</code></pre>
+		<p>
+			Cuando lo generes, notarás que si le das doble click no pasa nada. Es normal. El archivo que has generado es un <a href="https://es.wikipedia.org/wiki/Archivo_binario">archivo de código binario</a> (u <i>objeto binario</i>), y es ejecutable, <b>lo que pasa es que tu sistema espera otro tipo de ejecutables</b>, y además nada de lo que hace el código produce una <i>respuesta gráfica</i>. Para solucionarlo, debemos <i>enlazar</i> nuestros archivos binarios (aunque en este caso sea solo uno).
+		</p>
+		<h3>Enlazar los binarios para crear un ejecutable real</h3>
+		<p>
+			<b>Enlazar es el proceso de combinar todos los archivos binarios que hayas creado en un solo ejecutable</b>. Los compiladores modernos suelen incluir también un enlazador, y normalmente enlazan los archivos binarios automáticamente sin que tú tengas que poner nada más, pero <a href="https://forum.nasm.us/index.php?topic=2085.0">NASM no es así</a>.
+		</p>
+		<p>
+			Para enlazar el archivo <b>vamos a descargar <a href="https://www.gnu.org/software/binutils/"><samp>binutils</samp>, de GNU</a></b>, que incluye el enlazador <samp>ld</samp>, además de otros programas interesantes. Suele estar incluido por defecto en cualquier distribución de GNU/Linux.
+		</p>
+		<p>
+			Asumiendo que tenemos el archivo <samp>binario.obj</samp> y queremos generar el ejecutable <samp>ejecutable</samp> (sin extensión), lo haríamos así:
+		</p>
+		<pre><code class="language-bash">ld -m elf_i386 -o ejecutable binario.obj</code></pre>
+		<p>
+			<b>Esto genera un ejecutable en formato ELF, de 32 bits, llamado <samp>ejecutable</samp></b>, a partir del código que se encuentra en <samp>binario.obj</samp>. Si le das doble click, es probable que ejecute las instrucciones que le hemos puesto, que sirven solamente para cerrar el programa con el código de salida <samp>5</samp>.
+		</p>
+		<p>
+			Puedes comprobar que el programa va correctamente abriendo un terminal en la carpeta, ejecutándolo y luego comprobando el código de salida:
+		</p>
+		<pre><code>./ejecutable    # Ejecuta el programa
+echo $?         # Imprime el código de salida (que debería ser 5)</code></pre>
+		<h2 id="resumen">Resumen</h2>
+		<hr>
+		<p>
+			De aquí, podemos quedarnos con que <b>la memoria de un PC es una sucesión de bytes</b>, que almacenan números en binario de 8 cifras, aunque normalmente se representan en hexadecimal. Los bytes son consecutivos y pueden almacenar números del <samp>0</samp> al <samp>255</samp>, que son todos los que caben en un número binario de 8 cifras.
+		</p>
+		<p>
+			También hemos aprendido que <b>un programa es un archivo que incluye una serie de instrucciones</b>. Normalmente las escribimos en Assembly, o en cualquier otro lenguaje, y se deben <b>compilar</b> (es decir, traducirlas a lenguaje máquina) y <b>enlazar</b> (es decir, unir todos nuestros archivos de código en un solo ejecutable).
+		</p>
+		<p>
+			<div class="flex row bigspaced nostretch hcentered vcentered">
+				<div class="flex col nostretch smallspaced">
+					<div class="square file asm">
+						<span class="filename">modulo1.asm</span>
+						<p class="body auto"></p>
+					</div>
+					<div class="square file asm">
+						<span class="filename">modulo2.asm</span>
+						<p class="body auto"></p>
+					</div>
+					<div class="square file asm">
+						<span class="filename">modulo3.asm</span>
+						<p class="body auto"></p>
+					</div>
+				</div>
+				<img src="assets/icons/arrow-right.svg">
+				<samp>nasm</samp>
+				<div>
+					<img src="assets/icons/arrow-right.svg">
+				</div>
+				<div class="flex col nostretch smallspaced">
+					<div class="square file bin">
+						<span class="filename">modulo1.obj</span>
+						<p class="body auto"></p>
+					</div>
+					<div class="square file bin">
+						<span class="filename">modulo2.obj</span>
+						<p class="body auto"></p>
+					</div>
+					<div class="square file bin">
+						<span class="filename">modulo3.obj</span>
+						<p class="body auto"></p>
+					</div>
+				</div>
+				<img src="assets/icons/arrow-right.svg">
+				<samp>ld</samp>
+				<img src="assets/icons/arrow-right.svg">
+				<div class="square file elf">
+					<span class="filename">ejecutable</span>
+					<p class="body auto"></p>
+				</div>
+			</div>
+		</p>
+		<p>
+			Existen varios formatos de ejecutable, aunque en eso no vamos a entrar en detalle. Si te interesa el tema, hay mucha información en <a href="https://wiki.osdev.org/Executable_Formats">la sección de la OSDev Wiki sobre formatos ejecutables</a>.
+		</p>
+		<p>
+			A continuación, <b>veremos cómo escribir algunas instrucciones en Assembly</b>, y a partir de ahí empezaremos a hacer el primer ejecutable relacionado con nuestro sistema operativo: el <i>bootloader</i>.
+		</p>
+		<p id="footer">
+			<a href="01.html"><button>Siguiente capítulo</button></a>
+		</p>
+	</div>
+
+	<!-- Library: highlight.js -->
+	<script src="assets/lib/highlight/highlight.min.js"></script>
+	<script>hljs.highlightAll();</script>
+</body>

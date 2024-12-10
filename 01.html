@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+
+<head>
+	<title>Manual de OSDev</title>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" type="text/css" href="assets/global.css">
+	<link rel="stylesheet" href="assets/lib/highlight/styles/github-dark-dimmed.css">
+</head>
+<body class="flex col spaced">
+	<a id="navigator" class="flex col hcentered vcentered fixed hleft" href="00.html">
+		<img width="40" height="40" src="assets/icons/chevron-left.svg">
+	</a>
+	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="02.html">
+		<img width="40" height="40" src="assets/icons/chevron-right.svg">
+	</a>
+	<div id="content">
+		<h1>Capítulo 1: Escribir en Assembly</h1>
+		<hr>
+		<p>
+			Assembly es muy difícil cuando no conoces <a href="00.html#sistemas-numeracion">qué es un <i>byte</i></a>, una <i>word</i> y todos esos conceptos básicos que he explicado en la introducción. También es importante saber que ningún compilador te va a dar todo hecho, por eso también hemos hablado de <a href="00.html#conceptos-basicos">cómo generar ejecutables</a>. Cuando los conoces, es un lenguaje que, con sus problemas, <b>resulta bastante simple</b>.
+		</p>
+		<p>
+			Si nunca en la vida has visto código assembly, <b>dedica el tiempo que necesites a entender cada parte de este capítulo</b>. Es probable que, si no lo haces, te cueste mucho continuar. Si ya controlas el lenguaje, siéntete libre de saltarte este capítulo.
+		</p>
+		<h2>Tabla de contenidos</h2>
+		<hr>
+		<ol>
+			<li><a href="#registros">Los registros: qué son y cómo usar algunos de ellos</a></li>
+			<li><a href="#directivas">Sintaxis de assembly: las directivas</a></li>
+			<li><a href="#instrucciones">Las instrucciones: movimientos y operaciones</a></li>
+			<li><a href="#saltos-condiciones">Más instrucciones: saltos y condiciones</a></li>
+			<li><a href="#seccion-data">Símbolos y pointers: cómo usar la sección <samp>.data</samp></a></li>
+			<li><a href="#stack">El stack: la memoria más allá de los pointers</a></li>
+			<li><a href="#resumen">Resumen</a></li>
+		</ol>
+		<h2 id="registros">Los registros: qué son y cómo usar algunos de ellos</h2>
+		<hr>
+		<p>
+			En la introducción hemos tratado la memoria RAM, que almacena una sucesión de bytes. Actualmente se venden RAMs de 4 e incluso 32 GB. Nosotros, en un principio, vamos a comunicarnos con memorias mucho más pequeñas, pero infinitamente más rápidas, que están integradas en el mismo procesador. <b>Esas memorias se llaman <a href="https://es.wikipedia.org/wiki/Registro_(hardware)"><i>registros</i></a></b>.
+		</p>
+		<p>
+			<div class="flex row bigspaced nostretch">
+				<table style="flex: 3;" class="stylized">
+					<thead>
+					    <tr>
+					        <th scope="col">Name</th>
+					        <th scope="col">Reg.</th>
+					        <th scope="col">Preserved</th>
+					        <th scope="col">Usage</th>
+					    </tr>
+					</thead>
+					<tbody>
+					    <tr class="even">
+					        <td>Accumulator</td>
+					        <td class="monospace">ax</td>
+					        <td></td>
+					        <td>Valor de <i>return</i></td>
+					    </tr>
+					    <tr class="odd">
+					        <td>Base</td>
+					        <td class="monospace">bx</td>
+					        <td class="centered-cell">✓</td>
+					        <td></td>
+					    </tr>
+					    <tr class="even">
+					        <td>Counter</td>
+					        <td class="monospace">cx</td>
+					        <td></td>
+					        <td>arg4</td>
+					    </tr>
+					    <tr class="odd">
+					        <td>Data</td>
+					        <td class="monospace">dx</td>
+					        <td></td>
+					        <td>arg3</td>
+					    </tr>
+					    <tr class="even">
+					        <td>Source</td>
+					        <td class="monospace">si</td>
+					        <td></td>
+					        <td>arg2</td>
+					    </tr>
+					    <tr class="odd">
+					        <td>Destination</td>
+					        <td class="monospace">di</td>
+					        <td></td>
+					        <td>arg1</td>
+					    </tr>
+					    <tr class="even">
+					        <td>Base Pointer</td>
+					        <td class="monospace">bp</td>
+					        <td class="centered-cell">✓</td>
+					        <td>Base del stack (opcional)</td>
+					    </tr>
+					    <tr class="odd">
+					        <td>Stack Pointer</td>
+					        <td class="monospace">sp</td>
+					        <td class="centered-cell">✓</td>
+					        <td>Tope del stack*</td>
+					    </tr>
+					    <tr class="even">
+					        <td>Instruction Pointer</td>
+					        <td class="monospace">ip</td>
+					        <td></td>
+					        <td></td>
+					    </tr>
+					    <tr class="odd">
+					    	<td colspan="100%">
+					    		<b>Fuente de la tabla:</b> <a href="https://ggbaker.ca/295/x86.html">x86-64 Cheat Sheet en Greg's Web</a>.<br>
+					    		*El registro <samp>sp</samp> debe estar alineado a 16 bits.
+					    	</td>
+					    </tr>
+					</tbody>
+				</table>
+				<div style="flex: 2;" class="flex col">
+					<p class="nopad-top">
+						<b>Esta tabla define algunos de los registros de 16 bits</b> (como explicaremos, hay más registros, y no solo los hay de 16 bits).
+					</p>
+					<p>
+						El tick de la columna <i>preserved</i> indica que al llamar una función, está garantizado que el valor guardado en el registro no cambiará.
+					</p>
+					<p>
+						Al llamar a una función en Linux, normalmente utilizaremos como <a href="https://es.wikipedia.org/wiki/Argumento_(inform%C3%A1tica)">argumentos</a> los registros <samp>di</samp>, <samp>si</samp>, <samp>dx</samp>, <samp>cx</samp>. Esta es una <a href="https://es.wikipedia.org/wiki/Convenci%C3%B3n_de_llamada_a_funci%C3%B3n">convención de llamada</a> propia de Linux. Nos interesa bastante poco, debido a que <b>nosotros no vamos a tener un sistema operativo como base</b>.
+					</p>
+					<p>
+						Los registros <samp>bp</samp> y <samp>sp</samp> representan la base y el tope del stack. Si no sabes qué es el stack, es muy recomendable que leas <a href="01.html#stack">la sección sobre el stack del capítulo 1</a>.
+					</p>
+				</div>
+			</div>
+		</p>
+		<p>
+			<b>Todos los registros tienen un espacio máximo de 64 bits</b> (o 32, si tu procesador es de 32 bits), puedes acceder a su byte más <i>pequeño</i> sufijándolo con una <samp>l</samp>, a su penúltimo byte sufijándolo con una <samp>h</samp>, a su versión de 16 bits con el nombre de la tabla. Se accede a la versión <i>extendida</i> (de 32 bits) prefijándolo con una <samp>e</samp>, y a la de 64 bits (si existe) prefijándolo con una <samp>r</samp>... Tranqui, con la siguiente tabla lo vas a entender mejor.
+		</p>
+		<p>
+			Por ejemplo, pongamos que los bytes de esta tabla son el contenido del registro <i>Accumulator</i> (puesto en la tabla como <samp>ax</samp>). Depende del nombre que escribamos para acceder a él, tendremos un número de bytes u otro:
+		</p>
+		<p>
+			<table class="memory">
+				<tr>
+					<th>0x0</th>
+					<th>0x1</th>
+					<th>0x2</th>
+					<th>0x3</th>
+					<th>0x4</th>
+					<th>0x5</th>
+					<th>0x6</th>
+					<th>0x7</th>
+				</tr>
+				<tr>
+					<td>10000000</td>
+					<td>01000000</td>
+					<td>00100000</td>
+					<td>00010000</td>
+					<td>00001000</td>
+					<td>00000100</td>
+					<td>00000010</td>
+					<td>00000001</td>
+				</tr>
+			</table>
+		</p>
+		<div class="flex col nospaced">
+			<div class="w8 hright">
+				<hr style="background-color: #B71C1C;" class="line">
+				<p class="nopad-top"><samp class="nobg"><b style="color: #B71C1C;">al</b> = <b style="color: #B71C1C;">1</b></samp></p>
+			</div>
+			<div class="w4 hright">
+				<hr style="background-color: #283593;" width="50%" class="line">
+				<p width="50%" class="nopad-top"><samp class="nobg"><b style="color: #283593;">ah</b> = <span class="smalltext">10</span> = <b style="color: #283593;">2</b></samp></p>
+			</div>
+			<div class="w4 hright">
+				<hr style="background-color: #1B5E20;" class="line">
+				<p class="nopad-top"><samp class="nobg"><b style="color: #1B5E20;">ax</b> = <span class="smalltext">10 00000001</span> = <b style="color: #1B5E20;">513</b></samp></p>
+			</div>
+			<div class="w2 hright">
+				<hr style="background-color: #E65100;" class="line">
+				<p class="nopad-top"><samp class="nobg"><b style="color: #E65100;">eax</b> = <span class="smalltext">1000  00000100 00000010 00000001</span> = <b style="color: #E65100;">134.480.385</b></samp></p>
+			</div>
+			<div>
+				<hr style="background-color: #01579B;" class="line">
+				<p class="nopad-top"><samp class="nobg"><b style="color: #01579B;">rax</b> = <span class="smalltext">10000000 01000000 00100000 00010000  00001000 00000100 00000010 00000001</span> = <b style="color: #01579B;">9.241.421.688.590.303.745</b></samp></p>
+			</div>
+		</div>
+		<h2 id="directivas">Sintaxis de assembly: las directivas</h2>
+		<hr>
+		<p>
+			En assembly puedes definir 3 cosas distintas: <a href="https://es.wikipedia.org/wiki/Lenguaje_ensamblador#Elementos_b%C3%A1sicos"><b>directivas, instrucciones y símbolos</b></a>. Las <i>directivas</i> son anotaciones que van dirigidas al compilador (en nuestro caso, a NASM) para que las tenga en cuenta a la hora de producir lenguaje máquina.
+		</p>
+		<p>
+			La primera linea del código que hemos creado en la introducción era una directiva:
+		</p>
+		<pre><code class="language-x86asm">global _start</code></pre>
+		<p>
+			Esto no se va a traducir a nada en lenguaje máquina. <b>No habrá rastro de esta linea en el ejecutable final</b>. Se utiliza solamente para que el compilador pueda ver el símbolo <samp>_start</samp> que hemos definido más abajo. Es importante que este símbolo sea visible porque en NASM, <b>si hay un símbolo que se llame <i>_start</i>, por ahí es por donde se empieza a ejecutar el código</b>... aunque ya veremos que esto no se aplica en un entorno <i>freestanding</i>.
+		</p>
+		<p>
+			También hemos usado la directiva <samp>section</samp>, que le cuenta al ejecutable dónde vamos a guardar nuestras variables y dónde vamos a guardar nuestro código:
+		</p>
+		<pre><code class="language-x86asm">section .data
+    ; Aquí van las variables
+
+section .text
+    ; Aquí el código
+		</code></pre>
+		<p>
+			Ojo, porque <b>también hemos escrito símbolos</b>, que son señales en medio del código que avisan al compilador de que anote una dirección en la memoria. Las usamos para dividir partes de nuestro código y darle nombre a las variables. Por ejemplo, pongamos que el programa empieza a cargarse en la dirección <samp>0x1500</samp> de la RAM. Cada vez que pone <samp>+1 byte</samp>, o <samp>+2</samp>, estamos anotando lo que pesa la instrucción anterior en el ejecutable final:
+		</p>
+		<pre><code class="language-x86asm">section .data
+
+variable1:          ; variable1 = 0x1500
+    db 6
+    ; +1 byte
+
+variable2:          ; variable2 = 0x1501
+    db 18
+    ; +1 byte
+
+
+section .text
+
+_entry:             ; _entry = 0x1502
+    jmp parte_dos
+    ; +2 bytes
+
+parte_dos:          ; parte_dos = 0x1504
+    ...</code class="language-x86asm"></pre>
+		<p>
+			Ten en cuenta que <b>ni las directivas ni los símbolos se escriben en el ejecutable final</b>. Lo que sí se va a escribir son nuestras variables (que hemos definido con la directiva <samp>db</samp> o <i>define byte</i>) y las instrucciones, como <samp>jmp</samp>. Por eso, los símbolos que hemos definido en este código, que son <samp>variable1</samp>, <samp>variable2</samp>, <samp>_entry</samp> y <samp>parte_dos</samp>, tienen los valores <samp>0x1500</samp>, <samp>0x1501</samp>, <samp>0x1502</samp> y <samp>0x1504</samp>, respectivamente.
+		</p>
+		<p>
+			La siguiente tabla muestra cómo se traduce un código assembly a un archivo binario básico. El código mostrado define una variable de 2 bytes con el valor 500 (<samp>dw 500</samp>) y salta a una sección llamada <samp>exit</samp>. <b>En el ejecutable final, no se reflejan ni las directivas ni los símbolos</b>:
+		</p>
+		<p>
+			<div class="flex row bigspaced nostretch hcentered vcentered">
+				<div class="square file asm">
+					<span class="filename">ejemplo.asm</span>
+					<pre><code class="language-x86asm">global _start
+
+section .data
+var:
+    dw 500
+
+section .text
+_start:
+    jmp exit
+
+exit:
+    ...</code></pre>
+				</div>
+				<img src="assets/icons/arrow-right.svg">
+				<div class="block">
+					<table class="memory">
+						<tr>
+							<th>var</th>
+							<th>+1</th>
+							<th>_start</th>
+							<th>+1</th>
+						</tr>
+						<tr>
+							<td colspan="2">500</td>
+							<td colspan="2">jmp exit</td>
+						</tr>
+						<tr>
+							<th>exit</th>
+							<th>+1</th>
+							<th>+2</th>
+							<th>+3</th>
+						</tr>
+						<tr>
+							<td colspan="4">...</td>
+						</tr>
+					</table>
+					<p>
+						*Al poner <samp>...</samp> simplemente indicamos que hay más código a continuación.
+					</p>
+				</div>
+			</div>
+		</p>
+		<p>
+			Puedes ver que las directivas <samp>global</samp> y <samp>section</samp> no se escriben en el código binario. Tampoco se escriben los símbolos <samp>_start</samp> y <samp>exit</samp>, simplemente nos sirven a nosotros y al compilador para guiarnos. El caso de la directiva <samp>dw</samp> es curioso: su función es escribir un valor directamente en el ejecutable, por lo que la directiva en sí no se traslada, pero <b>el valor que le hemos proporcionado como argumento sí</b>. También puedes ver que la instrucción <samp>jmp "dirección"</samp> ocupa exactamente 2 bytes.
+		</p>
+		<p>
+			Como curiosidad: <b>los símbolos proporcionados como argumentos a las instrucciones, cuando pasan al ejecutable, pierden el nombre</b>, y se convierten sencillamente en la dirección a la que apuntan. Por ejemplo: la instrucción <samp>jmp parte_dos</samp> acabará convertida en <samp>jmp 0x1504</samp>. Esto no está puesto así en la ilustración sería algo más difícil entenderla.
+		</p>
+		<h2 id="instrucciones">Las instrucciones: movimientos y operaciones</h2>
+		<hr>
+		<p>
+			Vamos a recuperar el programa que escribimos en la introducción. Su código era este:
+		</p>
+		<pre><code>global _start         ; Símbolo para el enlazador
+
+section .data         ; SECCIÓN DE DATOS 🠓
+
+section .text         ; SECCIÓN DE CÓDIGO 🠓
+
+_start:               ; Entrada al programa:
+    mov eax, 1        ;     eax = 1 (función de cierre)
+    mov ebx, 5        ;     ebx = 5 (código de salida)
+    int 0x80          ;     Llamada a Linux</code></pre>
+		<p>
+			Este programa <b>usa algunas instrucciones que ahora ya podemos explicar</b> con cierta soltura:
+		</p>
+		<ul>
+			<li><samp>mov &#60destino&#62, &#60fuente&#62</samp>: copia el valor de <i>&#60fuente&#62</i> hacia <i>&#60destino&#62</i>. En este caso, estamos moviendo valores literales (como <samp>1</samp>) a un registro (como <samp>eax</samp>).</li>
+			<li><samp>int &#60número&#62</samp>: interrumpe el procesador para llamar a la función nº <i>&#60número&#62</i> de la <a href="https://wiki.osdev.org/Interrupt_Vector_Table">IVT</a>. Ya aprenderemos más sobre esto.</li>
+		</ul>
+		<p>
+			Para aprender nuevas instrucciones, vamos a centrarnos en el código bajo el símbolo <samp>_start</samp>. Por ejemplo, así es como podemos conseguir que el ejecutable cierre con el código de salida <samp>10</samp> <b>usando las instrucciones <samp>add</samp>, <samp>inc</samp> y <samp>sub</samp></b>:
+		</p>
+		<pre><code>mov eax, 1      ; eax = 1 (función de cierre)
+
+mov ebx, 5      ; ebx = 5 (código de salida)
+add ebx, 9      ; ebx = ebx + 9 = 14
+inc ebx         ; ebx = ebx + 1 = 15
+sub ebx, 5      ; ebx = ebx - 5 = 10
+
+int 0x80        ; Llamada a Linux</code></pre>
+		<p>
+			Si lo compilas, enlazas y ejecutas e introduces el comando <samp>echo $?</samp> en el terminal (tal y como hicimos en la <a href="file:///run/media/cesitah/Crucial_X6/Programaci%C3%B3n/OS_DEV/MANUAL/00.html#conceptos-basicos">introducción</a>) verás que el código de salida ahora es <samp>10</samp>. <b>Aquí viene un ejemplo con las instrucciones <samp>mul</samp> y <samp>div</samp></b>:
+		</p>
+		<pre><code>mov ebx, 5      ; ebx = 5 (código de salida)
+mov eax, 6
+mul ebx         ; eax = eax * ebx = 6 * 5 = 30
+
+mov ebx, 2
+div ebx         ; eax = eax / ebx = 30 / 2 = 15
+
+mov ebx, eax    ; ebx = eax = 15
+
+mov eax, 1      ; eax = 1 (función de cierre)
+int 0x80        ; Llamada a Linux</code></pre>
+		<p>
+			Estas son más difíciles, ¿eh? Mira, tanto <samp>mul</samp> como <samp>div</samp> hacen su operación <b>usando lo que haya en <samp>ax</samp> y el registro que les proporciones</b>, y guardan el resultado en <samp>ax</samp>, es decir:
+		</p>
+		<pre><code>mul bx          ; ax = ax * bx
+div bx          ; ax = ax / bx</code></pre>
+		<p>
+			Por si eso fuera poco, la instrucción <samp>div</samp> realiza la división, guarda en <samp>ax</samp> el resultado <b>y además guarda en <samp>dx</samp> el resto</b>.
+		</p>
+		<pre><code>div bx          ; ax = ax / bx
+                ; dx = <a href="https://es.wikipedia.org/wiki/Operaci%C3%B3n_m%C3%B3dulo">ax % bx</a></code></pre>
+		<h2 id="saltos-condiciones">Más instrucciones: saltos y condiciones</h2>
+		<hr>
+		<p>
+			Hasta ahora, todo nuestro código lo hemos escrito bajo un mismo símbolo: <samp>_start</samp>. Eso limita mucho nuestras capacidades. Antes de pasar de las instrucciones a otros conceptos, <b>vamos a aprender rápidamente a movernos entre símbolos</b>:
+		</p>
+		<pre><code class="language-x86asm">_entry:
+    mov eax, 1
+    jmp next
+
+next:
+    mov eax, 2
+    jmp _entry</code></pre>
+    	<p>
+    		La instrucción <samp>jmp</samp> se usa para saltar hacia un símbolo dentro (o fuera) de nuestro ejecutable. En este ejemplo, el registro <samp>eax</samp> recogerá el valor <samp>1</samp> y saltaremos al símbolo <samp>next</samp>, donde el registro recogerá el valor <samp>2</samp> y volverá a empezar. Estará cambiando constantemente de valor, y <b>la ejecución no terminará nunca si no forzamos el cierre del programa</b>.
+    	</p>
+    	<p>También podemos realizar <b>saltos condicionales</b>, como, por ejemplo, este:</p>
+    	<pre><code class="language-x86asm">_entry:
+	mov eax, 2
+	mov ebx, 2
+
+	cmp eax, ebx
+	je equal
+
+	jmp other
+
+equal:
+    sub ebx, 1
+
+other:
+    ...</code></pre>
+		<p>
+			Este código carga el valor 2 a los registros <samp>eax</samp> y <samp>ebx</samp>. Los compara con la instrucción <samp>cmp</samp> y después, si son iguales, salta al símbolo <samp>equal</samp>. Si no son iguales, seguirá ejecutando lo siguiente, que es un salto hacia el símbolo <samp>other</samp>. Esto lo hace porque si siguiera directo para adelante, ejecutaría el código que hay bajo <samp>equal</samp> de todas formas.
+		</p>
+		<p>
+			Es posible que sientas que tienes un conocimiento muy limitado aún, pero ya sabiendo esto empiezas a poder escribir cosas muy interesantes en este lenguaje. <b>Irás aprendiendo más saltos condicionales según avancemos</b>.
+		</p>
+		<h2 id="seccion-data">Símbolos y pointers: cómo usar la sección <samp>.data</samp></h2>
+		<hr>
+		<p>
+			Todos los datos y el código de nuestro programa estarán en algún momento cargados en alguna dirección de la RAM. Por ejemplo, <b>así es como se ve el código del ejecutable que creamos en la introducción</b> si lo abrimos en <a href="https://sourceware.org/gdb/">GDB</a> (el programa de detección de errores de GNU):
+		</p>
+		<p>
+			<img class="block hcenter" src="assets/01/gdb.png">
+		</p>
+		<p>
+			<b>El símbolo <samp>_start</samp> del programa es equivalente a la dirección <samp>0x08049000</samp></b>, y las 3 instrucciones ocupan unos 12 bytes. Visto en un mapa sería algo así:
+		</p>
+		<p>
+			<table class="memory">
+				<tr>
+					<th>_start</th>
+					<th>+1</th>
+					<th>+2</th>
+					<th>+3</th>
+					<th>+4</th>
+					<th>+5</th>
+					<th>+6</th>
+					<th>+7</th>
+					<th>+8</th>
+					<th>+9</th>
+					<th>+10</th>
+					<th>+11</th>
+				</tr>
+				<tr>
+					<td colspan="5">mov eax, 1</td>
+					<td colspan="5">mov ebx, 5</td>
+					<td colspan="2">int 0x80</td>
+				</tr>
+			</table>
+		</p>
+		<p>
+			Por fin <b>vamos a usar la sección de datos</b>. Vamos a ver qué cambia en el mapa de memoria si defino un byte con el nombre <samp>number</samp> y el valor <samp>4</samp>. Lo voy a hacer usando la instrucción <samp>db</samp>. <i style="opacity: 0.8;">Si quieres escribir una word, double-word o quad-word, puedes usar <samp>dw</samp>, <samp>dd</samp> o <samp>dq</samp>, respectivamente</i>.
+		</p>
+		<p>
+			<div class="flex row nostretch bigspaced">
+				<pre style="flex: 1;"><code>
+global _start         ; Símbolo para el enlazador
+
+section .data         ; SECCIÓN DE DATOS
+
+number:               ; Símbolo "number":<span style="color: blue">
+    db 4              ;     1 byte con el valor 4.</span>
+
+section .text         ; SECCIÓN DE CÓDIGO
+
+_start:               ; Entrada al programa:<span style="color: blue">
+    mov eax, 1        ;     eax = 1 (función de cierre)
+    mov ebx, 5        ;     ebx = 5 (código de salida)
+    int 0x80          ;     Llamada a Linux</span>
+				</code></pre>
+				<table style="flex: 1;" class="memory">
+					<tr>
+						<th>number</th>
+						<th>_start</th>
+						<th>+1</th>
+					</tr>
+					<tr>
+						<td>4</td>
+						<td colspan="2">mov eax, 1...</td>
+					</tr>
+					<tr>
+						<th>+2</th>
+						<th>+3</th>
+						<th>+4</th>
+					</tr>
+					<tr>
+						<td colspan="3">...mov eax, 1</td>
+					</tr>
+					<tr>
+						<th>+5</th>
+						<th>+6</th>
+						<th>+7</th>
+					</tr>
+					<tr>
+						<td colspan="3">mov ebx, 5...</td>
+					</tr>
+					<tr>
+						<th>+8</th>
+						<th>+9</th>
+						<th>+10</th>
+					</tr>
+					<tr>
+						<td colspan="2">...mov ebx, 5</td>
+						<td>int...</td>
+					</tr>
+					<tr>
+						<th>+11</th>
+					</tr>
+					<tr>
+						<td>...0x80</td>
+					</tr>
+				</table>
+			</div>
+		</p>
+		<p>
+			El mapa es casi igual, pero <b>hemos añadido un byte al principio</b>, y ahora podemos usar ese valor en el programa para devolver el código de salida <samp>4</samp>. Si lo intentas, a lo mejor sientes la tentación de sustituir la instrucción <samp>mov ebx, 5</samp> por esta linea:
+		</p>
+		<pre><code>; Código con errores
+mov ebx, number</code></pre>
+		<p>
+			El programa cerrará con el código de salida <samp>0</samp>, pero ese no es el número que tenemos guardado en <samp>number</samp>... Para arrojar más luz sobre este misterio, vamos a desensamblar nuestro código otra vez con GDB y ver qué hemos escrito exactamente.
+		</p>
+		<p>
+			<img class="block hcenter" src="assets/01/gdb2.png">
+		</p>
+		<p>
+			Se ve perfectamente en la línea 2. Hemos mandado a <samp>ebx</samp> el número <samp>0x804a000</samp>, en vez de el 4 que está guardado en number. <b>Ese número tan raro es, simplemente, la dirección en la que está guardado nuestro número, no el número en sí</b>. Hazte a la idea de que al escribir <samp>number</samp> estamos escribiendo una dirección en la memoria, si queremos <i>el valor que hay guardado en esa dirección</i>, <b>lo escribiremos entre corchetes</b>: <samp>[number]</samp>.
+		</p>
+		<p>
+			Vamos a poner la instrucción correcta:
+		</p>
+		<pre><code>mov ebx, [number]</code></pre>
+		<p>
+			Y al compilarlo, enlazarlo, ejecutarlo y comprobar el código de salida... ¡voila!
+		</p>
+		<p>
+			<img class="block hcenter" src="assets/01/term.png">
+		</p>
+		<p>
+			Hemos conseguido apuntar a la variable, y no mandar simplemente su dirección. Por ese motivo, <b>el código de salida ahora es el que queríamos: <samp>4</samp></b>. <i style="opacity: 0.8">Como apunte final: la razón por la que el código de salida antes era <samp>0</samp> y no <samp>0x804a000</samp> es porque Linux no acepta códigos de salida mayores a <samp>255</samp>. Si detecta uno, devuelve directamente el valor <samp>0</samp></i>.
+		</p>
+		<h2 id="stack">El stack: la memoria más allá de los registros</h2>
+		<hr>
+		<p>
+			<div class="flex row bigspaced nostretch">
+				<table class="memory vertical" style="flex: 1;">
+					<tr>
+						<th>esp</th>
+						<td>'a'</td>
+					</tr>
+					<tr>
+						<th>esp + 4</th>
+						<td>'l'</td>
+					</tr>
+					<tr>
+						<th>esp + 8</th>
+						<td>'o'</td>
+					</tr>
+					<tr>
+						<th>esp + 12</th>
+						<td>'H'</td>
+					</tr>
+				</table>
+				<div style="flex: 4;">
+					<p>
+						El <a href="https://wiki.osdev.org/Stack">stack</a> es una parte de la memoria que puedes asignar arbitrariamente cuando entras a una función. <b>Puedes meter un valor al stack usando la instrucción <samp>push</samp>, y sacarlo usando la instrucción <samp>pop</samp></b>. Está íntimamente relacionado con los registros <samp>bp</samp> y <samp>sp</samp>.
+					</p>
+					<p>
+						Vamos a explicar bien lo que ocurre cuando metes o sacas un valor de esta estructura tan curiosa. <b>A la izquierda tienes el mapa de un stack con 4 valores</b>, que se han introducido usando las siguientes instrucciones en Assembly:
+					</p>
+				</div>
+			</div>
+		</p>
+		<pre><code class="language-x86asm">push 'H'
+push 'o'
+push 'l'
+push 'a'</code></pre>
+		<p>
+			Fácil, ¿no? Lo primero que puedes comprobar es que el valor superior del mapa tiene la dirección <samp>esp</samp>, el siguiente <samp>esp + 4</samp>, luego <samp>+8</samp>, <samp>+12</samp>... Eso pasa porque <b>los valores del stack ocupan el mismo número de bits que el tipo de código que estemos produciendo</b>. En este caso, estamos produciendo código de 32 bits, así que los valores del stack ocupan 32 bits (4 bytes).
+		</p>
+		<p>
+			Otra cosa interesante es que nuestro mapa muestra la palabra <i>Hola</i> al revés. Esto ocurre porque al ejecutar <samp>push</samp> el stack crece <i>para atrás</i>, y <samp>esp</samp> se sitúa donde está nuestro nuevo valor. Es decir, <b>el stack ha ido creciendo hacia la izquierda en la memoria</b>, y <samp>esp</samp> se ha ido ajustando a su nuevo tope, tal que así:
+		</p>
+		<p>
+			<div class="flex row bigspaced hcentered vbottom">
+				<table class="memory vertical">
+					<tr>
+						<th>esp</th>
+						<td>'H'</td>
+					</tr>
+				</table>
+				<table class="memory vertical">
+					<tr>
+						<th>esp</th>
+						<td>'o'</td>
+					</tr>
+					<tr>
+						<th>esp + 4</th>
+						<td>'H'</td>
+					</tr>
+				</table>
+				<table class="memory vertical">
+					<tr>
+						<th>esp</th>
+						<td>'l'</td>
+					</tr>
+					<tr>
+						<th>esp + 4</th>
+						<td>'o'</td>
+					</tr>
+					<tr>
+						<th>esp + 8</th>
+						<td>'H'</td>
+					</tr>
+				</table>
+				<table class="memory vertical">
+					<tr>
+						<th>esp</th>
+						<td>'a'</td>
+					</tr>
+					<tr>
+						<th>esp + 4</th>
+						<td>'l'</td>
+					</tr>
+					<tr>
+						<th>esp + 8</th>
+						<td>'o'</td>
+					</tr>
+					<tr>
+						<th>esp + 12</th>
+						<td>'H'</td>
+					</tr>
+				</table>
+			</div>
+		</p>
+		<p>
+			Es muy importante que entiendas que el valor de <samp>esp</samp> se ha ido reduciendo: la <samp>'H'</samp> siempre está en el mismo sitio. <b>Es el valor del registro <samp>esp</samp> el que va reduciéndose para apuntar al nuevo tope del stack</b>.
+		</p>
+		<p>
+			¿Cómo decidimos el valor inicial de <samp>esp</samp>? Si hacemos un ejecutable en Linux, normalmente <b>el sistema operativo lo configura por nosotros para que no la liemos, pero eso no es así en un entorno <i>freestanding</i></b>. El stack tiene que estar en algún lugar <i>vacío</i> de la memoria, y tenemos que estar seguros de que no nos pasamos de tamaño, porque si lo hacemos podríamos sobreescribir memoria que no estaba vacía. Ya experimentaremos con esto más adelante.
+		</p>
+		<h3>Registros <samp>sp</samp> y <samp>bp</samp></h3>
+		<p>
+			El registro <samp>sp</samp> (o <samp>esp</samp> en su versión de 32 bits) <b>es un puntero que apunta al <i>tope</i> del stack</b>, que siempre contiene la dirección del último valor guardado en el stack. Cuando ejecutas <i>push</i>, el procesador le resta 4 a su valor, y cuando ejecutas <i>pop</i> le suma 4.
+		</p>
+		<p>
+			El registro <samp>bp</samp> (o <samp>ebp</samp>) <b>suele apuntar a la <i>base del stack</i></b> (es decir, si el stack no está vacío, recoge el primer valor que mandes mediante <samp>push</samp>). Sin embargo, declararlo es opcional y hay veces en las que no se puede asumir que tenga un valor válido. Se usa, sobre todo, para crear un nuevo stack en una parte distinta de la memoria. El valor de <samp>sp</samp> nunca debería ser mayor que el de <samp>bp</samp>.
+		</p>
+		<h3>Instrucciones <samp>push</samp> y <samp>pop</samp></h3>
+		<p>
+			Ya has visto más o menos cómo funciona la instrucción <samp>push</samp>. Extiende el stack, mete un valor en su nuevo tope y actualiza el registro <samp>esp</samp> para que apunte a dicho valor. ¿Pero cómo recuperamos esos valores que hemos mandado al stack? Pues ahí entra en juego la instrucción <samp>pop</samp>, que <b>escribe al registro que queramos el valor situado en el tope del stack</b>, y actualiza <samp>esp</samp> para que apunte al valor anterior (si existe).
+		</p>
+		<p>
+			Por ejemplo, si tenemos este código:
+		</p>
+		<pre><code class="language-x86asm">push 0x1
+push 0x2
+push 0x3</code></pre>
+		<p>
+			El stack habrá crecido de esta forma:
+		</p>
+		<p>
+			<div class="flex row bigspaced hcentered vbottom">
+				<table class="memory vertical">
+					<tr>
+						<th>esp</th>
+						<td>0x1</td>
+					</tr>
+				</table>
+				<table class="memory vertical">
+					<tr>
+						<th>esp</th>
+						<td>0x2</td>
+					</tr>
+					<tr>
+						<th>esp + 4</th>
+						<td>0x1</td>
+					</tr>
+				</table>
+				<table class="memory vertical">
+					<tr>
+						<th>esp</th>
+						<td>0x3</td>
+					</tr>
+					<tr>
+						<th>esp + 4</th>
+						<td>0x2</td>
+					</tr>
+					<tr>
+						<th>esp + 8</th>
+						<td>0x1</td>
+					</tr>
+				</table>
+			</div>
+		</p>
+		<p>
+			Ahora, vamos a sacar estos 3 valores del stack y los vamos a meter en los registros <samp>ecx</samp>, <samp>ebx</samp> y <samp>eax</samp>:
+		</p>
+		<pre><code class="language-x86asm">pop ecx
+pop ebx
+pop eax</code></pre>
+		<p>
+			En este caso, <samp>eax</samp> contiene el valor 1, <samp>ebx</samp> contiene el valor 2 y <samp>ecx</samp> contiene el valor 3. El stack se ha ido reduciendo de la siguiente forma:
+		</p>
+		<p>
+			<div class="flex row bigspaced hcentered vbottom">
+				<table class="memory vertical">
+					<tr>
+						<th>esp</th>
+						<td>0x3</td>
+					</tr>
+					<tr>
+						<th>esp + 4</th>
+						<td>0x2</td>
+					</tr>
+					<tr>
+						<th>esp + 8</th>
+						<td>0x1</td>
+					</tr>
+				</table>
+				<table class="memory vertical">
+					<tr>
+						<th>esp</th>
+						<td>0x2</td>
+					</tr>
+					<tr>
+						<th>esp + 4</th>
+						<td>0x1</td>
+					</tr>
+				</table>
+				<table class="memory vertical">
+					<tr>
+						<th>esp</th>
+						<td>0x1</td>
+					</tr>
+				</table>
+			</div>
+		</p>
+		<p>
+			<b>Puedes utilizar el stack tú mismo</b> compilando el siguiente código con el mismo método que aprendimos en la introducción:
+		</p>
+		<pre><code class="language-x86asm">global _start
+
+section .data
+
+section .text
+
+_start:
+    ; Guardar en el stack el número 9
+    push 9
+
+    ; Recuperarlo, emitirlo como código de salida y cerrar.
+    mov eax, 1
+    pop ebx
+    int 0x80
+		</code></pre>
+		<p>
+			Tras ejecutarlo, si introduces el comando <samp>echo $?</samp>, te devolverá <samp>9</samp>. Hemos conseguido mandarlo del stack a un registro, y de dicho registro al código de salida.
+		</p>
+		<h3 id="resumen">Resumen</h3>
+		<hr>
+		<p>
+			<b>Este capítulo tiene muchísima información</b>. Tómate tu tiempo de repasar y consulta otros tutoriales de assembly más detallados si tienes interés. Hemos aprendido a definir directivas, instrucciones y símbolos, a manejar los registros y sus valores, y además, a usar la sección <samp>.data</samp> y el stack.
+		</p>
+		<p>
+			<b>En el capítulo siguiente empezaremos con el sistema operativo</b>. A partir de aquí es inevitable que suba un pelín la exigencia del manual, pero voy a hacer lo posible por no dar por hecho muchos conocimientos previos.
+		</p>
+		<p id="footer">
+			<a href="00.html"><button>Primera página</button>
+			<a href="02.html"><button>Siguiente capítulo</button></a>
+		</p>
+	</div>
+
+	<!-- Library: highlight.js -->
+	<script src="assets/lib/highlight/highlight.min.js"></script>
+	<script>hljs.highlightAll();</script>
+</body>
