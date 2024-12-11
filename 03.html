@@ -19,114 +19,122 @@
 		<p>
 			¿No te ha parecido suficiente con la tupa de antes? Pues ahora vas a ver. En este capítulo vamos a coger el bootloader que programamos en el capítulo anterior y preprarlo para <b>imprimir texto en pantalla y formatear nuestro disco con el sistema de archivos FAT12</b>. ¿Listo? Pues vamos allá.
 		</p>
-		<h2>Tabla de contenidos</h2>
-		<hr>
-		<ul>
-			<li><a href="#imprimir-texto">¿Cómo imprimo texto en pantalla?</a></li>
-			<li><a href="#hacer-algo-util">¡Muy bien! Y... ¿para hacer algo útil?</a></li>
-			<li><a href="#resumen">Resumen</a></li>
-		</ul>
-		<h2 id="imprimir-texto">¿Cómo imprimo texto en pantalla?</h2>
-		<hr>
-		<p>
-			Obviamente, no es lo mismo hacer esto desde un sistema operativo que desde un entorno <i>freestanding</i> (es decir, sin bibliotecas ni sistemas operativos a los que llamar). Déjame explicarte un segundo <b>en qué modo del procesador nos encontramos</b>, porque es importante para imprimir texto en pantalla.
-		</p>
-		<p>
-			Al iniciar el ordenador, el procesador se encuentra en <a href="https://es.wikipedia.org/wiki/Modo_real">modo real</a>. Este es un modo de operación que <i>emula</i> el procesador <a href="https://en.wikipedia.org/wiki/Intel_8086#The_first_x86_design">Intel 8086</a>. La CPU se inicia así para ser compatible con los programas pensados para dicho procesador, por tanto, <b>nuestra funcionalidad está limitada a la que tenía este procesador de 1978</b>, que es... bastante poca. Solo puedes operar con números de 16 bits o menos (menores de 65.535) y solo los primeros 64 KB de la RAM son accesibles.
-		</p>
-		<p>
-			Si vienes de capítulos anteriores, habrás notado que los registros que hemos estado usando hasta ahora son de <i>32 bits</i>: <samp>eax</samp>, <samp>ebx</samp>, <samp>ecx</samp>, etc. Estos registros <a href="https://stackoverflow.com/a/6919640">se pueden seguir usando</a>, pero son <i>menos útiles</i>, porque los valores con los que trabajaremos (como los valores del stack o las direcciones de la memoria), ahora serán de 16 bits, como lo eran en el procesador Intel 8086. Por todo esto, <b>acostúmbrate a usar los registros de 16 bits</b>, como <samp>ax</samp>, <samp>bx</samp> y <samp>cx</samp>.
-		<p>
-			Una cosa que sí puedes hacer desde el <i>real mode</i> y no desde el resto de modos es llamar a las <a href="https://es.wikipedia.org/wiki/Llamada_de_interrupci%C3%B3n_del_BIOS">funciones de la BIOS</a>, de las que ya hablamos en el capítulo anterior. Esto nos ahorra una cantidad <i>brutal</i> de horas de estudiar el hardware y comunicarnos directamente con él. <b>Uno de esos <i>BIOS interrupts</i> nos permite poner texto en pantalla</b>.
-		</p>
-		<h3>Imprimir un solo caracter</h3>
-		<p>
-			Bueno. Sin más preámbulo, <b>vamos a usar el interrupt <samp>0x10</samp> para imprimir texto en pantalla</b>. Para imprimir un solo caracter utilizaremos el siguiente código:
-		</p>
-		<pre><code class="language-x86asm">mov ah, 0x0E    ; ah = 0x0E (necesario para el interrupt).
+		<details>
+			<summary>
+				<h2>Imprimir caracteres usando la BIOS</h2>
+				<hr>
+			</summary>
+			<p>
+				Obviamente, no es lo mismo hacer esto desde un sistema operativo que desde un entorno <i>freestanding</i> (es decir, sin bibliotecas ni sistemas operativos a los que llamar). Déjame explicarte un segundo <b>en qué modo del procesador nos encontramos</b>, porque es importante para imprimir texto en pantalla.
+			</p>
+			<p>
+				Al iniciar el ordenador, el procesador se encuentra en <a href="https://es.wikipedia.org/wiki/Modo_real">modo real</a>. Este es un modo de operación que <i>emula</i> el procesador <a href="https://en.wikipedia.org/wiki/Intel_8086#The_first_x86_design">Intel 8086</a>. La CPU se inicia así para ser compatible con los programas pensados para dicho procesador, por tanto, <b>nuestra funcionalidad está limitada a la que tenía este procesador de 1978</b>, que es... bastante poca. Solo puedes operar con números de 16 bits o menos (menores de 65.535) y solo los primeros 64 KB de la RAM son accesibles.
+			</p>
+			<p>
+				Si vienes de capítulos anteriores, habrás notado que los registros que hemos estado usando hasta ahora son de <i>32 bits</i>: <samp>eax</samp>, <samp>ebx</samp>, <samp>ecx</samp>, etc. Estos registros <a href="https://stackoverflow.com/a/6919640">se pueden seguir usando</a>, pero son <i>menos útiles</i>, porque los valores con los que trabajaremos (como los valores del stack o las direcciones de la memoria), ahora serán de 16 bits, como lo eran en el procesador Intel 8086. Por todo esto, <b>acostúmbrate a usar los registros de 16 bits</b>, como <samp>ax</samp>, <samp>bx</samp> y <samp>cx</samp>.
+			</p>
+			<p>
+				Una cosa que sí puedes hacer desde el <i>real mode</i> y no desde el resto de modos es llamar a las <a href="https://es.wikipedia.org/wiki/Llamada_de_interrupci%C3%B3n_del_BIOS">funciones de la BIOS</a>, de las que ya hablamos en el capítulo anterior. Esto nos ahorra una cantidad <i>brutal</i> de horas de estudiar el hardware y comunicarnos directamente con él. <b>Uno de esos <i>BIOS interrupts</i> nos permite poner texto en pantalla</b>.
+			</p>
+			<h3>Imprimir un solo caracter</h3>
+			<p>
+				Bueno. Sin más preámbulo, <b>vamos a usar el interrupt <samp>0x10</samp> para imprimir texto en pantalla</b>. Para imprimir un solo caracter utilizaremos el siguiente código:
+			</p>
+			<pre><code class="language-x86asm">mov ah, 0x0E    ; ah = 0x0E (necesario para el interrupt).
 mov al, 'a'     ; al = Caracter para imprimir.
 int 10h         ; Llamar al interrupt.</code></pre>
-		<p>
-			Es importante fijarse en que la instrucción <samp>int 0x10</samp> (o <i>int 10h</i>, que es <a href="00.html#sistemas-numeracion">otra manera de indicar que el número está en hexadecimal</a>) no hace todo el trabajo sola. <b>Necesita que <samp>ah</samp> contenga el valor <samp>0x0E</samp> para entender que quieres imprimir un caracter en la pantalla</b>. Si en el registro hay otro valor distinto, es probable que ejecute una función distinta (o ninguna).
-		</p>
-		<p>
-			Por eso, el nombre completo de esta función sería <a href="https://www.ctyme.com/intr/rb-0106.htm">INT 10/AH=0Eh</a>. La nomenclatura indica que usamos la instrucción <samp>int 10h</samp> (sinónimo de <samp>int 0x10</samp>) mientras en el registro <samp>ah</samp> está guardado el valor <samp>0Eh</samp> (sinónimo de <samp>0x0E</samp>).
-		<h3>Sí, pero ¿y las cadenas de texto?</h3>
-		<p>
-			Las cadenas de texto o <i>strings</i> no son más que varios caracteres guardados en lugares consecutivos de la memoria. Por razones que veremos en este apartado, también deben terminar con un byte con el valor de <samp>0</samp>. Por todo esto, si declaramos una <i>string</i> en Assembly, estamos definiendo una serie o <i>array</i> de bytes (con la instrucción <samp>db</samp>), tal que así:
-		</p>
-		<pre><code class="language-x86asm">string_hola:
-	db "Hola", 0</code></pre>
-		<p>
-			Si en cualquier parte de nuestro código ponemos ahora <samp>string_hola</samp>, cuando lo compilemos se reescribirá con la dirección que tenga esa <i>string</i> en la memoria (que se suele escribir en hexadecimal). Por ejemplo, si dicha dirección es el byte <samp>0x4</samp> y escribimos:
-		</p>
-		<pre><code class="language-x86asm">mov ax, string_hola</code></pre>
-		<p>
-			Al compilar el código con <samp>nasm</samp>, la misma instrucción en el archivo <samp>.obj</samp> se verá más o menos así si desensamblamos el código máquina:
-		</p>
-		<pre><code class="language-x86asm">mov ax, 0x0004</code></pre>
-		<p>
-			El registro <samp>ax</samp> ahora tendrá el valor <samp>0x0004</samp>. Es decir, la dirección de esa <i>string</i> en la memoria, <b>y no la string en sí</b>. ¿Y todos esos ceros? Bien por fijarte. <b>El registro <samp>ax</samp> es de 16 bits</b> (es decir, puede guardar números de 16 cifras en binario, que se traducen a 4 en hexadecimal). Para acceder a sus últimos 8 bits podemos usar el registro <samp>al</samp>, y también podemos acceder a sus primeros 8 bits con el registro <samp>ah</samp>. Eso es importante para aclarar un último matiz.
-		</p>
-		<p>
-			<b>Existen varias formas de escribir direcciones de memoria</b>. La más fácil (y la usada por cualquier sistema operativo moderno) es la <a href="https://en.wikipedia.org/wiki/Flat_memory_model">memoria lineal</a>, pero en el <i>modo real</i> del procesador (en el que estamos ahora), todavía no se puede hacer eso. <b>Se accede a la memoria por segmentos y <i>offsets</i></b>. En memoria lineal, equivale a anotar la dirección <samp>(seg * 16) + offset</samp>, teniendo en cuenta que 16 es <samp>0x10</samp> en hexadecimal. Aquí tienes algunos ejemplos:
-		</p>
-		<pre class="indent">
-Segmentada                        Lineal
---                                --
-0x0001:0x0000 = 0x0010 + 0x0000 = 0x0010
-0x0002:0x0005 = 0x0020 + 0x0005 = 0x0025
-0x0000:0x0030 = 0x0000 + 0x0030 = 0x0030
-		</pre>
-		<p>
-			Entonces volvemos a nuestra <i>string</i>. La tenemos alojada en la dirección lineal <samp>0x4</samp> de la memoria, tal que así:
-		</p>
-		<p>
-			<table class="memory center">
-				<tr>
-					<th>0x4</th>
-					<th>0x5</th>
-					<th>0x6</th>
-					<th>0x7</th>
-					<th>0x8</th>
-				</tr>
-				<tr>
-					<td>'H'</td>
-					<td>'o'</td>
-					<td>'l'</td>
-					<td>'a'</td>
-					<td>0</td>
-				</tr>
-			</table>
-		</p>
-		<p>
-			Para anotar su dirección completa (<samp>segmento:offset</samp>) no basta con los 16 bits de un registro, se necesitan 32 bits, 16 bits para el segmento y otros 16 para el offset. Por eso, <b>algunos registros se diseñaron específicamente para incluir segmentos en ellos</b>. Los que nos interesan ahora mismo son <samp>cs</samp> (code segment), <samp>ds</samp> (data segment) y <samp>ss</samp> (stack segment).
-		</p>
-		<p>
-			<b>Atención aquí</b>. El <i>code segment</i> es el segmento en el que está el código que estamos ejecutando actualmente. Su registro, <samp>cs</samp> no se puede manipular arbitrariamente. Ya veremos cómo asegurarnos de que su valor es correcto. Los otros 2 sí se pueden mover arbitrariamente, y en este caso nos interesa que estén el segmento <samp>0</samp>, porque así es más simple escribir las direcciones. Eso se hace así:
-		</p>
-		<pre><code>mov ax, 0     ; Los segmentos deben recibir valores desde un reg.
+			<p>
+				Es importante fijarse en que la instrucción <samp>int 0x10</samp> (o <i>int 10h</i>, que es <a href="00.html#sistemas-numeracion">otra manera de indicar que el número está en hexadecimal</a>) no hace todo el trabajo sola. <b>Necesita que <samp>ah</samp> contenga el valor <samp>0x0E</samp> para entender que quieres imprimir un caracter en la pantalla</b>. Si en el registro hay otro valor distinto, es probable que ejecute una función distinta (o ninguna).
+			</p>
+			<p>
+				Por eso, el nombre completo de esta función sería <a href="https://www.ctyme.com/intr/rb-0106.htm">INT 10/AH=0Eh</a>. La nomenclatura indica que usamos la instrucción <samp>int 10h</samp> (sinónimo de <samp>int 0x10</samp>) mientras en el registro <samp>ah</samp> está guardado el valor <samp>0Eh</samp> (sinónimo de <samp>0x0E</samp>).
+			</p>
+		</details>
+		<details>
+			<summary>
+				<h2>Unir los caracteres en cadenas de texto</h2>
+				<hr>
+			</summary>
+			<p>
+				Las cadenas de texto o <i>strings</i> no son más que varios caracteres guardados en lugares consecutivos de la memoria. Por razones que veremos en este apartado, también deben terminar con un byte con el valor de <samp>0</samp>. Por todo esto, si declaramos una <i>string</i> en Assembly, estamos definiendo una serie o <i>array</i> de bytes (con la instrucción <samp>db</samp>), tal que así:
+			</p>
+			<pre><code class="language-x86asm">string_hola:
+    db "Hola", 0</code></pre>
+			<p>
+				Si en cualquier parte de nuestro código ponemos ahora <samp>string_hola</samp>, cuando lo compilemos se reescribirá con la dirección que tenga esa <i>string</i> en la memoria (que se suele escribir en hexadecimal). Por ejemplo, si dicha dirección es el byte <samp>0x4</samp> y escribimos:
+			</p>
+			<pre><code class="language-x86asm">mov ax, string_hola</code></pre>
+			<p>
+				Al compilar el código con <samp>nasm</samp>, la misma instrucción en el archivo <samp>.obj</samp> se verá más o menos así si desensamblamos el código máquina:
+			</p>
+			<pre><code class="language-x86asm">mov ax, 0x0004</code></pre>
+			<p>
+				El registro <samp>ax</samp> ahora tendrá el valor <samp>0x0004</samp>. Es decir, la dirección de esa <i>string</i> en la memoria, <b>y no la string en sí</b>. ¿Y todos esos ceros? Bien por fijarte. <b>El registro <samp>ax</samp> es de 16 bits</b> (es decir, puede guardar números de 16 cifras en binario, que se traducen a 4 en hexadecimal). Para acceder a sus últimos 8 bits podemos usar el registro <samp>al</samp>, y también podemos acceder a sus primeros 8 bits con el registro <samp>ah</samp>. Eso es importante para aclarar un último matiz.
+			</p>
+			<p>
+				<b>Existen varias formas de escribir direcciones de memoria</b>. La más fácil (y la usada por cualquier sistema operativo moderno) es la <a href="https://en.wikipedia.org/wiki/Flat_memory_model">memoria lineal</a>, pero en el <i>modo real</i> del procesador (en el que estamos ahora), todavía no se puede hacer eso. <b>Se accede a la memoria por segmentos y <i>offsets</i></b>. En memoria lineal, equivale a anotar la dirección <samp>(seg * 16) + offset</samp>, teniendo en cuenta que 16 es <samp>0x10</samp> en hexadecimal. Aquí tienes algunos ejemplos:
+			</p>
+			<pre class="indent">
+	Segmentada                        Lineal
+	--                                --
+	0x0001:0x0000 = 0x0010 + 0x0000 = 0x0010
+	0x0002:0x0005 = 0x0020 + 0x0005 = 0x0025
+	0x0000:0x0030 = 0x0000 + 0x0030 = 0x0030
+			</pre>
+			<p>
+				Entonces volvemos a nuestra <i>string</i>. La tenemos alojada en la dirección lineal <samp>0x4</samp> de la memoria, tal que así:
+			</p>
+			<p>
+				<table class="memory center">
+					<tr>
+						<th>0x4</th>
+						<th>0x5</th>
+						<th>0x6</th>
+						<th>0x7</th>
+						<th>0x8</th>
+					</tr>
+					<tr>
+						<td>'H'</td>
+						<td>'o'</td>
+						<td>'l'</td>
+						<td>'a'</td>
+						<td>0</td>
+					</tr>
+				</table>
+			</p>
+			<p>
+				Para anotar su dirección completa (<samp>segmento:offset</samp>) no basta con los 16 bits de un registro, se necesitan 32 bits, 16 bits para el segmento y otros 16 para el offset. Por eso, <b>algunos registros se diseñaron específicamente para incluir segmentos en ellos</b>. Los que nos interesan ahora mismo son <samp>cs</samp> (code segment), <samp>ds</samp> (data segment) y <samp>ss</samp> (stack segment).
+			</p>
+			<p>
+				<b>Atención aquí</b>. El <i>code segment</i> es el segmento en el que está el código que estamos ejecutando actualmente. Su registro, <samp>cs</samp> no se puede manipular arbitrariamente. Ya veremos cómo asegurarnos de que su valor es correcto. Los otros 2 sí se pueden mover arbitrariamente, y en este caso nos interesa que estén el segmento <samp>0</samp>, porque así es más simple escribir las direcciones. Eso se hace así:
+			</p>
+			<pre><code>mov ax, 0     ; Los segmentos deben recibir valores desde un reg.
 mov ds, ax    ; ds = ax (0).
 mov ss, ax    ; ss = x (0).</code></pre>
-		<p>
-			Hecho esto, ya podemos acceder a nuestra <i>string</i> después de ejecutar la siguiente linea de código:
-		</p>
-		<pre><code>mov si, 0x0004</code></pre>
-		<p>
-			Ahora, si ponemos <samp>ds:si</samp> estaremos anotando la dirección <samp>0x0000:0x0004</samp>... ¡la dirección de nuestra string! Ya podríamos pasar a imprimirla.
-		</p>
-		<p>
-			<div class="card">
-				<p>
-					<b>Una cosita solo.</b> La siguiente función utiliza el <i>stack</i> para guardar y recoger valores de los registros. Si no sabes qué es el stack, te recomiendo leer <a href="01.html#stack">el apartado que hay sobre el tema en el capítulo 1</a>.
-				</p>
-			</div>
-		</p>
-		<h3>Imprimir (y declarar) una cadena de texto</h3>
-		<p>
-			Si llamamos a nuestra función <samp>print</samp>, una implementación correcta sería, más o menos, la siguiente:
-		</p>
-		<pre><code>print:
+			<p>
+				Hecho esto, ya podemos acceder a nuestra <i>string</i> después de ejecutar la siguiente linea de código:
+			</p>
+			<pre><code>mov si, 0x0004</code></pre>
+			<p>
+				Ahora, si ponemos <samp>ds:si</samp> estaremos anotando la dirección <samp>0x0000:0x0004</samp>... ¡la dirección de nuestra string! Ya podríamos pasar a imprimirla.
+			</p>
+			<p>
+				<div class="card">
+					<p>
+						<b>Una cosita solo.</b> La función incluida en el siguiente apartado utiliza el <i>stack</i> para guardar y recoger valores de los registros. Si no sabes qué es el stack, te recomiendo leer <a href="01.html#stack">el apartado que hay sobre el tema en el capítulo 1</a>.
+					</p>
+				</div>
+			</p>
+		</details>
+		<details>
+			<summary>
+				<h2>Imprimir (y declarar) una cadena de texto</h2>
+				<hr>
+			</summary>
+			<p>
+				Si llamamos a nuestra función <samp>print</samp>, una implementación correcta sería, más o menos, la siguiente:
+			</p>
+			<pre><code>print:
     mov ah, 0x0E       ; ah = 0x0E (necesario para el interrupt).
     push si            ; Copiar el valor de 'si' al stack.
 
@@ -142,203 +150,210 @@ print_loop:
 print_ret:
     pop si             ; Restaurar el anterior valor de 'si'.
     ret                ; Volver de la función.</code></pre>
-    	<p>
-    		Aquí <b>hemos usado varias instrucciones nuevas</b>. Si tienes dudas, te las describo un poquito mejor aquí:
-    	</p>
-    	<ul>
-    		<li><samp>lodsb</samp>: <b>coge el byte que se encuentra en la dirección <samp>ds:si</samp> y lo copia en el registro <samp>al</samp></b>. Además, suma uno al valor de <samp>si</samp> para que apunte al siguiente byte en la memoria.</li>
-    		<li><samp>jz "símbolo"</samp>: <b>si el resultado de la operación anterior es 0, salta hacia el símbolo que le pongas</b>. En este caso, la operación anterior es <samp>cmp al, 0</samp>, que devolverá 0 si los dos valores son iguales.</li>
-    		<li><samp>ret</samp>: a grandes rasgos, vuelve a la última linea donde invocamos la instrucción <samp>call</samp>. Esto se puede hacer gracias a que la dirección de dicha linea está guardada en el tope del stack. Aquí tienes <a href="https://www.felixcloutier.com/x86/ret">más información sobre esta instrucción</a>.</li>
-    	</ul>
-		<p>
-			Esto imprimirá cualquier texto que le eches <b>siempre y cuando acabe en un byte con el valor de 0</b>. Ahora solo tienes que guardar en algún sitio la cadena de texto que quieras imprimir. Es muy recomendable poner nuestras variables por encima de la instrucción <samp>times 510-($-$$) db 0</samp> que escribimos en el capítulo anterior.
-		</p>
-		<p>
-			La pongas donde la pongas, definela así:
-		</p>
-		<pre><code>msg_prueba:
+	    	<p>
+	    		Aquí <b>hemos usado varias instrucciones nuevas</b>. Si tienes dudas, te las describo un poquito mejor aquí:
+	    	</p>
+	    	<ul>
+	    		<li><samp>lodsb</samp>: <b>coge el byte que se encuentra en la dirección <samp>ds:si</samp> y lo copia en el registro <samp>al</samp></b>. Además, suma uno al valor de <samp>si</samp> para que apunte al siguiente byte en la memoria.</li>
+	    		<li><samp>jz "símbolo"</samp>: <b>si el resultado de la operación anterior es 0, salta hacia el símbolo que le pongas</b>. En este caso, la operación anterior es <samp>cmp al, 0</samp>, que devolverá 0 si los dos valores son iguales.</li>
+	    		<li><samp>ret</samp>: a grandes rasgos, vuelve a la última linea donde invocamos la instrucción <samp>call</samp>. Esto se puede hacer gracias a que la dirección de dicha linea está guardada en el tope del stack. Aquí tienes <a href="https://www.felixcloutier.com/x86/ret">más información sobre esta instrucción</a>.</li>
+	    	</ul>
+			<p>
+				Esto imprimirá cualquier texto que le eches <b>siempre y cuando acabe en un byte con el valor de 0</b>. Ahora solo tienes que guardar en algún sitio la cadena de texto que quieras imprimir. Es muy recomendable poner nuestras variables por encima de la instrucción <samp>times 510-($-$$) db 0</samp> que escribimos en el capítulo anterior.
+			</p>
+			<p>
+				La pongas donde la pongas, definela así:
+			</p>
+			<pre><code>msg_prueba:
     db "Mensaje de prueba", 0x0D, 0x0A, 0</code></pre>
-		<p>
-			Ese código define <b>una sucesión de bytes cuyo primer valor está en una dirección a la que llamaremos <samp>msg_prueba</samp></b>. Esa cadena de bytes contiene el texto <samp>Mensaje de prueba</samp>, un <a href="https://es.wikipedia.org/wiki/Retorno_de_carro">retorno de carro</a>, un <a href="https://es.wikipedia.org/wiki/Salto_de_l%C3%ADnea">salto de linea</a> y un <a href="https://en.wikipedia.org/wiki/Null_character">byte nulo</a> (<samp>0</samp>) para terminar la cadena.
-		</p>
-		<p>
-			Es muy importante tener en cuenta que <b>al poner <samp>msg_prueba</samp> estamos escribiendo en realidad la dirección de la <samp>'M'</samp></b>. Si le vamos sumando uno, tendremos la dirección de la <samp>'e'</samp>, de la <samp>'n'</samp>, etc. Esto es exactamente lo que hace la instrucción <samp>lodsb</samp>: guarda en el registro <samp>al</samp> el byte localizado en la dirección a la que apunta <samp>ds:si</samp> y suma uno a la propia dirección. Por eso, <b>si no terminamos con un <samp>0</samp>, nuestra función seguirá leyendo una cantidad indefinida de bytes</b>.
-		</p>
-		<p>
-			Si quisiéramos imprimir la <i>string</i> que hemos guardado en <samp>msg_prueba</samp>, podemos invocar a la función <samp>print</samp> usando el siguiente código:
-		</p>
-		<pre><code class="language-x86asm">mov si, msg_prueba
+			<p>
+				Ese código define <b>una sucesión de bytes cuyo primer valor está en una dirección a la que llamaremos <samp>msg_prueba</samp></b>. Esa cadena de bytes contiene el texto <samp>Mensaje de prueba</samp>, un <a href="https://es.wikipedia.org/wiki/Retorno_de_carro">retorno de carro</a>, un <a href="https://es.wikipedia.org/wiki/Salto_de_l%C3%ADnea">salto de linea</a> y un <a href="https://en.wikipedia.org/wiki/Null_character">byte nulo</a> (<samp>0</samp>) para terminar la cadena.
+			</p>
+			<p>
+				Es muy importante tener en cuenta que <b>al poner <samp>msg_prueba</samp> estamos escribiendo en realidad la dirección de la <samp>'M'</samp></b>. Si le vamos sumando uno, tendremos la dirección de la <samp>'e'</samp>, de la <samp>'n'</samp>, etc. Esto es exactamente lo que hace la instrucción <samp>lodsb</samp>: guarda en el registro <samp>al</samp> el byte localizado en la dirección a la que apunta <samp>ds:si</samp> y suma uno a la propia dirección. Por eso, <b>si no terminamos con un <samp>0</samp>, nuestra función seguirá leyendo una cantidad indefinida de bytes</b>.
+			</p>
+			<p>
+				Si quisiéramos imprimir la <i>string</i> que hemos guardado en <samp>msg_prueba</samp>, podemos invocar a la función <samp>print</samp> usando el siguiente código:
+			</p>
+			<pre><code class="language-x86asm">mov si, msg_prueba
 call print</code></pre>
-		<h2 id="hacer-algo-util">¡Muy bien! Y... ¿para hacer algo útil?</h2>
-		<hr>
-		<p>
-			Razón no te falta. Estamos imprimiendo textitos desde un sistema que no tiene ni archivos, ni procesos, ni es capaz siquiera de leer lo que llega desde el teclado o el ratón. Así que venga, vamos a empezar <b>metiéndole a esto un sistema de archivos</b>. En concreto, usaremos <a href="https://en.wikipedia.org/wiki/File_Allocation_Table#FAT12">FAT12</a>, que es un sistema muy simple en comparación con los actuales.
-		</p>
-		<h3>Headers de FAT12</h3>
-		<p>
-			El sistema de archivos espera que en el byte <samp>0x7C00</samp> (que es el primer byte de nuestro bootloader) se declaren ciertas propiedades del disco, como el máximo de archivos del directorio raíz. Este primer <i>header</i> ocupa 36 bytes y su estructura en el disco es esta:
-		</p>
-		<p>
-			<table class="memory center">
-				<tr>
-					<th>0x0</th>
-					<th>0x1</th>
-					<th>0x2</th>
-					<th>0x3</th>
-					<th>0x4</th>
-					<th>0x5</th>
-					<th>0x6</th>
-					<th>0x7</th>
-					<th>0x8</th>
-					<th>0x9</th>
-					<th>0xA</th>
-				</tr>
-				<tr>
-					<td colspan="3">jmp</td>
-					<td colspan="8">OEM</td>
-				</tr>
-				<tr>
-					<th>0xB</th>
-					<th>0xC</th>
-					<th>0xD</th>
-					<th>0xE</th>
-					<th>0xF</th>
-					<th>0x10</th>
-					<th>0x11</th>
-					<th>0x12</th>
-					<th>0x13</th>
-					<th>0x14</th>
-					<th>0x15</th>
-				</tr>
-				<tr>
-					<td colspan="2">b/sec</td>
-					<td>s/cl</td>
-					<td colspan="2">ressec</td>
-					<td>fats</td>
-					<td colspan="2">entries</td>
-					<td colspan="2">sectors</td>
-					<td>desc</td>
-				</tr>
-				<tr>
-					<th>0x16</th>
-					<th>0x17</th>
-					<th>0x18</th>
-					<th>0x19</th>
-					<th>0x1A</th>
-					<th>0x1B</th>
-					<th>0x1C</th>
-					<th>0x1D</th>
-					<th>0x1E</th>
-					<th>0x1F</th>
-					<th>0x20</th>
-				</tr>
-				<tr>
-					<td colspan="2">s/fat</td>
-					<td colspan="2">s/track</td>
-					<td colspan="2">heads</td>
-					<td colspan="4">hiddensec</td>
-					<td>larg...</td>
-				</tr>
-				<tr>
-					<th>0x21</th>
-					<th>0x22</th>
-					<th>0x23</th>
-				</tr>
-				<tr>
-					<td colspan="3">...largesec</td>
-				</tr>
-			</table>
-		</p>
-		<ul class="multicol">
-			<li><b>jmp</b>: instrucción para saltar a nuestro código.</li>
-			<li><b>OEM</b>: texto de 8 letras con el nombre del fabricante.</li>
-			<li><b>b/sec</b>: Número de bytes por sector.</li>
-			<li><b>s/cl</b>: Número de sectores por cluster.</li>
-			<li><b>ressec</b>: Número de sectores reservados.</li>
-			<li><b>fats</b>: Número de FATs en total.</li>
-			<li><b>entries</b>: Máximas entradas en el directorio raíz</li>
-			<li><b>sectors</b>: Número de sectores en total</li>
-			<li><b>desc</b>: Descriptor del dispositivo (<samp>0xF0</samp> para <i>floppy</i>).</li>
-			<li><b>s/fat</b>: Número de sectores por FAT.</li>
-			<li><b>s/track</b>: Número de sectores por track.</li>
-			<li><b>heads</b>: Número de cabezas del disco.</li>
-			<li><b>hiddensec</b>: Número de sectores escondidos.</li>
-			<li><b>largesec</b>: Número de sectores extendidos.</li>
-		</ul>
-		<p>
-			También se debe definir el <a href="https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system#Extended_BIOS_Parameter_Block">Extended BIOS Parameter Block</a>, una estructura más breve (de 26 bytes) que contiene la siguiente información:
-		</p>
-		<p>
-			<table class="memory">
-				<tr>
-					<th>0x0</th>
-					<th>0x1</th>
-					<th>0x2</th>
-					<th>0x3</th>
-					<th>0x4</th>
-					<th>0x5</th>
-					<th>0x6</th>
-					<th>0x7</th>
-					<th>0x8</th>
-					<th>0x9</th>
-					<th>0xA</th>
-				</tr>
-				<tr>
-					<td>drive</td>
-					<td>_res</td>
-					<td>sign</td>
-					<td colspan="4">volume_id</td>
-					<td colspan="4">volume_name...</td>
-				</tr>
-				<tr>
-					<th>0xB</th>
-					<th>0xC</th>
-					<th>0xD</th>
-					<th>0xE</th>
-					<th>0xF</th>
-					<th>0x10</th>
-					<th>0x11</th>
-					<th>0x12</th>
-					<th>0x13</th>
-					<th>0x14</th>
-					<th>0x15</th>
-				</tr>
-				<tr>
-					<td colspan="7">...volume_name</td>
-					<td colspan="4">system_name...</td>
-				</tr>
-				<tr>
-					<th>0x16</th>
-					<th>0x17</th>
-					<th>0x18</th>
-					<th>0x19</th>
-				</tr>
-				<tr>
-					<td colspan="4">...system_name</td>
-				</tr>
-			</table>
-		</p>
-		<ul>
-			<li><b>drive</b>: número de disco (<samp>0x00 - 0x7E</samp>: floppys, <samp>0x80 - 0xFE</samp>: discos duros).</li>
-			<li><b>_reserved</b>: reservado para el sistema.</li>
-			<li><b>sign</b>: firma de boot (<samp>0x29</samp> en sistemas modernos).</li>
-			<li><b>volume_id</b>: valor arbitrario de 4 bytes. Se usaba para el número de serie.</li>
-			<li><b>volume_name</b>: nombre de la partición. Debe ocupar 11 bytes. (Ejemplo: <samp>NO NAME&nbsp;&nbsp;&nbsp;&nbsp;</samp>)</li>
-			<li><b>system_name</b>: nombre del sistema de archivos. Debe ocupar 8 caracteres. (Ejemplo: <samp>FAT12&nbsp;&nbsp;&nbsp;</samp>).</li>
-		</ul>
-		<p>
-			Si te interesa saber más sobre la especificación, puedes irte directamente al <a href="http://download.microsoft.com/download/1/6/1/161ba512-40e2-4cc9-843a-923143f3456c/fatgen103.doc">documento de Microsoft</a> o al <a href="https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system">artículo de Wikipedia sobre los sistemas de archivos FAT</a>, que es extensísimo y muy detallado.
-		</p>
-		<p>
-			¿Qué valores le ponemos a todo esto? Eso depende de la geometría de nuestro disco, y para eso tenemos que tener claro qué tipo de disco queremos representar en nuestro archivo <i>.img</i>. Por suerte, ya hemos tomado algunas decisiones: nuestra imagen de disco ocupa 1440 KB. No es casualidad: <b>la intención es emular un floppy de alta densidad de 3 pulgadas y media</b> (<i>3½" DSHD 1.44MB</i>), que es un formato sobre el que existe mucha documentación.
-		</p>
-		<p>
-			Es probable que nunca en la vida hayas visto uno, por lo que en los capítulos sobre el bootloader te va a venir muy bien tener a mano una <a href="https://www.deathwombat.com/diskgeometry.html">calculadora de geometría de disco</a>. Si te interesa conocer algo más sobre este tipo de disco, te puede resultar interesante leer <a href="https://elrincondecabra.com/momento-retro-disquetes-de-35/">este artículo del blog <i>El Rincón de Cabra</i></a>.
-		</p>
-		<p>
-			Todas estas estructuras tenemos que al principio de nuestro bootloader, antes del código que ya tenemos hecho. <b>Aquí tienes un <i>header</i> totalmente compatible con el tipo de disco que queremos emular</b>. Está diseñado para mi sistema operativo, <i>scratchOS</i>, pero siéntete libre de cambiarle el nombre:
-		</p>
-		<pre><code>; FAT HEADER
+		</details>
+		<details>
+			<summary>
+				<h2>Definir el sistema de archivos FAT12</h2>
+				<hr>
+			</summary>
+			<p>
+				Llegados a este punto, puede que pienses <i>«bueno, ¿y para hacer algo útil con nuestro sistema cómo lo hacemos?»</i>
+			</p>
+			<p>
+				Razón no te falta. Estamos imprimiendo textitos desde un sistema que no tiene ni archivos, ni procesos, ni es capaz siquiera de leer lo que llega desde el teclado o el ratón. Así que venga, vamos a empezar <b>metiéndole a esto un sistema de archivos</b>. En concreto, usaremos <a href="https://en.wikipedia.org/wiki/File_Allocation_Table#FAT12">FAT12</a>, que es un sistema muy simple en comparación con los actuales.
+			</p>
+			<h3>Headers de FAT12</h3>
+			<p>
+				El sistema de archivos espera que en el byte <samp>0x7C00</samp> (que es el primer byte de nuestro bootloader) se declaren ciertas propiedades del disco, como el máximo de archivos del directorio raíz. Este primer <i>header</i> ocupa 36 bytes y su estructura en el disco es esta:
+			</p>
+			<p>
+				<table class="memory center">
+					<tr>
+						<th>0x0</th>
+						<th>0x1</th>
+						<th>0x2</th>
+						<th>0x3</th>
+						<th>0x4</th>
+						<th>0x5</th>
+						<th>0x6</th>
+						<th>0x7</th>
+						<th>0x8</th>
+						<th>0x9</th>
+						<th>0xA</th>
+					</tr>
+					<tr>
+						<td colspan="3">jmp</td>
+						<td colspan="8">OEM</td>
+					</tr>
+					<tr>
+						<th>0xB</th>
+						<th>0xC</th>
+						<th>0xD</th>
+						<th>0xE</th>
+						<th>0xF</th>
+						<th>0x10</th>
+						<th>0x11</th>
+						<th>0x12</th>
+						<th>0x13</th>
+						<th>0x14</th>
+						<th>0x15</th>
+					</tr>
+					<tr>
+						<td colspan="2">b/sec</td>
+						<td>s/cl</td>
+						<td colspan="2">ressec</td>
+						<td>fats</td>
+						<td colspan="2">entries</td>
+						<td colspan="2">sectors</td>
+						<td>desc</td>
+					</tr>
+					<tr>
+						<th>0x16</th>
+						<th>0x17</th>
+						<th>0x18</th>
+						<th>0x19</th>
+						<th>0x1A</th>
+						<th>0x1B</th>
+						<th>0x1C</th>
+						<th>0x1D</th>
+						<th>0x1E</th>
+						<th>0x1F</th>
+						<th>0x20</th>
+					</tr>
+					<tr>
+						<td colspan="2">s/fat</td>
+						<td colspan="2">s/track</td>
+						<td colspan="2">heads</td>
+						<td colspan="4">hiddensec</td>
+						<td>larg...</td>
+					</tr>
+					<tr>
+						<th>0x21</th>
+						<th>0x22</th>
+						<th>0x23</th>
+					</tr>
+					<tr>
+						<td colspan="3">...largesec</td>
+					</tr>
+				</table>
+			</p>
+			<ul class="multicol">
+				<li><b>jmp</b>: instrucción para saltar a nuestro código.</li>
+				<li><b>OEM</b>: texto de 8 letras con el nombre del fabricante.</li>
+				<li><b>b/sec</b>: Número de bytes por sector.</li>
+				<li><b>s/cl</b>: Número de sectores por cluster.</li>
+				<li><b>ressec</b>: Número de sectores reservados.</li>
+				<li><b>fats</b>: Número de FATs en total.</li>
+				<li><b>entries</b>: Máximas entradas en el directorio raíz</li>
+				<li><b>sectors</b>: Número de sectores en total</li>
+				<li><b>desc</b>: Descriptor del dispositivo (<samp>0xF0</samp> para <i>floppy</i>).</li>
+				<li><b>s/fat</b>: Número de sectores por FAT.</li>
+				<li><b>s/track</b>: Número de sectores por track.</li>
+				<li><b>heads</b>: Número de cabezas del disco.</li>
+				<li><b>hiddensec</b>: Número de sectores escondidos.</li>
+				<li><b>largesec</b>: Número de sectores extendidos.</li>
+			</ul>
+			<p>
+				También se debe definir el <a href="https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system#Extended_BIOS_Parameter_Block">Extended BIOS Parameter Block</a>, una estructura más breve (de 26 bytes) que contiene la siguiente información:
+			</p>
+			<p>
+				<table class="memory">
+					<tr>
+						<th>0x0</th>
+						<th>0x1</th>
+						<th>0x2</th>
+						<th>0x3</th>
+						<th>0x4</th>
+						<th>0x5</th>
+						<th>0x6</th>
+						<th>0x7</th>
+						<th>0x8</th>
+						<th>0x9</th>
+						<th>0xA</th>
+					</tr>
+					<tr>
+						<td>drive</td>
+						<td>_res</td>
+						<td>sign</td>
+						<td colspan="4">volume_id</td>
+						<td colspan="4">volume_name...</td>
+					</tr>
+					<tr>
+						<th>0xB</th>
+						<th>0xC</th>
+						<th>0xD</th>
+						<th>0xE</th>
+						<th>0xF</th>
+						<th>0x10</th>
+						<th>0x11</th>
+						<th>0x12</th>
+						<th>0x13</th>
+						<th>0x14</th>
+						<th>0x15</th>
+					</tr>
+					<tr>
+						<td colspan="7">...volume_name</td>
+						<td colspan="4">system_name...</td>
+					</tr>
+					<tr>
+						<th>0x16</th>
+						<th>0x17</th>
+						<th>0x18</th>
+						<th>0x19</th>
+					</tr>
+					<tr>
+						<td colspan="4">...system_name</td>
+					</tr>
+				</table>
+			</p>
+			<ul>
+				<li><b>drive</b>: número de disco (<samp>0x00 - 0x7E</samp>: floppys, <samp>0x80 - 0xFE</samp>: discos duros).</li>
+				<li><b>_reserved</b>: reservado para el sistema.</li>
+				<li><b>sign</b>: firma de boot (<samp>0x29</samp> en sistemas modernos).</li>
+				<li><b>volume_id</b>: valor arbitrario de 4 bytes. Se usaba para el número de serie.</li>
+				<li><b>volume_name</b>: nombre de la partición. Debe ocupar 11 bytes. (Ejemplo: <samp>NO NAME&nbsp;&nbsp;&nbsp;&nbsp;</samp>)</li>
+				<li><b>system_name</b>: nombre del sistema de archivos. Debe ocupar 8 caracteres. (Ejemplo: <samp>FAT12&nbsp;&nbsp;&nbsp;</samp>).</li>
+			</ul>
+			<p>
+				Si te interesa saber más sobre la especificación, puedes irte directamente al <a href="http://download.microsoft.com/download/1/6/1/161ba512-40e2-4cc9-843a-923143f3456c/fatgen103.doc">documento de Microsoft</a> o al <a href="https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system">artículo de Wikipedia sobre los sistemas de archivos FAT</a>, que es extensísimo y muy detallado.
+			</p>
+			<p>
+				¿Qué valores le ponemos a todo esto? Eso depende de la geometría de nuestro disco, y para eso tenemos que tener claro qué tipo de disco queremos representar en nuestro archivo <i>.img</i>. Por suerte, ya hemos tomado algunas decisiones: nuestra imagen de disco ocupa 1440 KB. No es casualidad: <b>la intención es emular un floppy de alta densidad de 3 pulgadas y media</b> (<i>3½" DSHD 1.44MB</i>), que es un formato sobre el que existe mucha documentación.
+			</p>
+			<p>
+				Es probable que nunca en la vida hayas visto uno, por lo que en los capítulos sobre el bootloader te va a venir muy bien tener a mano una <a href="https://www.deathwombat.com/diskgeometry.html">calculadora de geometría de disco</a>. Si te interesa conocer algo más sobre este tipo de disco, te puede resultar interesante leer <a href="https://elrincondecabra.com/momento-retro-disquetes-de-35/">este artículo del blog <i>El Rincón de Cabra</i></a>.
+			</p>
+			<p>
+				Todas estas estructuras tenemos que al principio de nuestro bootloader, antes del código que ya tenemos hecho. <b>Aquí tienes un <i>header</i> totalmente compatible con el tipo de disco que queremos emular</b>. Está diseñado para mi sistema operativo, <i>scratchOS</i>, pero siéntete libre de cambiarle el nombre:
+			</p>
+			<pre><code>; FAT HEADER
 jmp short start
 nop
 
@@ -363,17 +378,22 @@ nop
               ebr_volume_id: db 12h, 34h, 56h, 78h
            ebr_volume_label: db 'SCRATCH  OS'
               ebr_system_id: db 'FAT12   '</code></pre>
-        <h3>Formatear el disco</h3>
-        <p>
-        	Estos datos no nos valen para nada si el disco no está <i>formateado</i> con el sistema de archivos FAT12. Para hacer eso, <b>tendremos que cambiar ligeramente nuestro sistema para construir el archivo <samp>boot.img</samp></b>. Hasta ahora, lo hemos hecho así:
-        </p>
-        <pre><code class="language-bash">nasm -f bin boot.obj boot.asm                 # Compilar boot.asm
+	    </details>
+	    <details>
+	    	<summary>
+        		<h2>Formatear el disco</h2>
+        		<hr>
+        	</summary>
+	        <p>
+	        	Estos datos no nos valen para nada si el disco no está <i>formateado</i> con el sistema de archivos FAT12. Para hacer eso, <b>tendremos que cambiar ligeramente nuestro sistema para construir el archivo <samp>boot.img</samp></b>. Hasta ahora, lo hemos hecho así:
+	        </p>
+	        <pre><code class="language-bash">nasm -f bin boot.obj boot.asm                 # Compilar boot.asm
 dd if=/dev/zero of=boot.img bs=512 count=2880 # Crear imagen llena de ceros
 dd if=boot.bin of=boot.img conv=notrunc       # Copiar boot.bin a la imagen</code></pre>
-		<p>
-			A partir de ahora, <b>añadiremos el comando <samp>mkfs.fat</samp> a nuestro <i>script</i></b>. Este comando nos permitirá formatear nuestra imagen de disco con el sistema de archivos FAT12. Gracias a esto, podremos meter archivos en el disco antes incluso de tener nuestro sistema listo.
-		</p>
-		<pre><code class="language-bash"># Compilar
+			<p>
+				A partir de ahora, <b>añadiremos el comando <samp>mkfs.fat</samp> a nuestro <i>script</i></b>. Este comando nos permitirá formatear nuestra imagen de disco con el sistema de archivos FAT12. Gracias a esto, podremos meter archivos en el disco antes incluso de tener nuestro sistema listo.
+			</p>
+			<pre><code class="language-bash"># Compilar
 nasm -f bin boot.obj boot.asm
 
 # Crear disco y formatearlo
@@ -382,24 +402,29 @@ mkfs.fat -F 12 -n "SCRATCH  OS" boot.img
 
 # Escribir la parte 1 de nuestro bootloader en los primeros 512 bytes
 dd if=boot.bin of=boot.img conv=notrunc</code></pre>
-		<p>
-			Ahora, <b>podremos meter y sacar archivos del disco</b> si lo montamos como una unidad externa usando cualquier explorador de archivos. También podremos meter archivos dentro utilizando el programa <a href="https://www.gnu.org/software/mtools/"><samp>mtools</samp></a>, de GNU.
-		</p>
-		<p>
-			Como curiosidad, si quieres que la imagen de disco se monte con el nombre de tu sistema operativo (algo <i>bastante recomendable</i>), lo puedes hacer incluyendo la opción <samp>-n</samp> al comando <samp>mkfs.fat</samp>. El siguiente ejemplo está tomado del código de <i>scratchOS</i>:
-		</p>
-		<pre><code class="language-bash">mkfs.fat -F 12 -n "SCRATCH  OS" scratchOS.img</code></pre>
-		<p>
-			<b>Recuerda:</b> el nombre debe ocupar 11 bytes exactamente.
-		</p>
-		<h2 id="resumen">Resumen</h2>
-		<hr>
-		<p>
-			En este capítulo, has aprendido a poner texto en pantalla y a formatear el disco con el sistema de archivos FAT12. <b>Ya estás empezando a hacer uso de ese limitado entorno en el que te deja la BIOS tras su secuencia de inicio</b>.
-		</p>
-		<p>
-			En el siguiente capítulo, aprenderemos a <b>obtener información del disco, reiniciarlo y hacer algunas operaciones simples con él</b>. También empezaremos a ver exactamente qué es FAT12 y cómo se organiza nuestro disco una vez formateado.
-		</p>
+			<p>
+				Ahora, <b>podremos meter y sacar archivos del disco</b> si lo montamos como una unidad externa usando cualquier explorador de archivos. También podremos meter archivos dentro utilizando el programa <a href="https://www.gnu.org/software/mtools/"><samp>mtools</samp></a>, de GNU.
+			</p>
+			<p>
+				Como curiosidad, si quieres que la imagen de disco se monte con el nombre de tu sistema operativo (algo <i>bastante recomendable</i>), lo puedes hacer incluyendo la opción <samp>-n</samp> al comando <samp>mkfs.fat</samp>. El siguiente ejemplo está tomado del código de <i>scratchOS</i>:
+			</p>
+			<pre><code class="language-bash">mkfs.fat -F 12 -n "SCRATCH  OS" scratchOS.img</code></pre>
+			<p>
+				<b>Recuerda:</b> el nombre debe ocupar 11 bytes exactamente.
+			</p>
+		</details>
+		<details>
+			<summary>
+				<h2>Resumen</h2>
+				<hr>
+			</summary>
+			<p>
+				En este capítulo, has aprendido a poner texto en pantalla y a formatear el disco con el sistema de archivos FAT12. <b>Ya estás empezando a hacer uso de ese limitado entorno en el que te deja la BIOS tras su secuencia de inicio</b>.
+			</p>
+			<p>
+				En el siguiente capítulo, aprenderemos a <b>obtener información del disco, reiniciarlo y hacer algunas operaciones simples con él</b>. También empezaremos a ver exactamente qué es FAT12 y cómo se organiza nuestro disco una vez formateado.
+			</p>
+		</details>
 		<p id="footer">
 			<a href="00.html"><button>Primera página</button>
 			<a href="04.html"><button>Siguiente capítulo</button></a>

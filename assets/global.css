@@ -108,7 +108,13 @@
 
 :root {
 	--bg: #010319;
-	--textcolor: #C5CAE9;
+	--light-bg: #22272E;
+	--lighter-bg: #37474F;
+
+	--text-color-light: #E8EAF6;
+	--text-color: #C5CAE9;
+	--text-color-dark: #ADBAC7;
+	--text-color-highlight: #2196F3;
 }
 
 * {
@@ -116,7 +122,7 @@
 }
 
 body {
-	color: var(--textcolor);
+	color: var(--text-color);
 	background-color: var(--bg);
 	font-family: "Charter";
 }
@@ -149,6 +155,11 @@ hr {
 	margin-bottom: 10px;
 }
 
+hr.equalspace {
+	margin-top: 8px;
+	margin-bottom: 8px;
+}
+
 hr.line {
 	border: none;
 	margin-bottom: 2px;
@@ -172,8 +183,13 @@ ul.multicol, ol.multicol {
 }
 
 li {
+	text-align: left;
 	line-height: 1.5em;
 	padding-bottom: 5px;
+}
+
+ol li::marker {
+	font-weight: bold;
 }
 
 pre, samp, code {
@@ -188,10 +204,48 @@ samp {
 	padding: 0px 5px;
 	border-radius: 5px;
 	background-color: #181818;
+	color: var(--text-color);
 }
 
 samp.nobg {
 	background: none;
+}
+
+details > summary {
+	font-weight: bold;
+	font-size: 1.1em;
+
+	list-style: none;
+
+	cursor: pointer;
+	transition: 0.3s;
+}
+
+details > summary::-webkit-details-marker {
+	display: none;
+}
+
+details > summary:hover {
+	color: var(--text-color-highlight);
+	transition: 0.3s;
+}
+
+details > summary > h1:before, details > summary > h2:before,
+details > summary > h3:before, details > summary > p:before,
+details > summary > span:before, details > summary > code:before,
+details > summary > pre:before {
+	content: '⮞';
+	font-size: 0.8em;
+	margin-right: 10px;
+	transition: 0.3s;
+}
+
+details[open] > summary > h1:before, details[open] > summary > h2:before,
+details[open] > summary > h3:before, details[open] > summary > p:before,
+details[open] > summary > span:before, details[open] > summary > code:before,
+details[open] > summary > pre:before {
+	content: '⮟';
+	transition: 0.3s;
 }
 
 a:link {
@@ -244,8 +298,8 @@ table, th, td {
 }
 
 th, td {
-	color: #adbac7;
-	background-color: #22272e;
+	color: var(--text-color-dark);
+	background-color: var(--light-bg);
 	border-top: 2px solid var(--bg);
 	border-left: 2px solid var(--bg);
 	border-right: 2px solid var(--bg);
@@ -380,26 +434,6 @@ table.stylized th.centered-cell, table.stylized td.centered-cell {
 	align-items: center;
 }
 
-.flex.nospaced {
-	gap: 0px;
-}
-
-.flex.smallspaced {
-	gap: 5px;
-}
-
-.flex.spaced {
-	gap: 10px;
-}
-
-.flex.bigspaced {
-	gap: 20px;
-}
-
-.flex.extraspaced {
-	gap: 40px;
-}
-
 .fixed {
 	position: fixed;
 }
@@ -430,6 +464,34 @@ table.stylized th.centered-cell, table.stylized td.centered-cell {
 	bottom: 0;
 }
 
+.grid {
+	display: grid;
+	justify-items: stretch;
+	align-items: stretch;
+
+	grid-template-columns: repeat(2, 1fr);
+}
+
+.grid.multicol {
+	grid-column-start: 1;
+	grid-column-end: 2;
+}
+
+.grid .singlerow {
+	grid-row-start: 1;
+	grid-row-end: 1;
+}
+
+.grid.multirow {
+	grid-row-start: 1;
+	grid-row-end: 2;
+}
+
+.grid.nostretch {
+	justify-items: start;
+	align-items: start;
+}
+
 .card {
 	padding-left: 15px;
 	padding-right: 15px;
@@ -446,7 +508,7 @@ table.stylized th.centered-cell, table.stylized td.centered-cell {
 	gap: 5px;
 
 	padding: 10px;
-	background-color: #22272E;
+	background-color: var(--light-bg);
 
 	font-family: monospace, monospace;
 }
@@ -488,6 +550,73 @@ table.stylized th.centered-cell, table.stylized td.centered-cell {
 
 .file.elf .body.auto:after {
 	content: '7F 45 4C 46\a 01 01 01 00\a ...';
+}
+
+.info {
+	transition: 0.4s cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+.info:hover {
+	scale: 1.1;
+	filter: brightness(150%);
+	transition: 0.4s cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+.info:hover > .infobox {
+	filter: brightness(75%);
+
+	font-size: 0.8em;
+	opacity: 1;
+	scale: 1;
+
+	transition: 0.4s cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+.info > .infobox {
+	position: fixed;
+	left: 0;
+	top: 100%;
+
+	min-width: 15vw;
+
+	margin-top: 5px;
+	padding: 10px;
+
+	border-radius: 5px;
+
+	text-align: left;
+
+	opacity: 0;
+	scale: 0;
+
+	color: var(--text-color-light);
+	background-color: var(--lighter-bg);
+
+	transition: 0.6s cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+.collapsible > #title .checkbox {
+	border: 2px solid red;
+}
+
+.nospaced {
+	gap: 0px;
+}
+
+.smallspaced {
+	gap: 5px;
+}
+
+.spaced {
+	gap: 10px;
+}
+
+.bigspaced {
+	gap: 20px;
+}
+
+.extraspaced {
+	gap: 40px;
 }
 
 .nopad {
@@ -543,7 +672,19 @@ table.stylized th.centered-cell, table.stylized td.centered-cell {
 }
 
 .indent {
-	padding-left: 8vw;
+	padding-left: 2vw;
+}
+
+.wfull {
+	min-width: 100%;
+	width: 100%;
+	max-width: 100%;
+}
+
+.hfull {
+	min-height: 100%;
+	height: 100%;
+	max-height: 100%;
 }
 
 .w2 {
@@ -620,12 +761,63 @@ table.stylized th.centered-cell, table.stylized td.centered-cell {
 	margin-top: auto;
 }
 
+.jost-text {
+	font-family: 'Jost*';
+}
+
 .centered-text {
 	text-align: center;
 }
 
+.left-aligned-text {
+	text-align: left;
+}
+
+.right-aligned-text {
+	text-align: right;
+}
+
+.negative-text-color {
+	color: rgb(from var(--text-color) calc(255 - r) calc(255 - g) calc(255 - b));
+}
+
 .monospace {
 	font-family: monospace, monospace;
+}
+
+.okabe-ito-1 {
+	background-color: rgb(0, 158, 115);
+}
+
+.okabe-ito-2 {
+	background-color: rgb(0, 114, 178);
+}
+
+.okabe-ito-3 {
+	background-color: rgb(86, 180, 233);
+}
+
+.okabe-ito-4 {
+	background-color: rgb(240, 228, 66);
+}
+
+.okabe-ito-5 {
+	background-color: rgb(230, 159, 0);
+}
+
+.okabe-ito-6 {
+	background-color: rgb(213, 94, 0);
+}
+
+.okabe-ito-7 {
+	background-color: rgb(204, 121, 167);
+}
+
+#presentation p {
+	font-family: 'Jost*';
+	font-size: 1.5em;
+
+	text-align: left;
 }
 
 #content {
@@ -639,7 +831,7 @@ table.stylized th.centered-cell, table.stylized td.centered-cell {
 	height: 100vh;
 	padding: 0px 50px;
 
-	color: var(--textcolor);
+	color: var(--text-color);
 	text-decoration: none;
 	text-align: center;
 	line-height: 100vh;
