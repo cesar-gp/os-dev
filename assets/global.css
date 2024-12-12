@@ -468,8 +468,6 @@ table.stylized th.centered-cell, table.stylized td.centered-cell {
 	display: grid;
 	justify-items: stretch;
 	align-items: stretch;
-
-	grid-template-columns: repeat(2, 1fr);
 }
 
 .grid.multicol {
@@ -858,6 +856,10 @@ table.stylized th.centered-cell, table.stylized td.centered-cell {
 	.bigscreen {
 		display: none;
 	}
+
+	#presentation {
+		grid-template-columns: 1fr;
+	}
 }
 
 @media (min-width:961px) {
@@ -867,5 +869,9 @@ table.stylized th.centered-cell, table.stylized td.centered-cell {
 
 	.bigscreen {
 		display: flex;
+	}
+
+	#presentation {
+		grid-template-columns: repeat(2, 1fr);
 	}
 }
