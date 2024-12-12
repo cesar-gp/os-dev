@@ -19,7 +19,22 @@
 		<p>
 			Nuestro disco ya tiene un sistema de archivos, pero no tiene ningún archivo dentro. Sus primeros 512 bytes contienen información crucial para iniciar FAT12, pero no hemos escrito ningún archivo como tal. La pregunta con la que empezaremos este capítulo es una de mis favoritas: <b>¿qué ocurre exactamente cuando creamos un archivo en un disco?</b>
 		</p>
-		<details>
+		<details id="Tabla_de_contenidos" open>
+			<summary>
+				<h2>Tabla de contenidos</h2>
+				<hr>
+			</summary>
+			<ol>
+				<li><a href="#Estructura_basica_de_FAT12">Estructura básica de FAT12</a></li>
+				<li><a href="#Geometria_del_disco">Geometría del disco</a></li>
+				<li><a href="#Secciones_de_FAT12_La_seccion_reservada">Secciones de FAT12: La sección reservada</a></li>
+				<li><a href="#Secciones_de_FAT12_La_seccion_de_FAT">Secciones de FAT12: La sección de FAT</a></li>
+				<li><a href="#Secciones_de_FAT12_La_carpeta_raiz">Secciones de FAT12: La carpeta raíz</a></li>
+				<li><a href="#Secciones_de_FAT12_La_seccion_de_datos">Secciones de FAT12: La sección de datos</a></li>
+				<li><a href="#Resumen">Resumen</a></li>
+			</ol>
+		</details>
+		<details id="Estructura_basica_de_FAT12" open>
 			<summary>
 				<h2>Estructura básica de FAT12</h2>
 				<hr>
@@ -139,7 +154,7 @@
 			<br>
 			<b>Puedes pasar el ratón por encima de la tabla para ver una descripción más detallada de cada elemento.</b>
 		</details>
-		<details>
+		<details id="Geometria_del_disco" open>
 			<summary>
 				<h2>Geometría del disco</h2>
 				<hr>
@@ -167,7 +182,7 @@
 				Volveremos a esto cuando tengamos que leer archivos, pero por ahora lo más importante es que entiendas que <b>no se puede leer el disco byte a byte, la unidad mínima de lectura es un sector</b>.
 			</p>
 			<p>
-				Existen dos formas de definir la dirección de un sector dentro del disco. La más moderna y fácil es el LBA o <a href="https://es.wikipedia.org/wiki/Direccionamiento_de_bloque_l%C3%B3gico"><i>Logical Block Addressing</i></a>, y la más antigua (que usaremos únicamente en el <a href="03.html#imprimir-texto">modo real</a> del procesador) es el CHS o <a href="https://es.wikipedia.org/wiki/Cilindro-Cabezal-Sector"><i>Cylinder-Head-Sector</i></a>. El LBA indica <b>el sector en el que se encuentra una parte del disco si empezamos a contar desde cero</b>. El <i>boot sector</i> sería 0, el siguiente 1, 2... y así hasta 2879. Su cálculo es sorprendentemente simple.
+				Existen dos formas de definir la dirección de un sector dentro del disco. La más moderna y fácil es el LBA o <a href="https://es.wikipedia.org/wiki/Direccionamiento_de_bloque_l%C3%B3gico"><i>Logical Block Addressing</i></a>, y la más antigua (que usaremos únicamente en el <a href="03.html#Imprimir_caracteres_usando_la_BIOS">modo real</a> del procesador) es el CHS o <a href="https://es.wikipedia.org/wiki/Cilindro-Cabezal-Sector"><i>Cylinder-Head-Sector</i></a>. El LBA indica <b>el sector en el que se encuentra una parte del disco si empezamos a contar desde cero</b>. El <i>boot sector</i> sería 0, el siguiente 1, 2... y así hasta 2879. Su cálculo es sorprendentemente simple.
 			</p>
 			<p>
 				<div class="flex row bigspaced nostretch">
@@ -198,7 +213,7 @@
 				Este sistema está completamente obsoleto hoy en día, pero es necesario conocerlo porque <b>vamos a utilizar la función de la BIOS <a href="https://www.ctyme.com/intr/rb-0607.htm">INT 13/AH=02h</a> para leer sectores del disco</b>, y esta función exige que le proporciones la dirección CHS del disco que quieres leer. Crearemos un "traductor" de LBA a CHS para librarnos de este problema cuanto antes.
 			</p>
 		</details>
-		<details>
+		<details id="Secciones_de_FAT12_La_seccion_reservada" open>
 			<summary>
 				<h2>Secciones de FAT12: La sección reservada</h2>
 				<hr>
@@ -251,14 +266,22 @@
 				Dentro de la sección reservada también <b>puede haber una cantidad arbitraria de sectores reservados para el sistema</b>. Estos sectores serían los siguientes partiendo desde el <i>boot sector</i>, aunque nosotros no hemos reservado ninguno. Esto se puede configurar mediante la variable <samp>bdb_reserved_sectors</samp>, a la que hemos dado un valor de 1 (para reservar únicamente el <i>boot sector</i>).
 			</p>
 		</details>
-		<details>
+		<details id="Secciones_de_FAT12_La_seccion_de_FAT" open>
 			<summary>
 				<h2>Secciones de FAT12: La sección de FAT</h2>
 				<hr>
 			</summary>
 			<p>
-				La sección de FAT (<a href="https://es.wikipedia.org/wiki/Tabla_de_asignaci%C3%B3n_de_archivos"><i>File Allocation Tables</i></a>) es <b>un mapa de la sección de datos</b>, que está dividida en <i>clusters</i>. A continuación, explicaremos qué es un cluster, su papel en la sección de datos y cómo esto afecta a la sección de FAT.
+				La sección de FAT (<a href="https://es.wikipedia.org/wiki/Tabla_de_asignaci%C3%B3n_de_archivos"><i>File Allocation Tables</i></a>) es <b>un mapa de la sección de datos</b>, que está dividida en <i>clusters</i>. A continuación, explicaremos qué es un cluster, su papel en la sección de datos y cómo esto afecta a la sección de FAT. <b>Se puede calcular su LBA en el disco de la siguiente forma</b>:
 			</p>
+			<pre><code class="language-c">/**
+ * Recuerda:
+ * bdb_reserved_sectors = Nº de sectores reservados.
+ *
+ * Está definido en el header de FAT12.
+ */
+
+int fatlba = bdb_reserved_sectors;</code></pre>
 			<p>
 				Puedes configurar cuántos sectores conforman un cluster usando la variable <samp>bdb_sectors_per_cluster</samp>, declarada en el header. <b>Nosotros le hemos dado el valor de <samp>1</samp>, por lo que un cluster es equivalente a un sector</b>. Igualmente, debemos programar nuestro bootloader teniendo en cuenta que esto podría cambiar cuando nuestro sistema operativo crezca.
 			</p>
@@ -468,14 +491,25 @@
 				Explicamos cómo leer tablas como esta más adelante, pero si te puede la curiosidad, aquí te dejo la <a href="https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system#Cluster_map">explicación de este fenómeno</a> incluida en el artículo de Wikipedia del sistema de archivos FAT.
 			</p>
 		</details>
-		<details>
+		<details id="Secciones_de_FAT12_La_carpeta_raiz" open>
 			<summary>
 				<h2>Secciones de FAT12: La carpeta raíz</h2>
 				<hr>
 			</summary>
 			<p>
-				Esta sección es <i>mucho</i> más simple que las anteriores. Simplemente, muestra la carpeta raíz del sistema de archivos. En Linux, esto serían los contenidos de la carpeta <samp>/</samp>. El equivalente en Windows es la carpeta <samp>C:</samp>.
+				Esta sección es <i>mucho</i> más simple que las anteriores. Simplemente, muestra la carpeta raíz del sistema de archivos. En Linux, esto serían los contenidos de la carpeta <samp>/</samp>. El equivalente en Windows es la carpeta <samp>C:</samp>. <b>Se puede calcular su LBA en el disco de la siguiente forma</b>:
 			</p>
+			<pre><code class="language-c">/**
+ * Recuerda:
+ * fatlba = Definida en la sección anterior
+ *
+ * bdb_sectors_per_fat = Sectores que ocupa cada FAT
+ * bdb_fat_count = Nº de FATs en el disco
+ *
+ * Estas 2 últimas están definidas en el header de FAT12.
+ */
+
+int rootlba = fatlba + (bdb_sectors_per_fat * bdb_fat_count);</code></pre>
 			<p>
 				En este sistema de archivos, <b>una carpeta se representa como una sucesión de <i>entradas</i> de 32 bytes cada una</b>, que definen el nombre de un archivo, sus atributos y la localización de su contenido dentro de la <i>data section</i>. Estos son los contenidos de una entrada, byte por byte:
 			</p>
@@ -643,13 +677,35 @@
 				La carpeta raíz contiene muchas de estas entradas. Para ser exactos, contiene el número de entradas definido en la variable <samp>bdb_dir_entries_count</samp>, localizada en nuestro header. Si sigues la configuración del capítulo anterior, esta variable tendrá el valor <samp>224</samp>, por lo que <b>el directorio raíz ocupará exactamente 7168 bytes</b> (<samp>224 * 32</samp>).
 			</p>
 		</details>
-		<details>
+		<details id="Secciones_de_FAT12_La_seccion_de_datos" open>
 			<summary>
 				<h2>Secciones de FAT12: La sección de datos</h2>
 				<hr>
 			</summary>
 			<p>
-				Ya hemos explicado bastante de esta sección. Contiene <b>el contenido de los archivos del disco</b>. Por ejemplo, si el disco solo tiene un archivo llamado <samp>ejemplo.txt</samp> y su contenido es <samp>Texto de ejemplo</samp>, en la carpeta raíz tendremos únicamente la siguiente entrada:
+				Esta sección contiene <b>el contenido de los archivos del disco</b>, y está dividida en <i>clusters</i>, que son grupos de sectores contiguos. Se puede definir cuántos sectores ocupa cada cluster en la variable <samp>bdb_sectors_per_cluster</samp>, definida en el header. <b>También podemos calcular el LBA de esta sección de la siguiente forma</b>:
+			</p>
+			<pre><code class="language-c">/**
+ * Recuerda:
+ * rootlba = Definida en el apartado anterior
+ *
+ * bdb_dir_entries_count = Entradas del directorio raíz
+ * bdb_bytes_per_sector = Bytes por sector
+ *
+ * Estás 2 últimas variables están definidas en el header.
+ */
+
+/**
+ * rootsize = Tamaño de la carpeta raíz en bytes
+ * rootsec = Tamaño de la carpeta raíz en sectores
+ */
+int rootsize = bdb_dir_entries_count * 32;
+int rootsec = (rootsize + bdb_bytes_per_sector - 1) / bdb_bytes_per_sector;
+
+/* datalba = LBA de la sección de datos */
+int datalba = rootlba + rootsec;</code></pre>
+			<p>
+				<b>Vamos a usar esta sección para consultar el contenido de un archivo</b>. Por ejemplo, pongamos que el disco contiene en su raíz un archivo llamado <samp>ejemplo.txt</samp> y su contenido ocupa 1.500 bytes. En algún punto de la carpeta raíz encontraremos la siguiente entrada:
 			</p>
 			<p>
 				<table class="memory">
@@ -712,19 +768,152 @@
 						<td colspan="2">0x0000</td>
 						<td colspan="2">--</td>
 						<td colspan="2">--</td>
-						<td colspan="2">0x0021</td>
-						<td colspan="4">0x00000010</td>
+						<td colspan="2">0x001C</td>
+						<td colspan="4">0x000005DC</td>
 					</tr>
 				</table>
 			</p>
 			<p>
-				Podemos ver que <samp>Cl<sub>high</sub></samp> tiene el valor <samp>0x0000</samp> y <samp>Cl<sub>low</sub></samp> tiene el valor <samp>0x0021</samp>. Si los juntamos, da el siguiente valor:
+				Podemos ver que <samp>Cl<sub>high</sub></samp> tiene el valor <samp>0x0000</samp> y <samp>Cl<sub>low</sub></samp> tiene el valor <samp>0x001C</samp>. Si juntamos el número de 32 bits completo, nos da el siguiente valor:
 			</p>
-			<pre><code>Hexadecimal  Decimal
-	--           --
-	0x00000021 = 33</code></pre>
 			<p>
-				[SEGUIR POR AQUÍ]
+				<table class="hcenter">
+					<tr>
+						<th>Hexadecimal</th>
+						<th>Decimal</th>
+					</tr>
+					<tr>
+						<td>0x0000001C</td>
+						<td>28</td>
+					</tr>
+				</table>
+			</p>
+			<p>
+				Este valor nos indica el <i>cluster</i> en el que se encuentra el archivo. <b>Los clusters se pueden traducir directamente a LBA</b> de forma muy sencilla:
+			</p>
+			<pre><code class="language-c">int LBA = lba_de_la_data_section + ((cluster * sectores_por_cluster) - 2)</code></pre>
+			<ul>
+				<li>Los <b>sectores que ocupa cada cluster</b> los tenemos en la variable <samp>bdb_sectors_per_cluster</samp> de nuestro header, que en nuestra configuración de disco es igual a <samp>1</samp>.</li>
+				<li>El <b>cluster que queremos buscar</b> es el <samp>28</samp> (<samp>0x1C</samp>).</li>
+				<li>El <b>LBA de la sección de datos</b> lo hemos calculado al principio del apartado. Si has seguido la misma configuración de disco que el manual, será igual a <samp>33</samp>.</li>
+			</ul>
+			<p>
+				Si hacemos la cuenta (<samp>33 + (28 * 1) = 61</samp>) sabremos que <b>el primer sector del archivo está escrito en el sector nº 61 del disco</b>. Pero en nuestro caso un sector son solo 512 bytes... ¿qué pasa con los archivos que pesan más de un sector? Pues, en ese caso, <b>habría que consultar la FAT para saber dónde está el siguiente <i>cluster</i> del archivo</b>.
+			</p>
+			<p>
+				Pongamos que la FAT de nuestro disco contiene las siguientes entradas:
+			</p>
+			<p>
+				<table class="memory">
+					<tr>
+						<th>0x00</th>
+						<th>0x01</th>
+						<th>0x02</th>
+						<th>0x03</th>
+						<th>0x04</th>
+						<th>0x05</th>
+						<th>0x06</th>
+						<th>0x07</th>
+						<th>0x08</th>
+						<th>0x09</th>
+						<th>0x0A</th>
+						<th>0x0B</th>
+					</tr>
+					<tr>
+						<td class="okabe-ito-1 dark-text" style="border-right: 2px dashed var(--bg)">0xFF0</td>
+						<td class="okabe-ito-1 dark-text noborder-left">0xFFF</td>
+						<td style="border-right: 2px dashed var(--bg)">0x003</td>
+						<td class="noborder-left" style="border-right: 2px dashed var(--bg)">0x004</td>
+						<td class="noborder-left" style="border-right: 2px dashed var(--bg)">0x005</td>
+						<td class="noborder-left">0xFFF</td>
+						<td class="noborder-left" style="border-right: 2px dashed var(--bg)">0x007</td>
+						<td class="noborder-left" style="border-right: 2px dashed var(--bg)">0x008</td>
+						<td class="noborder-left" style="border-right: 2px dashed var(--bg)">0x009</td>
+						<td class="noborder-left" style="border-right: 2px dashed var(--bg)">0x00A</td>
+						<td class="noborder-left" style="border-right: 2px dashed var(--bg)">0x00B</td>
+						<td class="noborder-left">0x00C</td>
+					</tr>
+					<tr>
+						<th>0x0C</th>
+						<th>0x0D</th>
+						<th>0x0E</th>
+						<th>0x0F</th>
+						<th>0x10</th>
+						<th>0x11</th>
+						<th>0x12</th>
+						<th>0x13</th>
+						<th>0x14</th>
+						<th>0x15</th>
+						<th>0x16</th>
+						<th>0x17</th>
+					</tr>
+					<tr>
+						<td style="border-right: 2px dashed var(--bg)">0x00D</td>
+						<td class="noborder-left">0xFFF</td>
+						<td class="okabe-ito-2 dark-text" style="border-right: 2px dashed var(--bg)">0x00F</td>
+						<td class="okabe-ito-2 dark-text noborder-left">0x016</td>
+						<td style="border-right: 2px dashed var(--bg)">0x011</td>
+						<td class="noborder-left" style="border-right: 2px dashed var(--bg)">0x012</td>
+						<td class="noborder-left" style="border-right: 2px dashed var(--bg)">0x013</td>
+						<td class="noborder-left" style="border-right: 2px dashed var(--bg)">0x014</td>
+						<td class="noborder-left" style="border-right: 2px dashed var(--bg)">0x015</td>
+						<td class="noborder-left">0xFFF</td>
+						<td class="okabe-ito-2 dark-text" style="border-right: 2px dashed var(--bg)">0x017</td>
+						<td class="okabe-ito-2 dark-text noborder-left">0xFFF</td>
+					</tr>
+					<tr>
+						<th>0x18</th>
+						<th>0x19</th>
+						<th>0x1A</th>
+						<th>0x1B</th>
+						<th>0x1C</th>
+						<th>0x1D</th>
+						<th>0x1E</th>
+						<th>0x1F</th>
+						<th>0x20</th>
+						<th>0x21</th>
+						<th>0x22</th>
+						<th>0x23</th>
+					</tr>
+					<tr>
+						<td style="border-right: 2px dashed var(--bg)">0x019</td>
+						<td class="noborder-left" style="border-right: 2px dashed var(--bg)">0x01A</td>
+						<td class="noborder-left" style="border-right: 2px dashed var(--bg)">0x01B</td>
+						<td class="noborder-left" style="border-right: 2px dashed var(--bg)">0xFFF</td>
+						<td class="okabe-ito-3 dark-text" style="border-right: 2px dashed var(--bg)">0x022</td>
+						<td style="border-right: 2px dashed var(--bg)">0x01E</td>
+						<td class="noborder-left" style="border-right: 2px dashed var(--bg)">0x01F</td>
+						<td class="noborder-left" style="border-right: 2px dashed var(--bg)">0x020</td>
+						<td class="noborder-left" style="border-right: 2px dashed var(--bg)">0x021</td>
+						<td class="noborder-left">0xFFF</td>
+						<td class="okabe-ito-3 dark-text" style="border-right: 2px dashed var(--bg)">0x023</td>
+						<td class="okabe-ito-3 dark-text noborder-left">0xFFF</td>
+					</tr>
+				</table>
+			</p>
+			<p>
+				<b>Las 2 primeras entradas están en <samp class="okabe-ito-1 dark-text">verde</samp> porque son entradas reservadas</b>. Siempre tienen esos valores y no indican el contenido de ningún cluster de la sección de datos. Después, las entradas indican el contenido de un archivo de 4 clusters y otro de 8. Tras estos, podemos ver que <b>el archivo que comienza en el cluster <samp>0x0E</samp>, marcado en <samp class="okabe-ito-2 dark-text">azul oscuro</samp>, está <i>fragmentado</i></b>. 
+			</p>
+			<p>
+				Si seguimos su <i>cadena de clusters</i>, obtendremos la siguiente lista: <samp>0xE</samp>, <samp>0xF</samp>, <samp>0x16</samp>, <samp>0x17</samp>. <b>El archivo ocupa 4 clusters que no son contiguos en la memoria</b>, por eso decimos que está <i>fragmentado</i>. En los clusters que se encuentran en medio, encontramos los datos de otro archivo. Si seguimos, tras otro archivo que ocupa 4 clusters, <b>llegamos al índice que buscábamos: el <samp>0x1C</samp></b>.
+			</p>
+			<p>
+				<b>El archivo que buscamos está marcado en <samp class="okabe-ito-3 dark-text">azul claro</samp> y también está fragmentado</b>. Si queremos leer su contenido tendremos que leer, en orden, los clusters <samp>0x1C</samp>, <samp>0x22</samp> y <samp>0x23</samp>. Lo que en nuestro disco equivale a leer los sectores <samp>61</samp>, <samp>67</samp> y <samp>68</samp>.
+			</p>
+			<p>
+				Estos 3 clusters suman en nuestro disco 1.536 bytes, pero nuestro archivo ocupa 1.500 bytes. Por eso, los últimos 36 bytes del cluster <samp>0x23</samp> tendrán el valor <samp>0</samp>. <b>Al leerlo, conviene consultar el tamaño del archivo en su entrada para asegurarnos de que leemos el número de bytes correcto</b>.
+			</p>
+		</details>
+		<details id="Resumen" open>
+			<summary>
+				<h2>Resumen</h2>
+				<hr>
+			</summary>
+			<p>
+				<b>Hemos visto en qué consisten las secciones reservada, de FAT, de directorio raíz y de datos de FAT12</b>. También hemos aprendido cómo calcular su posición en el disco y cómo usarlas para leer el contenido de un archivo. En el proceso, hemos aprendido sobre la <i>fragmentación de disco</i> y los <i>sistemas de direccionamiento LBA y CHS</i>.
+			</p>
+			<p>
+				<b>En el siguiente capítulo aprenderemos cómo leer parámetros del disco, cómo leer sus sectores y cómo cargar archivos en la memoria</b>. Para ello, necesitarás tener conocimientos mínimos de assembly (como los explicados en el <a href="01.html">capítulo 1</a>) y del sistema de archivos FAT12 (como los tratados en este capítulo).
 			</p>
 		</details>
 		<p id="footer">

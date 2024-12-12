@@ -2,7 +2,7 @@
 
 <head>
 	<title>Manual de OSDev</title>
-	<meta charset="UTF-8">
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 	<link rel="stylesheet" type="text/css" href="assets/global.css">
 	<link rel="stylesheet" href="assets/lib/highlight/styles/github-dark-dimmed.css">
 </head>
@@ -19,7 +19,21 @@
 		<p>
 			¿No te ha parecido suficiente con la tupa de antes? Pues ahora vas a ver. En este capítulo vamos a coger el bootloader que programamos en el capítulo anterior y preprarlo para <b>imprimir texto en pantalla y formatear nuestro disco con el sistema de archivos FAT12</b>. ¿Listo? Pues vamos allá.
 		</p>
-		<details>
+		<details id="Tabla_de_contenidos" open>
+			<summary>
+				<h2>Tabla de contenidos</h2>
+				<hr>
+			</summary>
+			<ol>
+				<li><a href="#Imprimir_caracteres_usando_la_BIOS">Imprimir caracteres usando la BIOS</a></li>
+				<li><a href="#Unir_los_caracteres_en_cadenas_de_texto">Unir los caracteres en cadenas de texto</a></li>
+				<li><a href="#Imprimir_y_declarar_una_cadena_de_texto">Imprimir (y declarar) una cadena de texto</a></li>
+				<li><a href="#Definir_el_sistema_de_archivos_FAT12">Definir el sistema de archivos FAT12</a></li>
+				<li><a href="#Formatear_el_disco">Formatear el disco</a></li>
+				<li><a href="#Resumen">Resumen</a></li>
+			</ol>
+		</details>
+		<details id="Imprimir_caracteres_usando_la_BIOS" open>
 			<summary>
 				<h2>Imprimir caracteres usando la BIOS</h2>
 				<hr>
@@ -44,13 +58,13 @@
 mov al, 'a'     ; al = Caracter para imprimir.
 int 10h         ; Llamar al interrupt.</code></pre>
 			<p>
-				Es importante fijarse en que la instrucción <samp>int 0x10</samp> (o <i>int 10h</i>, que es <a href="00.html#sistemas-numeracion">otra manera de indicar que el número está en hexadecimal</a>) no hace todo el trabajo sola. <b>Necesita que <samp>ah</samp> contenga el valor <samp>0x0E</samp> para entender que quieres imprimir un caracter en la pantalla</b>. Si en el registro hay otro valor distinto, es probable que ejecute una función distinta (o ninguna).
+				Es importante fijarse en que la instrucción <samp>int 0x10</samp> (o <i>int 10h</i>, que es <a href="00.html#Sistemas_de_numeracion_y_manejo_de_memoria">otra manera de indicar que el número está en hexadecimal</a>) no hace todo el trabajo sola. <b>Necesita que <samp>ah</samp> contenga el valor <samp>0x0E</samp> para entender que quieres imprimir un caracter en la pantalla</b>. Si en el registro hay otro valor distinto, es probable que ejecute una función distinta (o ninguna).
 			</p>
 			<p>
 				Por eso, el nombre completo de esta función sería <a href="https://www.ctyme.com/intr/rb-0106.htm">INT 10/AH=0Eh</a>. La nomenclatura indica que usamos la instrucción <samp>int 10h</samp> (sinónimo de <samp>int 0x10</samp>) mientras en el registro <samp>ah</samp> está guardado el valor <samp>0Eh</samp> (sinónimo de <samp>0x0E</samp>).
 			</p>
 		</details>
-		<details>
+		<details id="Unir_los_caracteres_en_cadenas_de_texto" open>
 			<summary>
 				<h2>Unir los caracteres en cadenas de texto</h2>
 				<hr>
@@ -121,12 +135,12 @@ mov ss, ax    ; ss = x (0).</code></pre>
 			<p>
 				<div class="card">
 					<p>
-						<b>Una cosita solo.</b> La función incluida en el siguiente apartado utiliza el <i>stack</i> para guardar y recoger valores de los registros. Si no sabes qué es el stack, te recomiendo leer <a href="01.html#stack">el apartado que hay sobre el tema en el capítulo 1</a>.
+						<b>Una cosita solo.</b> La función incluida en el siguiente apartado utiliza el <i>stack</i> para guardar y recoger valores de los registros. Si no sabes qué es el stack, te recomiendo leer <a href="01.html#El_stack_la_memoria_mas_alla_de_los_registros">el apartado que hay sobre el tema en el capítulo 1</a>.
 					</p>
 				</div>
 			</p>
 		</details>
-		<details>
+		<details id="Imprimir_y_declarar_una_cadena_de_texto" open>
 			<summary>
 				<h2>Imprimir (y declarar) una cadena de texto</h2>
 				<hr>
@@ -178,7 +192,7 @@ print_ret:
 			<pre><code class="language-x86asm">mov si, msg_prueba
 call print</code></pre>
 		</details>
-		<details>
+		<details id="Definir_el_sistema_de_archivos_FAT12" open>
 			<summary>
 				<h2>Definir el sistema de archivos FAT12</h2>
 				<hr>
@@ -209,8 +223,24 @@ call print</code></pre>
 						<th>0xA</th>
 					</tr>
 					<tr>
-						<td colspan="3">jmp</td>
-						<td colspan="8">OEM</td>
+						<td class="info" colspan="3">
+							jmp
+							<div class="infobox">
+								<b>Bloque de instrucciones muy corto usado para que nuestro código se salte el header</b>. Normalmente se declara así:<br>
+								<br>
+								<pre><code class="language-x86asm">jmp entry_point
+nop</code></pre>
+								*La instrucción <i>nop</i> está diseñada para, literalmente, no hacer nada.
+							</div>
+						</td>
+						<td class="info" colspan="8">
+							OEM
+							<div class="infobox">
+								<b>Nombre del fabricante</b> (8 bytes, rellenado con espacios).
+								<hr class="equalspace">
+								Ejemplo: <samp>GNU&nbsp;&nbsp;ORG</samp>, aunque se suele usar <samp>MSWIN4.1</samp> para tener una mayor compatibilidad.
+							</div>
+						</td>
 					</tr>
 					<tr>
 						<th>0xB</th>
@@ -226,13 +256,52 @@ call print</code></pre>
 						<th>0x15</th>
 					</tr>
 					<tr>
-						<td colspan="2">b/sec</td>
-						<td>s/cl</td>
-						<td colspan="2">ressec</td>
-						<td>fats</td>
-						<td colspan="2">entries</td>
-						<td colspan="2">sectors</td>
-						<td>desc</td>
+						<td class="info" colspan="2">
+							b/sec
+							<div class="infobox">
+								<b>Número de bytes por sector del disco</b> (normalmente, o <samp>512 bytes</samp> o <samp>4 KB</samp>)
+							</div>
+						</td>
+						<td class="info">
+							s/cl
+							<div class="infobox">
+								<b>Número de sectores por cluster del disco</b> (lo más simple es que cada cluster contenga solo un sector)
+							</div>
+						</td>
+						<td class="info" colspan="2">
+							ressec
+							<div class="infobox">
+								<b>Número de sectores reservados para el sistema</b> (mínimo 1 sector, en el que incluiremos este mismo header).
+							</div>
+						</td>
+						<td class="info">
+							fats
+							<div class="infobox">
+								<b>Número de <i>File Allocation Tables</i> incluidas en el disco</b> (desarrollaremos esto en el siguiente capítulo)
+							</div>
+						</td>
+						<td class="info" colspan="2">
+							entries
+							<div class="infobox">
+								<b>Número de entradas incluidas en la carpeta raíz</b> (desarrollaremos esto en el siguiente capítulo)
+							</div>
+						</td>
+						<td class="info" colspan="2">
+							sectors
+							<div class="infobox">
+								<b>Número total de sectores en el disco</b>. Depende de la geometría del disco que quieras usar.
+								<hr class="equalspace">
+								<b>Ejemplo:</b> para un floppy <i>3½" DSHD 1.44 MB</i>, serían <samp>2880</samp>.
+							</div>
+						</td>
+						<td class="info">
+							desc
+							<div class="infobox">
+								<b>Byte que describe el dispositivo de inicio</b>. Depende de la geometría del disco que quieras usar.
+								<hr class="equalspace">
+								<b>Ejemplo:</b> para un floppy <i>3½" DSHD 1.44 MB</i>, sería <samp>0xF0</samp>.
+							</div>
+						</td>
 					</tr>
 					<tr>
 						<th>0x16</th>
@@ -248,11 +317,42 @@ call print</code></pre>
 						<th>0x20</th>
 					</tr>
 					<tr>
-						<td colspan="2">s/fat</td>
-						<td colspan="2">s/track</td>
-						<td colspan="2">heads</td>
-						<td colspan="4">hiddensec</td>
-						<td>larg...</td>
+						<td class="info" colspan="2">
+							s/fat
+							<div class="infobox">
+								<b>Sectores que ocupa cada <i>File Allocation Table</i></b> (desarrollaremos esto en el siguiente capítulo)
+							</div>
+						</td>
+						<td class="info" colspan="2">
+							s/track
+							<div class="infobox">
+								<b>Número de sectores por cilindro</b>. Depende de la geometría del disco que quieras usar.
+								<hr class="equalspace">
+								<b>Ejemplo:</b> para un floppy <i>3½" DSHD 1.44 MB</i>, serían <samp>18</samp>.
+							</div>
+						</td>
+						<td class="info" colspan="2">
+							heads
+							<div class="infobox">
+								<b>Número total de cabezas en el disco</b>. Depende de la geometría del disco que quieras usar.
+								<hr class="equalspace">
+								<b>Ejemplo:</b> para un floppy <i>3½" DSHD 1.44 MB</i>, serían <samp>2</samp>.
+							</div>
+						</td>
+						<td class="info" colspan="4">
+							hiddensec
+							<div class="infobox">
+								<b>Número de sectores <i>ocultos</i> en el disco</b> (debe ser <samp>0</samp> en discos de una sola partición, como el nuestro)
+							</div>
+						</td>
+						<td class="info">
+							larg...
+							<div class="infobox">
+								<b>Número total de sectores en el disco (únicamente si el número de sectores es mayor que 65.535)</b>. Depende de la geometría del disco que quieras usar.
+								<hr class="equalspace">
+								<b>Ejemplo:</b> para cualquier disco con menos de 65.535 sectores, se debe usar <samp>0</samp>, pero si el disco tiene 70.000 sectores, aquí pondremos <samp>70000</samp>, y en <i>sectors</i> pondremos <samp>0</samp>.
+							</div>
+						</td>
 					</tr>
 					<tr>
 						<th>0x21</th>
@@ -260,28 +360,21 @@ call print</code></pre>
 						<th>0x23</th>
 					</tr>
 					<tr>
-						<td colspan="3">...largesec</td>
+						<td class="info" colspan="3">
+							...largesec
+							<div class="infobox">
+								<b>Número total de sectores en el disco (únicamente si el número de sectores es mayor que 65.535)</b>. Depende de la geometría del disco que quieras usar.
+								<hr class="equalspace">
+								<b>Ejemplo:</b> para cualquier disco con menos de 65.535 sectores, se debe usar <samp>0</samp>, pero si el disco tiene 70.000 sectores, aquí pondremos <samp>70000</samp>, y en <i>sectors</i> pondremos <samp>0</samp>.
+							</div>
+						</td>
 					</tr>
 				</table>
+				<br>
+				<b>Puedes pasar el ratón por encima de la tabla para ver una descripción más detallada de cada elemento.</b>
 			</p>
-			<ul class="multicol">
-				<li><b>jmp</b>: instrucción para saltar a nuestro código.</li>
-				<li><b>OEM</b>: texto de 8 letras con el nombre del fabricante.</li>
-				<li><b>b/sec</b>: Número de bytes por sector.</li>
-				<li><b>s/cl</b>: Número de sectores por cluster.</li>
-				<li><b>ressec</b>: Número de sectores reservados.</li>
-				<li><b>fats</b>: Número de FATs en total.</li>
-				<li><b>entries</b>: Máximas entradas en el directorio raíz</li>
-				<li><b>sectors</b>: Número de sectores en total</li>
-				<li><b>desc</b>: Descriptor del dispositivo (<samp>0xF0</samp> para <i>floppy</i>).</li>
-				<li><b>s/fat</b>: Número de sectores por FAT.</li>
-				<li><b>s/track</b>: Número de sectores por track.</li>
-				<li><b>heads</b>: Número de cabezas del disco.</li>
-				<li><b>hiddensec</b>: Número de sectores escondidos.</li>
-				<li><b>largesec</b>: Número de sectores extendidos.</li>
-			</ul>
 			<p>
-				También se debe definir el <a href="https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system#Extended_BIOS_Parameter_Block">Extended BIOS Parameter Block</a>, una estructura más breve (de 26 bytes) que contiene la siguiente información:
+				También se debe definir en los bytes inmediatamente siguientes el <a href="https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system#Extended_BIOS_Parameter_Block">Extended BIOS Parameter Block</a>, una estructura más breve (de 26 bytes) que contiene la siguiente información:
 			</p>
 			<p>
 				<table class="memory">
@@ -299,11 +392,38 @@ call print</code></pre>
 						<th>0xA</th>
 					</tr>
 					<tr>
-						<td>drive</td>
-						<td>_res</td>
-						<td>sign</td>
-						<td colspan="4">volume_id</td>
-						<td colspan="4">volume_name...</td>
+						<td class="info">
+							drive
+							<div class="infobox">
+								<b>Número de disco</b>: los floppys abarcan del <samp>0x00</samp> al <samp>0x7E</samp>, y los discos duros del <samp>0x7F</samp> al <samp>0xFE</samp>.
+							</div>
+						</td>
+						<td class="info">
+							res
+							<div class="infobox">
+								<b>Byte reservado para el sistema</b>, se debe dejar vacío.
+							</div>
+						</td>
+						<td class="info">
+							sign
+							<div class="infobox">
+								<b>Firma de boot</b> (<samp>0x29</samp> en sistemas modernos)
+							</div>
+						</td>
+						<td class="info" colspan="4">
+							volume_id
+							<div class="infobox">
+								<b>Número de serie del disco</b>. Puedes poner aquí cualquier valor de 4 bytes.
+							</div>
+						</td>
+						<td class="info" colspan="4">
+							volume_name...
+							<div class="infobox">
+								<b>Nombre del disco</b>: valor arbitrario de 11 bytes, rellenado con espacios.
+								<hr class="equalspace">
+								<b>Ejemplo:</b> <samp>NO NAME&nbsp;&nbsp;&nbsp;&nbsp;</samp>
+							</div>
+						</td>
 					</tr>
 					<tr>
 						<th>0xB</th>
@@ -319,8 +439,22 @@ call print</code></pre>
 						<th>0x15</th>
 					</tr>
 					<tr>
-						<td colspan="7">...volume_name</td>
-						<td colspan="4">system_name...</td>
+						<td class="info" colspan="7">
+							...volume_name
+							<div class="infobox">
+								<b>Nombre del disco</b>: valor arbitrario de 11 bytes, rellenado con espacios.
+								<hr class="equalspace">
+								<b>Ejemplo:</b> <samp>NO NAME&nbsp;&nbsp;&nbsp;&nbsp;</samp>
+							</div>
+						</td>
+						<td class="info" colspan="4">
+							system_name...
+							<div class="infobox">
+								<b>Nombre del sistema de archivos</b> (8 bytes, rellenado con espacios).
+								<hr class="equalspace">
+								<b>Ejemplo:</b> en nuestro caso, debemos poner <samp>FAT12&nbsp;&nbsp;&nbsp;</samp>
+							</div>
+						</td>
 					</tr>
 					<tr>
 						<th>0x16</th>
@@ -329,18 +463,19 @@ call print</code></pre>
 						<th>0x19</th>
 					</tr>
 					<tr>
-						<td colspan="4">...system_name</td>
+						<td class="info" colspan="4">
+							...system_name
+							<div class="infobox">
+								<b>Nombre del sistema de archivos</b> (8 bytes, rellenado con espacios).
+								<hr class="equalspace">
+								<b>Ejemplo:</b> en nuestro caso, debemos poner <samp>FAT12&nbsp;&nbsp;&nbsp;</samp>
+							</div>
+						</td>
 					</tr>
 				</table>
+				<br>
+				<b>Puedes pasar el ratón por encima de la tabla para ver una descripción más detallada de cada elemento.</b>
 			</p>
-			<ul>
-				<li><b>drive</b>: número de disco (<samp>0x00 - 0x7E</samp>: floppys, <samp>0x80 - 0xFE</samp>: discos duros).</li>
-				<li><b>_reserved</b>: reservado para el sistema.</li>
-				<li><b>sign</b>: firma de boot (<samp>0x29</samp> en sistemas modernos).</li>
-				<li><b>volume_id</b>: valor arbitrario de 4 bytes. Se usaba para el número de serie.</li>
-				<li><b>volume_name</b>: nombre de la partición. Debe ocupar 11 bytes. (Ejemplo: <samp>NO NAME&nbsp;&nbsp;&nbsp;&nbsp;</samp>)</li>
-				<li><b>system_name</b>: nombre del sistema de archivos. Debe ocupar 8 caracteres. (Ejemplo: <samp>FAT12&nbsp;&nbsp;&nbsp;</samp>).</li>
-			</ul>
 			<p>
 				Si te interesa saber más sobre la especificación, puedes irte directamente al <a href="http://download.microsoft.com/download/1/6/1/161ba512-40e2-4cc9-843a-923143f3456c/fatgen103.doc">documento de Microsoft</a> o al <a href="https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system">artículo de Wikipedia sobre los sistemas de archivos FAT</a>, que es extensísimo y muy detallado.
 			</p>
@@ -351,7 +486,7 @@ call print</code></pre>
 				Es probable que nunca en la vida hayas visto uno, por lo que en los capítulos sobre el bootloader te va a venir muy bien tener a mano una <a href="https://www.deathwombat.com/diskgeometry.html">calculadora de geometría de disco</a>. Si te interesa conocer algo más sobre este tipo de disco, te puede resultar interesante leer <a href="https://elrincondecabra.com/momento-retro-disquetes-de-35/">este artículo del blog <i>El Rincón de Cabra</i></a>.
 			</p>
 			<p>
-				Todas estas estructuras tenemos que al principio de nuestro bootloader, antes del código que ya tenemos hecho. <b>Aquí tienes un <i>header</i> totalmente compatible con el tipo de disco que queremos emular</b>. Está diseñado para mi sistema operativo, <i>scratchOS</i>, pero siéntete libre de cambiarle el nombre:
+				Todas estas variables tenemos que definirlas al principio de nuestro bootloader, antes del código que ya tenemos hecho. <b>Aquí tienes un <i>header</i> totalmente compatible con el tipo de disco que queremos emular</b>. Está diseñado para mi sistema operativo, <i>scratchOS</i>, y está basado en el diseñado por <a href="https://youtu.be/srbnMNk7K7k?list=PLFjM7v6KGMpiH2G-kT781ByCNC_0pKpPN&t=572">nanobyte</a> para su sistema operativo, pero siéntete libre de cambiarle el nombre:
 			</p>
 			<pre><code>; FAT HEADER
 jmp short start
@@ -379,7 +514,7 @@ nop
            ebr_volume_label: db 'SCRATCH  OS'
               ebr_system_id: db 'FAT12   '</code></pre>
 	    </details>
-	    <details>
+	    <details id="Formatear_el_disco" open>
 	    	<summary>
         		<h2>Formatear el disco</h2>
         		<hr>
@@ -390,6 +525,9 @@ nop
 	        <pre><code class="language-bash">nasm -f bin boot.obj boot.asm                 # Compilar boot.asm
 dd if=/dev/zero of=boot.img bs=512 count=2880 # Crear imagen llena de ceros
 dd if=boot.bin of=boot.img conv=notrunc       # Copiar boot.bin a la imagen</code></pre>
+			<p>
+				<b>Nota:</b> Si no recuerdas esto, puede que te ayude leer el <a href="03.html">capítulo anterior</a>.
+			</p>
 			<p>
 				A partir de ahora, <b>añadiremos el comando <samp>mkfs.fat</samp> a nuestro <i>script</i></b>. Este comando nos permitirá formatear nuestra imagen de disco con el sistema de archivos FAT12. Gracias a esto, podremos meter archivos en el disco antes incluso de tener nuestro sistema listo.
 			</p>
@@ -413,7 +551,7 @@ dd if=boot.bin of=boot.img conv=notrunc</code></pre>
 				<b>Recuerda:</b> el nombre debe ocupar 11 bytes exactamente.
 			</p>
 		</details>
-		<details>
+		<details id="Resumen" open>
 			<summary>
 				<h2>Resumen</h2>
 				<hr>

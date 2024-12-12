@@ -17,12 +17,27 @@
 		<h1>Capítulo 1: Escribir en Assembly</h1>
 		<hr>
 		<p>
-			Assembly es muy difícil cuando no conoces <a href="00.html#sistemas-numeracion">qué es un <i>byte</i></a>, una <i>word</i> y todos esos conceptos básicos que hemos explicado en la introducción. También es importante saber que ningún compilador te va a dar todo hecho, por eso también hemos hablado de <a href="00.html#conceptos-basicos">cómo generar ejecutables</a>. Cuando los conoces, es un lenguaje que, con sus problemas, <b>resulta bastante simple</b>.
+			Assembly es muy difícil cuando no conoces <a href="00.html#Sistemas_de_numeracion_y_manejo_de_memoria">qué es un <i>byte</i></a>, una <i>word</i> y todos esos conceptos básicos que hemos explicado en la introducción. También es importante saber que ningún compilador te va a dar todo hecho, por eso también hemos hablado de <a href="00.html#Conceptos_basicos_para_crear_programas_ejecutables">cómo generar ejecutables</a>. Cuando los conoces, es un lenguaje que, con sus problemas, <b>resulta bastante simple</b>.
 		</p>
 		<p>
 			Si nunca en la vida has visto código assembly, <b>dedica el tiempo que necesites a entender cada parte de este capítulo</b>. Es probable que, si no lo haces, te cueste mucho continuar. Si ya controlas el lenguaje, siéntete libre de saltarte este capítulo.
 		</p>
-		<details>
+		<details id="Tabla_de_contenidos" open>
+			<summary>
+				<h2>Tabla de contenidos</h2>
+				<hr>
+			</summary>
+			<ol>
+				<li><a href="#Los_registros_que_son_y_como_usar_algunos_de_ellos">Los registros: qué son y cómo usar algunos de ellos</a></li>
+				<li><a href="#Sintaxis_de_assembly_las_directivas">Sintaxis de assembly: las directivas</a></li>
+				<li><a href="#Las_instrucciones_movimientos_y_operaciones">Las instrucciones: movimientos y operaciones</a></li>
+				<li><a href="#Mas_instrucciones_saltos_y_condiciones">Más instrucciones: saltos y condiciones</a></li>
+				<li><a href="#Simbolos_y_pointers_como_usar_la_seccion_data">Símbolos y pointers: cómo usar la sección <samp>.data</samp></a></li>
+				<li><a href="#El_stack_la_memoria_mas_alla_de_los_registros">El stack: la memoria más allá de los registros</a></li>
+				<li><a href="#Resumen">Resumen</a></li>
+			</ol>
+		</details>
+		<details id="Los_registros_que_son_y_como_usar_algunos_de_ellos" open>
 			<summary>
 				<h2>Los registros: qué son y cómo usar algunos de ellos</h2>
 				<hr>
@@ -173,7 +188,7 @@
 				</div>
 			</div>
 		</details>
-		<details>
+		<details id="Sintaxis_de_assembly_las_directivas" open>
 			<summary>
 				<h2>Sintaxis de assembly: las directivas</h2>
 				<hr>
@@ -278,7 +293,7 @@ exit:
 				Como curiosidad: <b>los símbolos proporcionados como argumentos a las instrucciones, cuando pasan al ejecutable, pierden el nombre</b>, y se convierten sencillamente en la dirección a la que apuntan. Por ejemplo: la instrucción <samp>jmp parte_dos</samp> acabará convertida en <samp>jmp 0x1504</samp>. Esto no está puesto así en la ilustración sería algo más difícil entenderla.
 			</p>
 		</details>
-		<details>
+		<details id="Las_instrucciones_movimientos_y_operaciones" open>
 			<summary>
 				<h2>Las instrucciones: movimientos y operaciones</h2>
 				<hr>
@@ -315,7 +330,7 @@ sub ebx, 5      ; ebx = ebx - 5 = 10
 
 int 0x80        ; Llamada a Linux</code></pre>
 			<p>
-				Si lo compilas, enlazas y ejecutas e introduces el comando <samp>echo $?</samp> en el terminal (tal y como hicimos en la <a href="file:///run/media/cesitah/Crucial_X6/Programaci%C3%B3n/OS_DEV/MANUAL/00.html#conceptos-basicos">introducción</a>) verás que el código de salida ahora es <samp>10</samp>. <b>Aquí viene un ejemplo con las instrucciones <samp>mul</samp> y <samp>div</samp></b>:
+				Si lo compilas, enlazas y ejecutas e introduces el comando <samp>echo $?</samp> en el terminal (tal y como hicimos en la <a href="file:///run/media/cesitah/Crucial_X6/Programaci%C3%B3n/OS_DEV/MANUAL/00.html#Conceptos_basicos_para_crear_programas_ejecutables">introducción</a>) verás que el código de salida ahora es <samp>10</samp>. <b>Aquí viene un ejemplo con las instrucciones <samp>mul</samp> y <samp>div</samp></b>:
 			</p>
 			<pre><code>mov ebx, 5      ; ebx = 5 (código de salida)
 mov eax, 6
@@ -339,7 +354,7 @@ div bx          ; ax = ax / bx</code></pre>
 			<pre><code>div bx          ; ax = ax / bx
 	                ; dx = <a href="https://es.wikipedia.org/wiki/Operaci%C3%B3n_m%C3%B3dulo">ax % bx</a></code></pre>
 	    </details>
-	    <details>
+	    <details id="Mas_instrucciones_saltos_y_condiciones" open>
 	    	<summary>
 				<h2>Más instrucciones: saltos y condiciones</h2>
 				<hr>
@@ -379,7 +394,7 @@ other:
 				Es posible que sientas que tienes un conocimiento muy limitado aún, pero ya sabiendo esto empiezas a poder escribir cosas muy interesantes en este lenguaje. <b>Irás aprendiendo más saltos condicionales según avancemos</b>.
 			</p>
 		</details>
-		<details>
+		<details id="Simbolos_y_pointers_como_usar_la_seccion_data" open>
 			<summary>
 				<h2>Símbolos y pointers: cómo usar la sección <samp>.data</samp></h2>
 				<hr>
@@ -508,7 +523,7 @@ mov ebx, number</code></pre>
 				Hemos conseguido apuntar a la variable, y no mandar simplemente su dirección. Por ese motivo, <b>el código de salida ahora es el que queríamos: <samp>4</samp></b>. <i style="opacity: 0.8">Como apunte final: la razón por la que el código de salida antes era <samp>0</samp> y no <samp>0x804a000</samp> es porque Linux no acepta códigos de salida mayores a <samp>255</samp>. Si detecta uno, devuelve directamente el valor <samp>0</samp></i>.
 			</p>
 		</details>
-		<details>
+		<details id="El_stack_la_memoria_mas_alla_de_los_registros" open>
 			<summary>
 				<h2>El stack: la memoria más allá de los registros</h2>
 				<hr>
@@ -729,7 +744,7 @@ _start:
 				Tras ejecutarlo, si introduces el comando <samp>echo $?</samp>, te devolverá <samp>9</samp>. Hemos conseguido mandarlo del stack a un registro, y de dicho registro al código de salida.
 			</p>
 		</details>
-		<details>
+		<details id="Resumen" open>
 			<summary>
 				<h2>Resumen</h2>
 				<hr>

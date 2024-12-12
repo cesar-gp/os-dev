@@ -19,9 +19,21 @@
 		<p>
 			Para iniciar nuestro sistema operativo, lo primero que debemos preguntarnos es <b>qué hace un ordenador cuando inicia</b>. Y responder a la pregunta, al menos hasta cierto punto. No nos interesa saber cómo inicia un ordenador del 2024 con Windows 11 instalado y mil programas más, pero sí saber qué hace el ordenador antes de que cargue todo eso. O más bien, preguntarnos... <b>¿cuándo entra nuestro sistema en juego?</b>
 		</p>
-		<details>
+		<details id="Tabla_de_contenidos" open>
 			<summary>
-				<h2 id="secuencia-de-inicio">Cuándo entramos en juego: la <a href="https://wiki.osdev.org/Boot_Sequence">secuencia de inicio</a>.</h2>
+				<h2>Tabla de contenidos</h2>
+				<hr>
+			</summary>
+			<ol>
+				<li><a href="#Cuando_entramos_en_juego_la_secuencia_de_inicio">Cuándo entramos en juego: la secuencia de inicio</a></li>
+				<li><a href="#Como_hacer_que_la_BIOS_nos_ceda_el_control">Cómo hacer que la BIOS nos ceda el control</a></li>
+				<li><a href="#Como_ejecutar_nuestro_bootloader">Cómo ejecutar nuestro bootloader</a></li>
+				<li><a href="#Que_haremos_a_partir_de_ahora">¿Qué haremos a partir de ahora?</a></li>
+			</ol>
+		</details>
+		<details id="Cuando_entramos_en_juego_la_secuencia_de_inicio" open>
+			<summary>
+				<h2>Cuándo entramos en juego: la <a href="https://wiki.osdev.org/Boot_Sequence">secuencia de inicio</a>.</h2>
 				<hr>
 			</summary>
 			<p>
@@ -46,7 +58,7 @@
 				La <i>firma</i> es <b>una serie de bytes colocada en una parte concreta del disco</b>. Sirve para decirle a la BIOS que es posible arrancar el ordenador desde el dispositivo. En concreto, vamos a escribir los 2 bytes <samp>0xAA55</samp> en la dirección <samp>510</samp> del disco. Como curiosidad, <b>también existen sistemas que van directamente instalados en la placa base</b>, sin necesidad de ningún dispositivo externo, como la BIOS. Estos sistemas se llaman <a href="https://es.wikipedia.org/wiki/Sistema_embebido">sistemas integrados</a>.
 			</p>
 			<p>
-				Como bien sabrás, <b>un byte es un número de ocho cifras en binario</b>, como <samp>00001111</samp> o <samp>00010010</samp>. <b>Muchas veces, por acortar, se escriben en hexadecimal</b>. Por ejemplo, estos 2 bytes que he puesto ahora serían, respectivamente, <samp>0F</samp> y <samp>12</samp>. Los números en hexadecimal se suelen prefijar con <samp>0x</samp> para diferenciarlos del decimal. Conviene <a href="00.html#sistemas-numeracion">familiarizarse con esto un poco</a> antes de meterse al redil.
+				Como bien sabrás, <b>un byte es un número de ocho cifras en binario</b>, como <samp>00001111</samp> o <samp>00010010</samp>. <b>Muchas veces, por acortar, se escriben en hexadecimal</b>. Por ejemplo, estos 2 bytes que he puesto ahora serían, respectivamente, <samp>0F</samp> y <samp>12</samp>. Los números en hexadecimal se suelen prefijar con <samp>0x</samp> para diferenciarlos del decimal. Conviene <a href="00.html#Sistemas_de_numeracion_y_manejo_de_memoria">familiarizarse con esto un poco</a> antes de meterse al redil.
 			</p>
 			<p>
 				La cosa es que <b>en un disco lo que hay es una serie de bytes</b>. Por ejemplo, si creamos el archivo <samp>disco.img</samp> y le escribimos lo siguiente con un editor hexadecimal:
@@ -82,7 +94,7 @@ S  E  R  I  E     D  E     D  A  T  O  S  .  .  </code></pre>
 				</p>
 			</div>
 		</details>
-		<details>
+		<details id="Como_hacer_que_la_BIOS_nos_ceda_el_control" open>
 			<summary>
 				<h2>Cómo hacer que la BIOS nos ceda el control</h2>
 				<hr>
@@ -101,7 +113,7 @@ S  E  R  I  E     D  E     D  A  T  O  S  .  .  </code></pre>
 				<li><samp><a href="https://archlinux.org/packages/core/x86_64/binutils/">binutils</a></samp>: suite de GNU para compilar y enlazar ejecutables, que suele venir preinstalada.</li>
 			</ul>
 			<p>
-				Esto se trata en mayor detalle en el <a href="00.html#conceptos-basicos">apartado sobre cómo generar ejecutables</a> de la introducción.
+				Esto se trata en mayor detalle en el <a href="00.html#Conceptos_basicos_para_generar_programas_ejecutables">apartado sobre cómo generar ejecutables</a> de la introducción.
 			</p>
 			<p>
 				Hecho esto, crea una carpeta. Esta carpeta contendrá todos los archivos de nuestro sistema operativo, así que asegurate de organizarla bien. <b>En dicha carpeta, crea el archivo <samp>boot.asm</samp></b> (o como lo quieras llamar), y escribe en él este código:
@@ -143,7 +155,7 @@ dw 0xAA55                 ; Escribe la firma que espera la BIOS.</code></pre>
 				Existen muchos tutoriales para hacer este tipo de bootloader, llamado <b>Bare Bones Bootloader</b>. Un buen ejemplo es <a href="https://www.reinterpretcast.com/creating-a-bare-bones-bootloader">este de Joe Savage</a>.
 			</p>
 		</details>
-		<details>
+		<details id="Como_ejecutar_nuestro_bootloader" open>
 			<summary>
 				<h2>Cómo ejecutar nuestro <i>bootloader</i></h2>
 				<hr>
@@ -179,7 +191,7 @@ dw 0xAA55                 ; Escribe la firma que espera la BIOS.</code></pre>
 			</p>
 			<h3>Ejecutarlo en hardware real</h3>
 			<p>
-				<b>Importante:</b> antes de probar a hacer esto, asegurate de que has leído bien <a href="#deshacer-cambios-en-bios">cómo deshacer los cambios en la BIOS</a>.
+				<b>Importante:</b> antes de probar a hacer esto, asegurate de que has leído bien <a href="#Como_deshacer_los_cambios_en_la_BIOS">cómo deshacer los cambios en la BIOS</a>.
 			</p>
 			<ol>
 				<li>Coge un USB y <b>asegurate de copiar los datos que quieras conservar</b>.</li>
@@ -197,7 +209,7 @@ dw 0xAA55                 ; Escribe la firma que espera la BIOS.</code></pre>
 				<li>En la lista de dispositivos, lleva tu USB arriba del todo.</li>
 				<li>Cierra guardando los cambios.</li>
 			</ol>
-			<h3 id="deshacer-cambios-en-bios">
+			<h3 id="Como_deshacer_los_cambios_en_la_BIOS">
 				Cómo deshacer los cambios en la BIOS
 			</h3>
 			<p>
@@ -210,7 +222,7 @@ dw 0xAA55                 ; Escribe la firma que espera la BIOS.</code></pre>
 				Después de esto, deberás llevar tu disco duro interno (o el dispositivo que normalmente uses para iniciar tu ordenador) arriba del todo en la lista de dispositivos de inicio. <b>Si no tienes claro cómo realizar alguna de estas cosas, busca bien cómo hacerlas antes de tocar nada en la BIOS.</b>
 			</p>
 		</details>
-		<details>
+		<details id="Que_haremos_a_partir_de_ahora" open>
 			<summary>
 				<h2>¿Qué haremos a partir de ahora?</h2>
 				<hr>
