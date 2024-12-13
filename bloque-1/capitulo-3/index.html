@@ -3,17 +3,24 @@
 <head>
 	<title>Manual de OSDev</title>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-	<link rel="stylesheet" type="text/css" href="assets/global.css">
-	<link rel="stylesheet" href="assets/lib/highlight/styles/github-dark-dimmed.css">
+	<link rel="stylesheet" type="text/css" href="/assets/global.css">
+	<link rel="stylesheet" href="/assets/lib/highlight/styles/github-dark-dimmed.css">
 </head>
 <body class="flex col spaced">
-	<a id="navigator" class="flex col hcentered vcentered fixed hleft" href="02.html">
-		<img width="40" height="40" src="assets/icons/chevron-left.svg">
+	<a id="navigator" class="flex col hcentered vcentered fixed hleft" href="/bloque-1/capitulo-2">
+		<img width="40" height="40" src="/assets/icons/chevron-left.svg">
 	</a>
-	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="04.html">
-		<img width="40" height="40" src="assets/icons/chevron-right.svg">
+	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="/bloque-1/capitulo-4">
+		<img width="40" height="40" src="/assets/icons/chevron-right.svg">
 	</a>
 	<div id="content">
+		<div class="navhelper">
+			<a href="/">Manual</a>
+			&nbsp;→&nbsp;
+			<a href="/bloque-1">Bloque 1</a>
+			&nbsp;→&nbsp;
+			<b>Capítulo 3</b>
+		</div>
 		<h1>Capítulo 3: Darle vida a nuestro <i>bootloader</i></h1>
 		<hr>
 		<p>
@@ -58,7 +65,7 @@
 mov al, 'a'     ; al = Caracter para imprimir.
 int 10h         ; Llamar al interrupt.</code></pre>
 			<p>
-				Es importante fijarse en que la instrucción <samp>int 0x10</samp> (o <i>int 10h</i>, que es <a href="00.html#Sistemas_de_numeracion_y_manejo_de_memoria">otra manera de indicar que el número está en hexadecimal</a>) no hace todo el trabajo sola. <b>Necesita que <samp>ah</samp> contenga el valor <samp>0x0E</samp> para entender que quieres imprimir un caracter en la pantalla</b>. Si en el registro hay otro valor distinto, es probable que ejecute una función distinta (o ninguna).
+				Es importante fijarse en que la instrucción <samp>int 0x10</samp> (o <i>int 10h</i>, que es <a href="/bloque-1#Sistemas_de_numeracion_y_manejo_de_memoria">otra manera de indicar que el número está en hexadecimal</a>) no hace todo el trabajo sola. <b>Necesita que <samp>ah</samp> contenga el valor <samp>0x0E</samp> para entender que quieres imprimir un caracter en la pantalla</b>. Si en el registro hay otro valor distinto, es probable que ejecute una función distinta (o ninguna).
 			</p>
 			<p>
 				Por eso, el nombre completo de esta función sería <a href="https://www.ctyme.com/intr/rb-0106.htm">INT 10/AH=0Eh</a>. La nomenclatura indica que usamos la instrucción <samp>int 10h</samp> (sinónimo de <samp>int 0x10</samp>) mientras en el registro <samp>ah</samp> está guardado el valor <samp>0Eh</samp> (sinónimo de <samp>0x0E</samp>).
@@ -135,7 +142,7 @@ mov ss, ax    ; ss = x (0).</code></pre>
 			<p>
 				<div class="card">
 					<p>
-						<b>Una cosita solo.</b> La función incluida en el siguiente apartado utiliza el <i>stack</i> para guardar y recoger valores de los registros. Si no sabes qué es el stack, te recomiendo leer <a href="01.html#El_stack_la_memoria_mas_alla_de_los_registros">el apartado que hay sobre el tema en el capítulo 1</a>.
+						<b>Una cosita solo.</b> La función incluida en el siguiente apartado utiliza el <i>stack</i> para guardar y recoger valores de los registros. Si no sabes qué es el stack, te recomiendo leer <a href="01#El_stack_la_memoria_mas_alla_de_los_registros">el apartado que hay sobre el tema en el capítulo 1</a>.
 					</p>
 				</div>
 			</p>
@@ -483,7 +490,7 @@ nop</code></pre>
 				¿Qué valores le ponemos a todo esto? Eso depende de la geometría de nuestro disco, y para eso tenemos que tener claro qué tipo de disco queremos representar en nuestro archivo <i>.img</i>. Por suerte, ya hemos tomado algunas decisiones: nuestra imagen de disco ocupa 1440 KB. No es casualidad: <b>la intención es emular un floppy de alta densidad de 3 pulgadas y media</b> (<i>3½" DSHD 1.44MB</i>), que es un formato sobre el que existe mucha documentación.
 			</p>
 			<p>
-				Es probable que nunca en la vida hayas visto uno, por lo que en los capítulos sobre el bootloader te va a venir muy bien tener a mano una <a href="https://www.deathwombat.com/diskgeometry.html">calculadora de geometría de disco</a>. Si te interesa conocer algo más sobre este tipo de disco, te puede resultar interesante leer <a href="https://elrincondecabra.com/momento-retro-disquetes-de-35/">este artículo del blog <i>El Rincón de Cabra</i></a>.
+				Es probable que nunca en la vida hayas visto uno, por lo que en los capítulos sobre el bootloader te va a venir muy bien tener a mano una <a href="https://www.deathwombat.com/diskgeometry">calculadora de geometría de disco</a>. Si te interesa conocer algo más sobre este tipo de disco, te puede resultar interesante leer <a href="https://elrincondecabra.com/momento-retro-disquetes-de-35/">este artículo del blog <i>El Rincón de Cabra</i></a>.
 			</p>
 			<p>
 				Todas estas variables tenemos que definirlas al principio de nuestro bootloader, antes del código que ya tenemos hecho. <b>Aquí tienes un <i>header</i> totalmente compatible con el tipo de disco que queremos emular</b>. Está diseñado para mi sistema operativo, <i>scratchOS</i>, y está basado en el diseñado por <a href="https://youtu.be/srbnMNk7K7k?list=PLFjM7v6KGMpiH2G-kT781ByCNC_0pKpPN&t=572">nanobyte</a> para su sistema operativo, pero siéntete libre de cambiarle el nombre:
@@ -526,7 +533,7 @@ nop
 dd if=/dev/zero of=boot.img bs=512 count=2880 # Crear imagen llena de ceros
 dd if=boot.bin of=boot.img conv=notrunc       # Copiar boot.bin a la imagen</code></pre>
 			<p>
-				<b>Nota:</b> Si no recuerdas esto, puede que te ayude leer el <a href="03.html">capítulo anterior</a>.
+				<b>Nota:</b> Si no recuerdas esto, puede que te ayude leer el <a href="02">capítulo anterior</a>.
 			</p>
 			<p>
 				A partir de ahora, <b>añadiremos el comando <samp>mkfs.fat</samp> a nuestro <i>script</i></b>. Este comando nos permitirá formatear nuestra imagen de disco con el sistema de archivos FAT12. Gracias a esto, podremos meter archivos en el disco antes incluso de tener nuestro sistema listo.
@@ -564,12 +571,12 @@ dd if=boot.bin of=boot.img conv=notrunc</code></pre>
 			</p>
 		</details>
 		<p id="footer">
-			<a href="00.html"><button>Primera página</button>
-			<a href="04.html"><button>Siguiente capítulo</button></a>
+			<a href="/"><button>Portada</button></a>
+			<a href="/bloque-1/capitulo-4"><button>Siguiente capítulo</button></a>
 		</p>
 	</div>
 
 	<!-- Library: highlight.js -->
-	<script src="assets/lib/highlight/highlight.min.js"></script>
+	<script src="/assets/lib/highlight/highlight.min.js"></script>
 	<script>hljs.highlightAll();</script>
 </body>

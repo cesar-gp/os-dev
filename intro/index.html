@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+
+<head>
+	<title>Manual de OSDev</title>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" type="text/css" href="/assets/global.css">
+	<link rel="stylesheet" href="/assets/lib/highlight/styles/github-dark-dimmed.css">
+</head>
+<body class="flex col spaced">
+	<a id="navigator" class="flex col hcentered vcentered fixed hleft" href="/">
+		<img width="40" height="40" src="/assets/icons/chevron-left.svg">
+	</a>
+	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="/bloque-1">
+		<img width="40" height="40" src="/assets/icons/chevron-right.svg">
+	</a>
+	<div id="content">
+		<div class="navhelper">
+			<a href="/">Manual</a>
+			&nbsp;→&nbsp;
+			<b>Introducción</b>
+		</div>
+		<h1 class="general">Introducción</h1>
+		<hr>
+		<p>
+			¡Hola! Este es mi <b>manual personal de programación de <a href="https://wiki.osdev.org/Introduction#What_is_an_Operating_System?">sistemas operativos</a></b>. Aquí resumo lo que llevo aprendido sobre el tema para que no se me olvide. El proyecto empezó con una libreta en papel, pero el desorden es ya tan grande que he decidido que mejor vamos a pasar las cosas a digital.
+		</p>
+		<p>
+			La interfaz está inspirada en el libro <a href="https://practicaltypography.com/">Butterick's Practical Typography</a>, un libro maravilloso sobre tipografía. <b>Si haces click en el margen a la derecha del todo, irás al siguiente capítulo</b>. Si haces click en el margen de la izquierda, irás al capítulo anterior (o, en este caso, a la portada).
+		</p>
+		<p>
+			No me voy a poner aquí a hablar de la <a href="https://es.wikipedia.org/wiki/Historia_de_los_sistemas_operativos">historia de los sistemas operativos</a>, que es <a href="https://www.levenez.com/unix/">extensísima</a>, ni de programación, ni de muchas cosas que sí incluiría un manual. La idea aquí es muy simple: <b>ir al grano</b>. Intentaré explicar las cosas en detalle para que las pueda entender cualquier novato (como yo), pero no vamos a entrar a ramificaciones que tengan poco que aportar a lo que es el código como tal.
+		</p>
+		<p>
+			Bueno, pues dicho y hecho. El manual está estructurado en <i>bloques</i>, que se dividen en <i>capítulos</i>. Si haces click en el margen de la derecha, irás directo a la introducción del bloque 1. ¡Que lo disfrutes!
+		</p>
+		<p>
+			<div class="card">
+				<h3 class="nopad-top">Requerimientos mínimos</h3>
+				<p>
+					Para este tutorial, se asume que <b>tienes una distribución de Linux instalada, y sabes instalar paquetes y abrir terminales en ella</b>.
+				</p>
+				<p>
+					Si quieres meterte a programar sistemas operativos y no sabes instalar Linux, he de admitir que tu caso es bastante raro. Simplemente <i>aprende antes</i>. Si quieres una guía detallada te recomiendo la <a href="https://www.debian.org/releases/stable/amd64/">guía de instalación de Debian</a>. <b>Si eres como yo y no te gusta perderte en detalles, te recomiendo <a href="https://youtu.be/n9q-LVM_X7o">el tutorial de Karla's Project</a></b> para instalar Ubuntu, que dura menos de media hora.
+				</p>
+			</div>
+		</p>
+		<p id="footer">
+			<a href="/"><button>Portada</button></a>
+			<a href="/bloque-1"><button>Siguiente capítulo</button></a>
+		</p>
+	</div>
+
+	<!-- Library: highlight.js -->
+	<script src="/assets/lib/highlight/highlight.min.js"></script>
+	<script>hljs.highlightAll();</script>
+</body>

@@ -3,17 +3,24 @@
 <head>
 	<title>Manual de OSDev</title>
 	<meta charset="UTF-8">
-	<link rel="stylesheet" type="text/css" href="assets/global.css">
-	<link rel="stylesheet" href="assets/lib/highlight/styles/github-dark-dimmed.css">
+	<link rel="stylesheet" type="text/css" href="/assets/global.css">
+	<link rel="stylesheet" href="/assets/lib/highlight/styles/github-dark-dimmed.css">
 </head>
 <body class="flex col spaced">
-	<a id="navigator" class="flex col hcentered vcentered fixed hleft" href="01.html">
-		<img width="40" height="40" src="assets/icons/chevron-left.svg">
+	<a id="navigator" class="flex col hcentered vcentered fixed hleft" href="/bloque-1/capitulo-1">
+		<img width="40" height="40" src="/assets/icons/chevron-left.svg">
 	</a>
-	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="03.html">
-		<img width="40" height="40" src="assets/icons/chevron-right.svg">
+	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="/bloque-1/capitulo-3">
+		<img width="40" height="40" src="/assets/icons/chevron-right.svg">
 	</a>
 	<div id="content">
+		<div class="navhelper">
+			<a href="/">Manual</a>
+			&nbsp;→&nbsp;
+			<a href="/bloque-1">Bloque 1</a>
+			&nbsp;→&nbsp;
+			<b>Capítulo 2</b>
+		</div>
 		<h1>Capítulo 2: Iniciar un sistema operativo</h1>
 		<hr>
 		<p>
@@ -58,7 +65,7 @@
 				La <i>firma</i> es <b>una serie de bytes colocada en una parte concreta del disco</b>. Sirve para decirle a la BIOS que es posible arrancar el ordenador desde el dispositivo. En concreto, vamos a escribir los 2 bytes <samp>0xAA55</samp> en la dirección <samp>510</samp> del disco. Como curiosidad, <b>también existen sistemas que van directamente instalados en la placa base</b>, sin necesidad de ningún dispositivo externo, como la BIOS. Estos sistemas se llaman <a href="https://es.wikipedia.org/wiki/Sistema_embebido">sistemas integrados</a>.
 			</p>
 			<p>
-				Como bien sabrás, <b>un byte es un número de ocho cifras en binario</b>, como <samp>00001111</samp> o <samp>00010010</samp>. <b>Muchas veces, por acortar, se escriben en hexadecimal</b>. Por ejemplo, estos 2 bytes que he puesto ahora serían, respectivamente, <samp>0F</samp> y <samp>12</samp>. Los números en hexadecimal se suelen prefijar con <samp>0x</samp> para diferenciarlos del decimal. Conviene <a href="00.html#Sistemas_de_numeracion_y_manejo_de_memoria">familiarizarse con esto un poco</a> antes de meterse al redil.
+				Como bien sabrás, <b>un byte es un número de ocho cifras en binario</b>, como <samp>00001111</samp> o <samp>00010010</samp>. <b>Muchas veces, por acortar, se escriben en hexadecimal</b>. Por ejemplo, estos 2 bytes que he puesto ahora serían, respectivamente, <samp>0F</samp> y <samp>12</samp>. Los números en hexadecimal se suelen prefijar con <samp>0x</samp> para diferenciarlos del decimal. Conviene <a href="/bloque-1#Sistemas_de_numeracion_y_manejo_de_memoria">familiarizarse con esto un poco</a> antes de meterse al redil.
 			</p>
 			<p>
 				La cosa es que <b>en un disco lo que hay es una serie de bytes</b>. Por ejemplo, si creamos el archivo <samp>disco.img</samp> y le escribimos lo siguiente con un editor hexadecimal:
@@ -113,7 +120,7 @@ S  E  R  I  E     D  E     D  A  T  O  S  .  .  </code></pre>
 				<li><samp><a href="https://archlinux.org/packages/core/x86_64/binutils/">binutils</a></samp>: suite de GNU para compilar y enlazar ejecutables, que suele venir preinstalada.</li>
 			</ul>
 			<p>
-				Esto se trata en mayor detalle en el <a href="00.html#Conceptos_basicos_para_generar_programas_ejecutables">apartado sobre cómo generar ejecutables</a> de la introducción.
+				Esto se trata en mayor detalle en el <a href="/bloque-1#Conceptos_basicos_para_generar_programas_ejecutables">apartado sobre cómo generar ejecutables</a> de la introducción.
 			</p>
 			<p>
 				Hecho esto, crea una carpeta. Esta carpeta contendrá todos los archivos de nuestro sistema operativo, así que asegurate de organizarla bien. <b>En dicha carpeta, crea el archivo <samp>boot.asm</samp></b> (o como lo quieras llamar), y escribe en él este código:
@@ -238,12 +245,12 @@ dw 0xAA55                 ; Escribe la firma que espera la BIOS.</code></pre>
 			</p>
 		</details>
 		<p id="footer">
-			<a href="00.html"><button>Primera página</button></a>
-			<a href="03.html"><button>Siguiente capítulo</button></a>
+			<a href="/"><button>Portada</button></a>
+			<a href="/bloque-1/capitulo-3"><button>Siguiente capítulo</button></a>
 		</p>
 	</div>
 
 	<!-- Library: highlight.js -->
-	<script src="assets/lib/highlight/highlight.min.js"></script>
+	<script src="/assets/lib/highlight/highlight.min.js"></script>
 	<script>hljs.highlightAll();</script>
 </body>

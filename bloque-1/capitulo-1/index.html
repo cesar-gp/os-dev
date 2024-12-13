@@ -3,21 +3,28 @@
 <head>
 	<title>Manual de OSDev</title>
 	<meta charset="UTF-8">
-	<link rel="stylesheet" type="text/css" href="assets/global.css">
-	<link rel="stylesheet" href="assets/lib/highlight/styles/github-dark-dimmed.css">
+	<link rel="stylesheet" type="text/css" href="/assets/global.css">
+	<link rel="stylesheet" href="/assets/lib/highlight/styles/github-dark-dimmed.css">
 </head>
 <body class="flex col spaced">
-	<a id="navigator" class="flex col hcentered vcentered fixed hleft" href="00.html">
-		<img width="40" height="40" src="assets/icons/chevron-left.svg">
+	<a id="navigator" class="flex col hcentered vcentered fixed hleft" href="/bloque-1">
+		<img width="40" height="40" src="/assets/icons/chevron-left.svg">
 	</a>
-	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="02.html">
-		<img width="40" height="40" src="assets/icons/chevron-right.svg">
+	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="/bloque-1/capitulo-2">
+		<img width="40" height="40" src="/assets/icons/chevron-right.svg">
 	</a>
 	<div id="content">
+		<div class="navhelper">
+			<a href="/">Manual</a>
+			&nbsp;→&nbsp;
+			<a href="/bloque-1">Bloque 1</a>
+			&nbsp;→&nbsp;
+			<b>Capítulo 1</b>
+		</div>
 		<h1>Capítulo 1: Escribir en Assembly</h1>
 		<hr>
 		<p>
-			Assembly es muy difícil cuando no conoces <a href="00.html#Sistemas_de_numeracion_y_manejo_de_memoria">qué es un <i>byte</i></a>, una <i>word</i> y todos esos conceptos básicos que hemos explicado en la introducción. También es importante saber que ningún compilador te va a dar todo hecho, por eso también hemos hablado de <a href="00.html#Conceptos_basicos_para_crear_programas_ejecutables">cómo generar ejecutables</a>. Cuando los conoces, es un lenguaje que, con sus problemas, <b>resulta bastante simple</b>.
+			Assembly es muy difícil cuando no conoces <a href="/bloque-1#Sistemas_de_numeracion_y_manejo_de_memoria">qué es un <i>byte</i></a>, una <i>word</i> y todos esos conceptos básicos que hemos explicado en la introducción. También es importante saber que ningún compilador te va a dar todo hecho, por eso también hemos hablado de <a href="/bloque-1#Conceptos_basicos_para_crear_programas_ejecutables">cómo generar ejecutables</a>. Cuando los conoces, es un lenguaje que, con sus problemas, <b>resulta bastante simple</b>.
 		</p>
 		<p>
 			Si nunca en la vida has visto código assembly, <b>dedica el tiempo que necesites a entender cada parte de este capítulo</b>. Es probable que, si no lo haces, te cueste mucho continuar. Si ya controlas el lenguaje, siéntete libre de saltarte este capítulo.
@@ -113,7 +120,7 @@
 						    </tr>
 						    <tr class="odd">
 						    	<td colspan="100%">
-						    		<b>Fuente de la tabla:</b> <a href="https://ggbaker.ca/295/x86.html">x86-64 Cheat Sheet en Greg's Web</a>.<br>
+						    		<b>Fuente de la tabla:</b> <a href="https://ggbaker.ca/295/x86">x86-64 Cheat Sheet en Greg's Web</a>.<br>
 						    		*El registro <samp>sp</samp> debe estar alineado a 16 bits.
 						    	</td>
 						    </tr>
@@ -257,7 +264,7 @@ _start:
 exit:
     ...</code></pre>
 					</div>
-					<img src="assets/icons/arrow-right.svg">
+					<img src="/assets/icons/arrow-right.svg">
 					<div class="block">
 						<table class="memory">
 							<tr>
@@ -330,7 +337,7 @@ sub ebx, 5      ; ebx = ebx - 5 = 10
 
 int 0x80        ; Llamada a Linux</code></pre>
 			<p>
-				Si lo compilas, enlazas y ejecutas e introduces el comando <samp>echo $?</samp> en el terminal (tal y como hicimos en la <a href="file:///run/media/cesitah/Crucial_X6/Programaci%C3%B3n/OS_DEV/MANUAL/00.html#Conceptos_basicos_para_crear_programas_ejecutables">introducción</a>) verás que el código de salida ahora es <samp>10</samp>. <b>Aquí viene un ejemplo con las instrucciones <samp>mul</samp> y <samp>div</samp></b>:
+				Si lo compilas, enlazas y ejecutas e introduces el comando <samp>echo $?</samp> en el terminal (tal y como hicimos en la <a href="/bloque-1#Conceptos_basicos_para_crear_programas_ejecutables">introducción</a>) verás que el código de salida ahora es <samp>10</samp>. <b>Aquí viene un ejemplo con las instrucciones <samp>mul</samp> y <samp>div</samp></b>:
 			</p>
 			<pre><code>mov ebx, 5      ; ebx = 5 (código de salida)
 mov eax, 6
@@ -403,7 +410,7 @@ other:
 				Todos los datos y el código de nuestro programa estarán en algún momento cargados en alguna dirección de la RAM. Por ejemplo, <b>así es como se ve el código del ejecutable que creamos en la introducción</b> si lo abrimos en <a href="https://sourceware.org/gdb/">GDB</a> (el programa de detección de errores de GNU):
 			</p>
 			<p>
-				<img class="block hcenter" src="assets/01/gdb.png">
+				<img class="block hcenter" src="img/gdb.png">
 			</p>
 			<p>
 				<b>El símbolo <samp>_start</samp> del programa es equivalente a la dirección <samp>0x08049000</samp></b>, y las 3 instrucciones ocupan unos 12 bytes. Visto en un mapa sería algo así:
@@ -504,7 +511,7 @@ mov ebx, number</code></pre>
 				El programa cerrará con el código de salida <samp>0</samp>, pero ese no es el número que tenemos guardado en <samp>number</samp>... Para arrojar más luz sobre este misterio, vamos a desensamblar nuestro código otra vez con GDB y ver qué hemos escrito exactamente.
 			</p>
 			<p>
-				<img class="block hcenter" src="assets/01/gdb2.png">
+				<img class="block hcenter" src="img/gdb2.png">
 			</p>
 			<p>
 				Se ve perfectamente en la línea 2. Hemos mandado a <samp>ebx</samp> el número <samp>0x804a000</samp>, en vez de el 4 que está guardado en number. <b>Ese número tan raro es, simplemente, la dirección en la que está guardado nuestro número, no el número en sí</b>. Hazte a la idea de que al escribir <samp>number</samp> estamos escribiendo una dirección en la memoria, si queremos <i>el valor que hay guardado en esa dirección</i>, <b>lo escribiremos entre corchetes</b>: <samp>[number]</samp>.
@@ -517,7 +524,7 @@ mov ebx, number</code></pre>
 				Y al compilarlo, enlazarlo, ejecutarlo y comprobar el código de salida... ¡voila!
 			</p>
 			<p>
-				<img class="block hcenter" src="assets/01/term.png">
+				<img class="block hcenter" src="img/term.png">
 			</p>
 			<p>
 				Hemos conseguido apuntar a la variable, y no mandar simplemente su dirección. Por ese motivo, <b>el código de salida ahora es el que queríamos: <samp>4</samp></b>. <i style="opacity: 0.8">Como apunte final: la razón por la que el código de salida antes era <samp>0</samp> y no <samp>0x804a000</samp> es porque Linux no acepta códigos de salida mayores a <samp>255</samp>. Si detecta uno, devuelve directamente el valor <samp>0</samp></i>.
@@ -756,13 +763,13 @@ _start:
 				<b>En el capítulo siguiente empezaremos con el sistema operativo</b>. A partir de aquí es inevitable que suba un pelín la exigencia del manual, pero voy a hacer lo posible por no dar por hecho muchos conocimientos previos.
 			</p>
 			<p id="footer">
-				<a href="00.html"><button>Primera página</button></a>
-				<a href="02.html"><button>Siguiente capítulo</button></a>
+				<a href="/"><button>Portada</button></a>
+				<a href="/bloque-1/capitulo-2"><button>Siguiente capítulo</button></a>
 			</p>
 		</details>
 	</div>
 
 	<!-- Library: highlight.js -->
-	<script src="assets/lib/highlight/highlight.min.js"></script>
+	<script src="/assets/lib/highlight/highlight.min.js"></script>
 	<script>hljs.highlightAll();</script>
 </body>

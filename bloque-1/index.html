@@ -3,40 +3,30 @@
 <head>
 	<title>Manual de OSDev</title>
 	<meta charset="UTF-8">
-	<link rel="stylesheet" type="text/css" href="assets/global.css">
-	<link rel="stylesheet" href="assets/lib/highlight/styles/github-dark-dimmed.css">
+	<link rel="stylesheet" type="text/css" href="/assets/global.css">
+	<link rel="stylesheet" href="/assets/lib/highlight/styles/github-dark-dimmed.css">
 </head>
 <body class="flex col spaced">
-	<a id="navigator" class="flex col hcentered vcentered fixed hleft" href="index.html">
-		<img width="40" height="40" src="assets/icons/chevron-left.svg">
+	<a id="navigator" class="flex col hcentered vcentered fixed hleft" href="/intro">
+		<img width="40" height="40" src="/assets/icons/chevron-left.svg">
 	</a>
-	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="01.html">
-		<img width="40" height="40" src="assets/icons/chevron-right.svg">
+	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="/bloque-1/capitulo-1">
+		<img width="40" height="40" src="/assets/icons/chevron-right.svg">
 	</a>
 	<div id="content">
-		<h1>Introducción</h1>
+		<div class="navhelper">
+			<a href="/">Manual</a>
+			&nbsp;→&nbsp;
+			<b>Bloque 1</b>
+		</div>
+		<h1>Bloque 1: el <i>bootloader</i></h1>
 		<hr>
 		<p>
-			¡Hola! Este es mi <b>manual personal de programación de <a href="https://wiki.osdev.org/Introduction#What_is_an_Operating_System?">sistemas operativos</a></b>. Aquí resumo lo que llevo aprendido sobre el tema para que no se me olvide. El proyecto empezó con una libreta en papel, pero el desorden es ya tan grande que he decidido que mejor vamos a pasar las cosas a digital.
+			En este bloque <b>explicaremos qué ocurre cuando iniciamos un ordenador</b>, cómo podemos crear un programa que no dependa de sistemas operativos y, más tarde, cómo ejecutar nuestro propio sistema operativo. Es un proceso complicado para el que también aprenderemos algo de <i>assembly</i> y manejo de memoria.
 		</p>
 		<p>
-			La interfaz está inspirada en el libro <a href="https://practicaltypography.com/">Butterick's Practical Typography</a>, un libro maravilloso sobre tipografía. <b>Si haces click en el margen a la derecha del todo, irás al siguiente capítulo</b>. Si haces click en el margen de la izquierda, irás al capítulo anterior (o, en este caso, a la portada).
+			<b>Vamos a empezar con un par de secciones que servirán como prólogo</b>, para cubrir conceptos que se suelen asumir como requerimientos previos a la hora de programar sistemas operativos. Si conoces alguno de los temas tratados, siéntete libre de saltarte la sección. Tú, como en tu casa.
 		</p>
-		<p>
-			No me voy a poner aquí a hablar de la <a href="https://es.wikipedia.org/wiki/Historia_de_los_sistemas_operativos">historia de los sistemas operativos</a>, que es <a href="https://www.levenez.com/unix/">extensísima</a>, ni de programación, ni de muchas cosas que sí incluiría un manual. La idea aquí es muy simple: <b>ir al grano</b>. Intentaré explicar las cosas en detalle para que las pueda entender cualquier novato (como yo), pero no vamos a entrar a ramificaciones que tengan poco que aportar a lo que es el código como tal.
-		</p>
-		<p>
-			Bueno, pues dicho y hecho. <b>Vamos con un par de secciones que servirán como prólogo</b>, para cubrir conceptos que se suelen asumir como requerimientos previos a la hora de programar sistemas operativos. Si conoces alguno de los temas tratados, siéntete libre de saltarte la sección. Tú, como en tu casa.
-		</p>
-		<div class="card">
-			<h3 class="nopad-top">Requerimientos mínimos</h3>
-			<p>
-				Para este tutorial, se asume que <b>tienes una distribución de Linux instalada, y sabes instalar paquetes y abrir terminales en ella</b>.
-			</p>
-			<p>
-				Si quieres meterte a programar sistemas operativos y no sabes instalar Linux, he de admitir que tu caso es bastante raro. Simplemente <i>aprende antes</i>. Si quieres una guía detallada te recomiendo la <a href="https://www.debian.org/releases/stable/amd64/">guía de instalación de Debian</a>. <b>Si eres como yo y no te gusta perderte en detalles, te recomiendo <a href="https://youtu.be/n9q-LVM_X7o">el tutorial de Karla's Project</a></b> para instalar Ubuntu, que dura menos de media hora.
-			</p>
-		</div>
 		<details id="Tabla_de_contenidos" open>
 			<summary>
 				<h2>Tabla de contenidos</h2>
@@ -371,10 +361,10 @@ echo $?         # Imprime el código de salida (que debería ser 5)</code></pre>
 							<p class="body auto"></p>
 						</div>
 					</div>
-					<img src="assets/icons/arrow-right.svg">
+					<img src="/assets/icons/arrow-right.svg">
 					<samp>nasm</samp>
 					<div>
-						<img src="assets/icons/arrow-right.svg">
+						<img src="/assets/icons/arrow-right.svg">
 					</div>
 					<div class="flex col nostretch smallspaced">
 						<div class="square file bin">
@@ -390,9 +380,9 @@ echo $?         # Imprime el código de salida (que debería ser 5)</code></pre>
 							<p class="body auto"></p>
 						</div>
 					</div>
-					<img src="assets/icons/arrow-right.svg">
+					<img src="/assets/icons/arrow-right.svg">
 					<samp>ld</samp>
-					<img src="assets/icons/arrow-right.svg">
+					<img src="/assets/icons/arrow-right.svg">
 					<div class="square file elf">
 						<span class="filename">ejecutable</span>
 						<p class="body auto"></p>
@@ -406,12 +396,25 @@ echo $?         # Imprime el código de salida (que debería ser 5)</code></pre>
 				A continuación, <b>veremos cómo escribir algunas instrucciones en Assembly</b>, y a partir de ahí empezaremos a hacer el primer ejecutable relacionado con nuestro sistema operativo: el <i>bootloader</i>.
 			</p>
 		</details>
+		<p>
+			Un <i>bootloader</i> es un programa cuya función principal es, citando a la <a href="https://wiki.osdev.org/Bootloader#What_does_a_boot_loader_do">OSDev Wiki</a>:
+		</p>
+		<ul>
+			<li>Cargar el <i>kernel</i> en la memoria</li>
+			<li>Dar al kernel la información que necesita para funcionar correctamente</li>
+			<li>Cambiar a un entorno favorable para el kernel</li>
+			<li>Transferir el control de ejecución al kernel</li>
+		</ul>
+		<p>
+			El <i>kernel</i> es el primer programa que forma parte de nuestro sistema operativo como tal. <b>El bootloader se ejecuta antes</b>, y simplemente sirve para hacer las preparaciones pertinentes y cargar nuestro kernel.
+		</p>
 		<p id="footer">
-			<a href="01.html"><button>Siguiente capítulo</button></a>
+			<a href="/"><button>Portada</button></a>
+			<a href="/bloque-1/capitulo-1"><button>Siguiente capítulo</button></a>
 		</p>
 	</div>
 
 	<!-- Library: highlight.js -->
-	<script src="assets/lib/highlight/highlight.min.js"></script>
+	<script src="/assets/lib/highlight/highlight.min.js"></script>
 	<script>hljs.highlightAll();</script>
 </body>

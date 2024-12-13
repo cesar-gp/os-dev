@@ -3,17 +3,24 @@
 <head>
 	<title>Manual de OSDev</title>
 	<meta charset="UTF-8">
-	<link rel="stylesheet" type="text/css" href="assets/global.css">
-	<link rel="stylesheet" href="assets/lib/highlight/styles/github-dark-dimmed.css">
+	<link rel="stylesheet" type="text/css" href="/assets/global.css">
+	<link rel="stylesheet" href="/assets/lib/highlight/styles/github-dark-dimmed.css">
 </head>
 <body class="flex col spaced">
-	<a id="navigator" class="flex col hcentered vcentered fixed hleft" href="03.html">
-		<img width="40" height="40" src="assets/icons/chevron-left.svg">
+	<a id="navigator" class="flex col hcentered vcentered fixed hleft" href="/bloque-1/capitulo-3">
+		<img width="40" height="40" src="/assets/icons/chevron-left.svg">
 	</a>
-	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="05.html">
-		<img width="40" height="40" src="assets/icons/chevron-right.svg">
+	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="/bloque-1/capitulo-5">
+		<img width="40" height="40" src="/assets/icons/chevron-right.svg">
 	</a>
 	<div id="content">
+		<div class="navhelper">
+			<a href="/">Manual</a>
+			&nbsp;→&nbsp;
+			<a href="/bloque-1">Bloque 1</a>
+			&nbsp;→&nbsp;
+			<b>Capítulo 4</b>
+		</div>
 		<h1>Capítulo 4: Estructura de FAT12 y lectura de disco</h1>
 		<hr>
 		<p>
@@ -182,11 +189,11 @@
 				Volveremos a esto cuando tengamos que leer archivos, pero por ahora lo más importante es que entiendas que <b>no se puede leer el disco byte a byte, la unidad mínima de lectura es un sector</b>.
 			</p>
 			<p>
-				Existen dos formas de definir la dirección de un sector dentro del disco. La más moderna y fácil es el LBA o <a href="https://es.wikipedia.org/wiki/Direccionamiento_de_bloque_l%C3%B3gico"><i>Logical Block Addressing</i></a>, y la más antigua (que usaremos únicamente en el <a href="03.html#Imprimir_caracteres_usando_la_BIOS">modo real</a> del procesador) es el CHS o <a href="https://es.wikipedia.org/wiki/Cilindro-Cabezal-Sector"><i>Cylinder-Head-Sector</i></a>. El LBA indica <b>el sector en el que se encuentra una parte del disco si empezamos a contar desde cero</b>. El <i>boot sector</i> sería 0, el siguiente 1, 2... y así hasta 2879. Su cálculo es sorprendentemente simple.
+				Existen dos formas de definir la dirección de un sector dentro del disco. La más moderna y fácil es el LBA o <a href="https://es.wikipedia.org/wiki/Direccionamiento_de_bloque_l%C3%B3gico"><i>Logical Block Addressing</i></a>, y la más antigua (que usaremos únicamente en el <a href="03#Imprimir_caracteres_usando_la_BIOS">modo real</a> del procesador) es el CHS o <a href="https://es.wikipedia.org/wiki/Cilindro-Cabezal-Sector"><i>Cylinder-Head-Sector</i></a>. El LBA indica <b>el sector en el que se encuentra una parte del disco si empezamos a contar desde cero</b>. El <i>boot sector</i> sería 0, el siguiente 1, 2... y así hasta 2879. Su cálculo es sorprendentemente simple.
 			</p>
 			<p>
 				<div class="flex row bigspaced nostretch">
-					<img width="40%" class="card" src="assets/04/chs.png">
+					<img width="40%" class="card" src="img/chs.png">
 					<div style="flex: 1;">
 						<p>
 							Para hablar del direccionamiento CHS hay que tratar primero la arquitectura de un <a href="https://es.wikipedia.org/wiki/Unidad_de_disco_duro">disco duro</a>. El esquema de la izquierda, creado por el usuario de Wikipedia <a href="https://commons.wikimedia.org/wiki/User:LionKimbro">LionKimbro</a>, la ilustra muy bien.
@@ -318,21 +325,21 @@ int fatlba = bdb_reserved_sectors;</code></pre>
 			<p>
 				<div class="flex row bigspaced nostretch hcentered vcentered">
 					<samp>0</samp>
-					<img src="assets/icons/arrow-right.svg">
+					<img src="/assets/icons/arrow-right.svg">
 					<samp>1</samp>
-					<img src="assets/icons/arrow-right.svg">
+					<img src="/assets/icons/arrow-right.svg">
 					<samp>2</samp>
-					<img src="assets/icons/arrow-right.svg">
+					<img src="/assets/icons/arrow-right.svg">
 					<samp>3</samp>
-					<img src="assets/icons/arrow-right.svg">
+					<img src="/assets/icons/arrow-right.svg">
 					<samp>7</samp>
-					<img src="assets/icons/arrow-right.svg">
+					<img src="/assets/icons/arrow-right.svg">
 					<samp>6</samp>
-					<img src="assets/icons/arrow-right.svg">
+					<img src="/assets/icons/arrow-right.svg">
 					<samp>4</samp>
-					<img src="assets/icons/arrow-right.svg">
+					<img src="/assets/icons/arrow-right.svg">
 					<samp>5</samp>
-					<img src="assets/icons/arrow-right.svg">
+					<img src="/assets/icons/arrow-right.svg">
 					<samp>[FIN DE LISTA]</samp>
 				</div>
 			</p>
@@ -892,7 +899,7 @@ int datalba = rootlba + rootsec;</code></pre>
 				</table>
 			</p>
 			<p>
-				<b>Las 2 primeras entradas están en <samp class="okabe-ito-1 dark-text">verde</samp> porque son entradas reservadas</b>. Siempre tienen esos valores y no indican el contenido de ningún cluster de la sección de datos. Después, las entradas indican el contenido de un archivo de 4 clusters y otro de 8. Tras estos, podemos ver que <b>el archivo que comienza en el cluster <samp>0x0E</samp>, marcado en <samp class="okabe-ito-2 dark-text">azul oscuro</samp>, está <i>fragmentado</i></b>. 
+				<b>Las 2 primeras entradas están en <samp class="okabe-ito-1 dark-text">verde</samp> porque son <a href="https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system#Cluster_map">entradas reservadas</a></b>. No indican el contenido de ningún cluster de la sección de datos, solamente varían en función de si el disco está particionado o no. Después, las entradas indican el contenido de un archivo de 4 clusters y otro de 8. Tras estos, podemos ver que <b>el archivo que comienza en el cluster <samp>0x0E</samp>, marcado en <samp class="okabe-ito-2 dark-text">azul oscuro</samp>, está <i>fragmentado</i></b>. 
 			</p>
 			<p>
 				Si seguimos su <i>cadena de clusters</i>, obtendremos la siguiente lista: <samp>0xE</samp>, <samp>0xF</samp>, <samp>0x16</samp>, <samp>0x17</samp>. <b>El archivo ocupa 4 clusters que no son contiguos en la memoria</b>, por eso decimos que está <i>fragmentado</i>. En los clusters que se encuentran en medio, encontramos los datos de otro archivo. Si seguimos, tras otro archivo que ocupa 4 clusters, <b>llegamos al índice que buscábamos: el <samp>0x1C</samp></b>.
@@ -913,16 +920,16 @@ int datalba = rootlba + rootsec;</code></pre>
 				<b>Hemos visto en qué consisten las secciones reservada, de FAT, de directorio raíz y de datos de FAT12</b>. También hemos aprendido cómo calcular su posición en el disco y cómo usarlas para leer el contenido de un archivo. En el proceso, hemos aprendido sobre la <i>fragmentación de disco</i> y los <i>sistemas de direccionamiento LBA y CHS</i>.
 			</p>
 			<p>
-				<b>En el siguiente capítulo aprenderemos cómo leer parámetros del disco, cómo leer sus sectores y cómo cargar archivos en la memoria</b>. Para ello, necesitarás tener conocimientos mínimos de assembly (como los explicados en el <a href="01.html">capítulo 1</a>) y del sistema de archivos FAT12 (como los tratados en este capítulo).
+				<b>En el siguiente capítulo aprenderemos cómo leer parámetros del disco, cómo leer sus sectores y cómo cargar archivos en la memoria</b>. Para ello, necesitarás tener conocimientos mínimos de assembly (como los explicados en el <a href="01">capítulo 1</a>) y del sistema de archivos FAT12 (como los tratados en este capítulo).
 			</p>
 		</details>
 		<p id="footer">
-			<a href="00.html"><button>Primera página</button>
-			<a href="05.html"><button>Siguiente capítulo</button></a>
+			<a href="/"><button>Portada</button>
+			<a href="/bloque-1/capitulo-5"><button>Siguiente capítulo</button></a>
 		</p>
 	</div>
 
 	<!-- Library: highlight.js -->
-	<script src="assets/lib/highlight/highlight.min.js"></script>
+	<script src="/assets/lib/highlight/highlight.min.js"></script>
 	<script>hljs.highlightAll();</script>
 </body>
