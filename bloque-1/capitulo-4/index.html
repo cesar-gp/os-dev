@@ -3,21 +3,21 @@
 <head>
 	<title>Manual de OSDev</title>
 	<meta charset="UTF-8">
-	<link rel="stylesheet" type="text/css" href="/assets/global.css">
-	<link rel="stylesheet" href="/assets/lib/highlight/styles/github-dark-dimmed.css">
+	<link rel="stylesheet" type="text/css" href="../../assets/global.css">
+	<link rel="stylesheet" href="../../assets/lib/highlight/styles/github-dark-dimmed.css">
 </head>
 <body class="flex col spaced">
-	<a id="navigator" class="flex col hcentered vcentered fixed hleft" href="/bloque-1/capitulo-3">
-		<img width="40" height="40" src="/assets/icons/chevron-left.svg">
+	<a id="navigator" class="flex col hcentered vcentered fixed hleft" href="../capitulo-3">
+		<img width="40" height="40" src="../../assets/icons/chevron-left.svg">
 	</a>
-	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="/bloque-1/capitulo-5">
-		<img width="40" height="40" src="/assets/icons/chevron-right.svg">
+	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="../capitulo-5">
+		<img width="40" height="40" src="../../assets/icons/chevron-right.svg">
 	</a>
 	<div id="content">
 		<div class="navhelper">
-			<a href="/">Manual</a>
+			<a href="../../">Manual</a>
 			&nbsp;→&nbsp;
-			<a href="/bloque-1">Bloque 1</a>
+			<a href="../">Bloque 1</a>
 			&nbsp;→&nbsp;
 			<b>Capítulo 4</b>
 		</div>
@@ -175,7 +175,7 @@
 				<li><samp>bdb_heads</samp>: 2 cabezales en el disco.</li>
 			</ul>
 			<p>
-				La definición más importante de estas 3 es la que indica que <b>un sector equivale a 512 bytes</b>. Un <a href="https://es.wikipedia.org/wiki/Sector_(inform%C3%A1tica)">sector</a> es una porción de la memoria que funciona como <i>unidad mínima de lectura</i>, y su longitud depende de la geometría del disco.
+				La definición más importante de estas 3 es la que indica que <b>un sector equivale a 512 bytes</b>. Un <a href="https:/es.wikipedia.org/wiki/Sector_(inform%C3%A1tica)">sector</a> es una porción de la memoria que funciona como <i>unidad mínima de lectura</i>, y su longitud depende de la geometría del disco.
 			</p>
 			<p>
 				Cuando leemos datos que están localizados en el disco, lo que hacemos <b>cargarlos en alguna parte de la RAM, sector a sector</b>. Es decir, si queremos leer un archivo que ocupe 1 KB, el proceso a realizar será el siguiente:
@@ -189,14 +189,14 @@
 				Volveremos a esto cuando tengamos que leer archivos, pero por ahora lo más importante es que entiendas que <b>no se puede leer el disco byte a byte, la unidad mínima de lectura es un sector</b>.
 			</p>
 			<p>
-				Existen dos formas de definir la dirección de un sector dentro del disco. La más moderna y fácil es el LBA o <a href="https://es.wikipedia.org/wiki/Direccionamiento_de_bloque_l%C3%B3gico"><i>Logical Block Addressing</i></a>, y la más antigua (que usaremos únicamente en el <a href="03#Imprimir_caracteres_usando_la_BIOS">modo real</a> del procesador) es el CHS o <a href="https://es.wikipedia.org/wiki/Cilindro-Cabezal-Sector"><i>Cylinder-Head-Sector</i></a>. El LBA indica <b>el sector en el que se encuentra una parte del disco si empezamos a contar desde cero</b>. El <i>boot sector</i> sería 0, el siguiente 1, 2... y así hasta 2879. Su cálculo es sorprendentemente simple.
+				Existen dos formas de definir la dirección de un sector dentro del disco. La más moderna y fácil es el LBA o <a href="https:/es.wikipedia.org/wiki/Direccionamiento_de_bloque_l%C3%B3gico"><i>Logical Block Addressing</i></a>, y la más antigua (que usaremos únicamente en el <a href="03#Imprimir_caracteres_usando_la_BIOS">modo real</a> del procesador) es el CHS o <a href="https:/es.wikipedia.org/wiki/Cilindro-Cabezal-Sector"><i>Cylinder-Head-Sector</i></a>. El LBA indica <b>el sector en el que se encuentra una parte del disco si empezamos a contar desde cero</b>. El <i>boot sector</i> sería 0, el siguiente 1, 2... y así hasta 2879. Su cálculo es sorprendentemente simple.
 			</p>
 			<p>
 				<div class="flex row bigspaced nostretch">
 					<img width="40%" class="card" src="img/chs.png">
 					<div style="flex: 1;">
 						<p>
-							Para hablar del direccionamiento CHS hay que tratar primero la arquitectura de un <a href="https://es.wikipedia.org/wiki/Unidad_de_disco_duro">disco duro</a>. El esquema de la izquierda, creado por el usuario de Wikipedia <a href="https://commons.wikimedia.org/wiki/User:LionKimbro">LionKimbro</a>, la ilustra muy bien.
+							Para hablar del direccionamiento CHS hay que tratar primero la arquitectura de un <a href="https:/es.wikipedia.org/wiki/Unidad_de_disco_duro">disco duro</a>. El esquema de la izquierda, creado por el usuario de Wikipedia <a href="https:/commons.wikimedia.org/wiki/User:LionKimbro">LionKimbro</a>, la ilustra muy bien.
 						</p>
 						<p>
 							El <i>cabezal</i> es la unidad más grande de las 3. En el caso de nuestro disco (<i>3½" DSHD 1.44 MB</i>) existen únicamente 2 cabezales.
@@ -217,7 +217,7 @@
 				Existe una equivalencia clara entre los dos sistemas de direccionamiento. Por ejemplo, el LBA <samp>0</samp> apunta al mismo sector que el CHS <samp>0, 0, 1</samp>; el LBA <samp>1</samp> es el CHS <samp>0, 0, 2</samp>; el LBA <samp>19</samp> es el CHS <samp>0, 1, 1</samp>... y así sucesivamente.
 			</p>
 			<p>
-				Este sistema está completamente obsoleto hoy en día, pero es necesario conocerlo porque <b>vamos a utilizar la función de la BIOS <a href="https://www.ctyme.com/intr/rb-0607.htm">INT 13/AH=02h</a> para leer sectores del disco</b>, y esta función exige que le proporciones la dirección CHS del disco que quieres leer. Crearemos un "traductor" de LBA a CHS para librarnos de este problema cuanto antes.
+				Este sistema está completamente obsoleto hoy en día, pero es necesario conocerlo porque <b>vamos a utilizar la función de la BIOS <a href="https:/www.ctyme.com/intr/rb-0607.htm">INT 13/AH=02h</a> para leer sectores del disco</b>, y esta función exige que le proporciones la dirección CHS del disco que quieres leer. Crearemos un "traductor" de LBA a CHS para librarnos de este problema cuanto antes.
 			</p>
 		</details>
 		<details id="Secciones_de_FAT12_La_seccion_reservada" open>
@@ -279,7 +279,7 @@
 				<hr>
 			</summary>
 			<p>
-				La sección de FAT (<a href="https://es.wikipedia.org/wiki/Tabla_de_asignaci%C3%B3n_de_archivos"><i>File Allocation Tables</i></a>) es <b>un mapa de la sección de datos</b>, que está dividida en <i>clusters</i>. A continuación, explicaremos qué es un cluster, su papel en la sección de datos y cómo esto afecta a la sección de FAT. <b>Se puede calcular su LBA en el disco de la siguiente forma</b>:
+				La sección de FAT (<a href="https:/es.wikipedia.org/wiki/Tabla_de_asignaci%C3%B3n_de_archivos"><i>File Allocation Tables</i></a>) es <b>un mapa de la sección de datos</b>, que está dividida en <i>clusters</i>. A continuación, explicaremos qué es un cluster, su papel en la sección de datos y cómo esto afecta a la sección de FAT. <b>Se puede calcular su LBA en el disco de la siguiente forma</b>:
 			</p>
 			<pre><code class="language-c">/**
  * Recuerda:
@@ -293,7 +293,7 @@ int fatlba = bdb_reserved_sectors;</code></pre>
 				Puedes configurar cuántos sectores conforman un cluster usando la variable <samp>bdb_sectors_per_cluster</samp>, declarada en el header. <b>Nosotros le hemos dado el valor de <samp>1</samp>, por lo que un cluster es equivalente a un sector</b>. Igualmente, debemos programar nuestro bootloader teniendo en cuenta que esto podría cambiar cuando nuestro sistema operativo crezca.
 			</p>
 			<p>
-				<b>La sección de FAT incluye una <a href="https://es.wikipedia.org/wiki/Lista_enlazada">lista enlazada</a> que nos muestra los clusters que ocupa cada archivo</b>. Una lista enlazada (o <i>linked list</i>) es una secuencia lineal en la que cada valor contiene el siguiente al que hay que apuntar. Aquí tienes una <i>linked list</i> básica:
+				<b>La sección de FAT incluye una <a href="https:/es.wikipedia.org/wiki/Lista_enlazada">lista enlazada</a> que nos muestra los clusters que ocupa cada archivo</b>. Una lista enlazada (o <i>linked list</i>) es una secuencia lineal en la que cada valor contiene el siguiente al que hay que apuntar. Aquí tienes una <i>linked list</i> básica:
 			</p>
 			<p>
 				<table class="memory">
@@ -325,21 +325,21 @@ int fatlba = bdb_reserved_sectors;</code></pre>
 			<p>
 				<div class="flex row bigspaced nostretch hcentered vcentered">
 					<samp>0</samp>
-					<img src="/assets/icons/arrow-right.svg">
+					<img src="../../assets/icons/arrow-right.svg">
 					<samp>1</samp>
-					<img src="/assets/icons/arrow-right.svg">
+					<img src="../../assets/icons/arrow-right.svg">
 					<samp>2</samp>
-					<img src="/assets/icons/arrow-right.svg">
+					<img src="../../assets/icons/arrow-right.svg">
 					<samp>3</samp>
-					<img src="/assets/icons/arrow-right.svg">
+					<img src="../../assets/icons/arrow-right.svg">
 					<samp>7</samp>
-					<img src="/assets/icons/arrow-right.svg">
+					<img src="../../assets/icons/arrow-right.svg">
 					<samp>6</samp>
-					<img src="/assets/icons/arrow-right.svg">
+					<img src="../../assets/icons/arrow-right.svg">
 					<samp>4</samp>
-					<img src="/assets/icons/arrow-right.svg">
+					<img src="../../assets/icons/arrow-right.svg">
 					<samp>5</samp>
-					<img src="/assets/icons/arrow-right.svg">
+					<img src="../../assets/icons/arrow-right.svg">
 					<samp>[FIN DE LISTA]</samp>
 				</div>
 			</p>
@@ -495,7 +495,7 @@ int fatlba = bdb_reserved_sectors;</code></pre>
 				</table>
 			</p>
 			<p>
-				Explicamos cómo leer tablas como esta más adelante, pero si te puede la curiosidad, aquí te dejo la <a href="https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system#Cluster_map">explicación de este fenómeno</a> incluida en el artículo de Wikipedia del sistema de archivos FAT.
+				Explicamos cómo leer tablas como esta más adelante, pero si te puede la curiosidad, aquí te dejo la <a href="https:/en.wikipedia.org/wiki/Design_of_the_FAT_file_system#Cluster_map">explicación de este fenómeno</a> incluida en el artículo de Wikipedia del sistema de archivos FAT.
 			</p>
 		</details>
 		<details id="Secciones_de_FAT12_La_carpeta_raiz" open>
@@ -899,7 +899,7 @@ int datalba = rootlba + rootsec;</code></pre>
 				</table>
 			</p>
 			<p>
-				<b>Las 2 primeras entradas están en <samp class="okabe-ito-1 dark-text">verde</samp> porque son <a href="https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system#Cluster_map">entradas reservadas</a></b>. No indican el contenido de ningún cluster de la sección de datos, solamente varían en función de si el disco está particionado o no. Después, las entradas indican el contenido de un archivo de 4 clusters y otro de 8. Tras estos, podemos ver que <b>el archivo que comienza en el cluster <samp>0x0E</samp>, marcado en <samp class="okabe-ito-2 dark-text">azul oscuro</samp>, está <i>fragmentado</i></b>. 
+				<b>Las 2 primeras entradas están en <samp class="okabe-ito-1 dark-text">verde</samp> porque son <a href="https:/en.wikipedia.org/wiki/Design_of_the_FAT_file_system#Cluster_map">entradas reservadas</a></b>. No indican el contenido de ningún cluster de la sección de datos, solamente varían en función de si el disco está particionado o no. Después, las entradas indican el contenido de un archivo de 4 clusters y otro de 8. Tras estos, podemos ver que <b>el archivo que comienza en el cluster <samp>0x0E</samp>, marcado en <samp class="okabe-ito-2 dark-text">azul oscuro</samp>, está <i>fragmentado</i></b>. 
 			</p>
 			<p>
 				Si seguimos su <i>cadena de clusters</i>, obtendremos la siguiente lista: <samp>0xE</samp>, <samp>0xF</samp>, <samp>0x16</samp>, <samp>0x17</samp>. <b>El archivo ocupa 4 clusters que no son contiguos en la memoria</b>, por eso decimos que está <i>fragmentado</i>. En los clusters que se encuentran en medio, encontramos los datos de otro archivo. Si seguimos, tras otro archivo que ocupa 4 clusters, <b>llegamos al índice que buscábamos: el <samp>0x1C</samp></b>.
@@ -924,12 +924,12 @@ int datalba = rootlba + rootsec;</code></pre>
 			</p>
 		</details>
 		<p id="footer">
-			<a href="/"><button>Portada</button>
-			<a href="/bloque-1/capitulo-5"><button>Siguiente capítulo</button></a>
+			<a href="../../"><button>Portada</button>
+			<a href="../capitulo-5"><button>Siguiente capítulo</button></a>
 		</p>
 	</div>
 
 	<!-- Library: highlight.js -->
-	<script src="/assets/lib/highlight/highlight.min.js"></script>
+	<script src="../../assets/lib/highlight/highlight.min.js"></script>
 	<script>hljs.highlightAll();</script>
 </body>

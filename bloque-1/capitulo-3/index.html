@@ -3,21 +3,21 @@
 <head>
 	<title>Manual de OSDev</title>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-	<link rel="stylesheet" type="text/css" href="/assets/global.css">
-	<link rel="stylesheet" href="/assets/lib/highlight/styles/github-dark-dimmed.css">
+	<link rel="stylesheet" type="text/css" href="../../assets/global.css">
+	<link rel="stylesheet" href="../../assets/lib/highlight/styles/github-dark-dimmed.css">
 </head>
 <body class="flex col spaced">
-	<a id="navigator" class="flex col hcentered vcentered fixed hleft" href="/bloque-1/capitulo-2">
-		<img width="40" height="40" src="/assets/icons/chevron-left.svg">
+	<a id="navigator" class="flex col hcentered vcentered fixed hleft" href="../capitulo-2">
+		<img width="40" height="40" src="../../assets/icons/chevron-left.svg">
 	</a>
-	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="/bloque-1/capitulo-4">
-		<img width="40" height="40" src="/assets/icons/chevron-right.svg">
+	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="../capitulo-4">
+		<img width="40" height="40" src="../../assets/icons/chevron-right.svg">
 	</a>
 	<div id="content">
 		<div class="navhelper">
-			<a href="/">Manual</a>
+			<a href="../../">Manual</a>
 			&nbsp;→&nbsp;
-			<a href="/bloque-1">Bloque 1</a>
+			<a href="../">Bloque 1</a>
 			&nbsp;→&nbsp;
 			<b>Capítulo 3</b>
 		</div>
@@ -49,13 +49,13 @@
 				Obviamente, no es lo mismo hacer esto desde un sistema operativo que desde un entorno <i>freestanding</i> (es decir, sin bibliotecas ni sistemas operativos a los que llamar). Déjame explicarte un segundo <b>en qué modo del procesador nos encontramos</b>, porque es importante para imprimir texto en pantalla.
 			</p>
 			<p>
-				Al iniciar el ordenador, el procesador se encuentra en <a href="https://es.wikipedia.org/wiki/Modo_real">modo real</a>. Este es un modo de operación que <i>emula</i> el procesador <a href="https://en.wikipedia.org/wiki/Intel_8086#The_first_x86_design">Intel 8086</a>. La CPU se inicia así para ser compatible con los programas pensados para dicho procesador, por tanto, <b>nuestra funcionalidad está limitada a la que tenía este procesador de 1978</b>, que es... bastante poca. Solo puedes operar con números de 16 bits o menos (menores de 65.535) y solo los primeros 64 KB de la RAM son accesibles.
+				Al iniciar el ordenador, el procesador se encuentra en <a href="https:/es.wikipedia.org/wiki/Modo_real">modo real</a>. Este es un modo de operación que <i>emula</i> el procesador <a href="https:/en.wikipedia.org/wiki/Intel_8086#The_first_x86_design">Intel 8086</a>. La CPU se inicia así para ser compatible con los programas pensados para dicho procesador, por tanto, <b>nuestra funcionalidad está limitada a la que tenía este procesador de 1978</b>, que es... bastante poca. Solo puedes operar con números de 16 bits o menos (menores de 65.535) y solo los primeros 64 KB de la RAM son accesibles.
 			</p>
 			<p>
-				Si vienes de capítulos anteriores, habrás notado que los registros que hemos estado usando hasta ahora son de <i>32 bits</i>: <samp>eax</samp>, <samp>ebx</samp>, <samp>ecx</samp>, etc. Estos registros <a href="https://stackoverflow.com/a/6919640">se pueden seguir usando</a>, pero son <i>menos útiles</i>, porque los valores con los que trabajaremos (como los valores del stack o las direcciones de la memoria), ahora serán de 16 bits, como lo eran en el procesador Intel 8086. Por todo esto, <b>acostúmbrate a usar los registros de 16 bits</b>, como <samp>ax</samp>, <samp>bx</samp> y <samp>cx</samp>.
+				Si vienes de capítulos anteriores, habrás notado que los registros que hemos estado usando hasta ahora son de <i>32 bits</i>: <samp>eax</samp>, <samp>ebx</samp>, <samp>ecx</samp>, etc. Estos registros <a href="https:/stackoverflow.com/a/6919640">se pueden seguir usando</a>, pero son <i>menos útiles</i>, porque los valores con los que trabajaremos (como los valores del stack o las direcciones de la memoria), ahora serán de 16 bits, como lo eran en el procesador Intel 8086. Por todo esto, <b>acostúmbrate a usar los registros de 16 bits</b>, como <samp>ax</samp>, <samp>bx</samp> y <samp>cx</samp>.
 			</p>
 			<p>
-				Una cosa que sí puedes hacer desde el <i>real mode</i> y no desde el resto de modos es llamar a las <a href="https://es.wikipedia.org/wiki/Llamada_de_interrupci%C3%B3n_del_BIOS">funciones de la BIOS</a>, de las que ya hablamos en el capítulo anterior. Esto nos ahorra una cantidad <i>brutal</i> de horas de estudiar el hardware y comunicarnos directamente con él. <b>Uno de esos <i>BIOS interrupts</i> nos permite poner texto en pantalla</b>.
+				Una cosa que sí puedes hacer desde el <i>real mode</i> y no desde el resto de modos es llamar a las <a href="https:/es.wikipedia.org/wiki/Llamada_de_interrupci%C3%B3n_del_BIOS">funciones de la BIOS</a>, de las que ya hablamos en el capítulo anterior. Esto nos ahorra una cantidad <i>brutal</i> de horas de estudiar el hardware y comunicarnos directamente con él. <b>Uno de esos <i>BIOS interrupts</i> nos permite poner texto en pantalla</b>.
 			</p>
 			<h3>Imprimir un solo caracter</h3>
 			<p>
@@ -65,10 +65,10 @@
 mov al, 'a'     ; al = Caracter para imprimir.
 int 10h         ; Llamar al interrupt.</code></pre>
 			<p>
-				Es importante fijarse en que la instrucción <samp>int 0x10</samp> (o <i>int 10h</i>, que es <a href="/bloque-1#Sistemas_de_numeracion_y_manejo_de_memoria">otra manera de indicar que el número está en hexadecimal</a>) no hace todo el trabajo sola. <b>Necesita que <samp>ah</samp> contenga el valor <samp>0x0E</samp> para entender que quieres imprimir un caracter en la pantalla</b>. Si en el registro hay otro valor distinto, es probable que ejecute una función distinta (o ninguna).
+				Es importante fijarse en que la instrucción <samp>int 0x10</samp> (o <i>int 10h</i>, que es <a href="..#Sistemas_de_numeracion_y_manejo_de_memoria">otra manera de indicar que el número está en hexadecimal</a>) no hace todo el trabajo sola. <b>Necesita que <samp>ah</samp> contenga el valor <samp>0x0E</samp> para entender que quieres imprimir un caracter en la pantalla</b>. Si en el registro hay otro valor distinto, es probable que ejecute una función distinta (o ninguna).
 			</p>
 			<p>
-				Por eso, el nombre completo de esta función sería <a href="https://www.ctyme.com/intr/rb-0106.htm">INT 10/AH=0Eh</a>. La nomenclatura indica que usamos la instrucción <samp>int 10h</samp> (sinónimo de <samp>int 0x10</samp>) mientras en el registro <samp>ah</samp> está guardado el valor <samp>0Eh</samp> (sinónimo de <samp>0x0E</samp>).
+				Por eso, el nombre completo de esta función sería <a href="https:/www.ctyme.com/intr/rb-0106.htm">INT 10/AH=0Eh</a>. La nomenclatura indica que usamos la instrucción <samp>int 10h</samp> (sinónimo de <samp>int 0x10</samp>) mientras en el registro <samp>ah</samp> está guardado el valor <samp>0Eh</samp> (sinónimo de <samp>0x0E</samp>).
 			</p>
 		</details>
 		<details id="Unir_los_caracteres_en_cadenas_de_texto" open>
@@ -93,7 +93,7 @@ int 10h         ; Llamar al interrupt.</code></pre>
 				El registro <samp>ax</samp> ahora tendrá el valor <samp>0x0004</samp>. Es decir, la dirección de esa <i>string</i> en la memoria, <b>y no la string en sí</b>. ¿Y todos esos ceros? Bien por fijarte. <b>El registro <samp>ax</samp> es de 16 bits</b> (es decir, puede guardar números de 16 cifras en binario, que se traducen a 4 en hexadecimal). Para acceder a sus últimos 8 bits podemos usar el registro <samp>al</samp>, y también podemos acceder a sus primeros 8 bits con el registro <samp>ah</samp>. Eso es importante para aclarar un último matiz.
 			</p>
 			<p>
-				<b>Existen varias formas de escribir direcciones de memoria</b>. La más fácil (y la usada por cualquier sistema operativo moderno) es la <a href="https://en.wikipedia.org/wiki/Flat_memory_model">memoria lineal</a>, pero en el <i>modo real</i> del procesador (en el que estamos ahora), todavía no se puede hacer eso. <b>Se accede a la memoria por segmentos y <i>offsets</i></b>. En memoria lineal, equivale a anotar la dirección <samp>(seg * 16) + offset</samp>, teniendo en cuenta que 16 es <samp>0x10</samp> en hexadecimal. Aquí tienes algunos ejemplos:
+				<b>Existen varias formas de escribir direcciones de memoria</b>. La más fácil (y la usada por cualquier sistema operativo moderno) es la <a href="https:/en.wikipedia.org/wiki/Flat_memory_model">memoria lineal</a>, pero en el <i>modo real</i> del procesador (en el que estamos ahora), todavía no se puede hacer eso. <b>Se accede a la memoria por segmentos y <i>offsets</i></b>. En memoria lineal, equivale a anotar la dirección <samp>(seg * 16) + offset</samp>, teniendo en cuenta que 16 es <samp>0x10</samp> en hexadecimal. Aquí tienes algunos ejemplos:
 			</p>
 			<pre class="indent">
 	Segmentada                        Lineal
@@ -177,7 +177,7 @@ print_ret:
 	    	<ul>
 	    		<li><samp>lodsb</samp>: <b>coge el byte que se encuentra en la dirección <samp>ds:si</samp> y lo copia en el registro <samp>al</samp></b>. Además, suma uno al valor de <samp>si</samp> para que apunte al siguiente byte en la memoria.</li>
 	    		<li><samp>jz "símbolo"</samp>: <b>si el resultado de la operación anterior es 0, salta hacia el símbolo que le pongas</b>. En este caso, la operación anterior es <samp>cmp al, 0</samp>, que devolverá 0 si los dos valores son iguales.</li>
-	    		<li><samp>ret</samp>: a grandes rasgos, vuelve a la última linea donde invocamos la instrucción <samp>call</samp>. Esto se puede hacer gracias a que la dirección de dicha linea está guardada en el tope del stack. Aquí tienes <a href="https://www.felixcloutier.com/x86/ret">más información sobre esta instrucción</a>.</li>
+	    		<li><samp>ret</samp>: a grandes rasgos, vuelve a la última linea donde invocamos la instrucción <samp>call</samp>. Esto se puede hacer gracias a que la dirección de dicha linea está guardada en el tope del stack. Aquí tienes <a href="https:/www.felixcloutier.com/x86/ret">más información sobre esta instrucción</a>.</li>
 	    	</ul>
 			<p>
 				Esto imprimirá cualquier texto que le eches <b>siempre y cuando acabe en un byte con el valor de 0</b>. Ahora solo tienes que guardar en algún sitio la cadena de texto que quieras imprimir. Es muy recomendable poner nuestras variables por encima de la instrucción <samp>times 510-($-$$) db 0</samp> que escribimos en el capítulo anterior.
@@ -188,7 +188,7 @@ print_ret:
 			<pre><code>msg_prueba:
     db "Mensaje de prueba", 0x0D, 0x0A, 0</code></pre>
 			<p>
-				Ese código define <b>una sucesión de bytes cuyo primer valor está en una dirección a la que llamaremos <samp>msg_prueba</samp></b>. Esa cadena de bytes contiene el texto <samp>Mensaje de prueba</samp>, un <a href="https://es.wikipedia.org/wiki/Retorno_de_carro">retorno de carro</a>, un <a href="https://es.wikipedia.org/wiki/Salto_de_l%C3%ADnea">salto de linea</a> y un <a href="https://en.wikipedia.org/wiki/Null_character">byte nulo</a> (<samp>0</samp>) para terminar la cadena.
+				Ese código define <b>una sucesión de bytes cuyo primer valor está en una dirección a la que llamaremos <samp>msg_prueba</samp></b>. Esa cadena de bytes contiene el texto <samp>Mensaje de prueba</samp>, un <a href="https:/es.wikipedia.org/wiki/Retorno_de_carro">retorno de carro</a>, un <a href="https:/es.wikipedia.org/wiki/Salto_de_l%C3%ADnea">salto de linea</a> y un <a href="https:/en.wikipedia.org/wiki/Null_character">byte nulo</a> (<samp>0</samp>) para terminar la cadena.
 			</p>
 			<p>
 				Es muy importante tener en cuenta que <b>al poner <samp>msg_prueba</samp> estamos escribiendo en realidad la dirección de la <samp>'M'</samp></b>. Si le vamos sumando uno, tendremos la dirección de la <samp>'e'</samp>, de la <samp>'n'</samp>, etc. Esto es exactamente lo que hace la instrucción <samp>lodsb</samp>: guarda en el registro <samp>al</samp> el byte localizado en la dirección a la que apunta <samp>ds:si</samp> y suma uno a la propia dirección. Por eso, <b>si no terminamos con un <samp>0</samp>, nuestra función seguirá leyendo una cantidad indefinida de bytes</b>.
@@ -208,7 +208,7 @@ call print</code></pre>
 				Llegados a este punto, puede que pienses <i>«bueno, ¿y para hacer algo útil con nuestro sistema cómo lo hacemos?»</i>
 			</p>
 			<p>
-				Razón no te falta. Estamos imprimiendo textitos desde un sistema que no tiene ni archivos, ni procesos, ni es capaz siquiera de leer lo que llega desde el teclado o el ratón. Así que venga, vamos a empezar <b>metiéndole a esto un sistema de archivos</b>. En concreto, usaremos <a href="https://en.wikipedia.org/wiki/File_Allocation_Table#FAT12">FAT12</a>, que es un sistema muy simple en comparación con los actuales.
+				Razón no te falta. Estamos imprimiendo textitos desde un sistema que no tiene ni archivos, ni procesos, ni es capaz siquiera de leer lo que llega desde el teclado o el ratón. Así que venga, vamos a empezar <b>metiéndole a esto un sistema de archivos</b>. En concreto, usaremos <a href="https:/en.wikipedia.org/wiki/File_Allocation_Table#FAT12">FAT12</a>, que es un sistema muy simple en comparación con los actuales.
 			</p>
 			<h3>Headers de FAT12</h3>
 			<p>
@@ -381,7 +381,7 @@ nop</code></pre>
 				<b>Puedes pasar el ratón por encima de la tabla para ver una descripción más detallada de cada elemento.</b>
 			</p>
 			<p>
-				También se debe definir en los bytes inmediatamente siguientes el <a href="https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system#Extended_BIOS_Parameter_Block">Extended BIOS Parameter Block</a>, una estructura más breve (de 26 bytes) que contiene la siguiente información:
+				También se debe definir en los bytes inmediatamente siguientes el <a href="https:/en.wikipedia.org/wiki/Design_of_the_FAT_file_system#Extended_BIOS_Parameter_Block">Extended BIOS Parameter Block</a>, una estructura más breve (de 26 bytes) que contiene la siguiente información:
 			</p>
 			<p>
 				<table class="memory">
@@ -484,16 +484,16 @@ nop</code></pre>
 				<b>Puedes pasar el ratón por encima de la tabla para ver una descripción más detallada de cada elemento.</b>
 			</p>
 			<p>
-				Si te interesa saber más sobre la especificación, puedes irte directamente al <a href="http://download.microsoft.com/download/1/6/1/161ba512-40e2-4cc9-843a-923143f3456c/fatgen103.doc">documento de Microsoft</a> o al <a href="https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system">artículo de Wikipedia sobre los sistemas de archivos FAT</a>, que es extensísimo y muy detallado.
+				Si te interesa saber más sobre la especificación, puedes irte directamente al <a href="http:/download.microsoft.com/download/1/6/1/161ba512-40e2-4cc9-843a-923143f3456c/fatgen103.doc">documento de Microsoft</a> o al <a href="https:/en.wikipedia.org/wiki/Design_of_the_FAT_file_system">artículo de Wikipedia sobre los sistemas de archivos FAT</a>, que es extensísimo y muy detallado.
 			</p>
 			<p>
 				¿Qué valores le ponemos a todo esto? Eso depende de la geometría de nuestro disco, y para eso tenemos que tener claro qué tipo de disco queremos representar en nuestro archivo <i>.img</i>. Por suerte, ya hemos tomado algunas decisiones: nuestra imagen de disco ocupa 1440 KB. No es casualidad: <b>la intención es emular un floppy de alta densidad de 3 pulgadas y media</b> (<i>3½" DSHD 1.44MB</i>), que es un formato sobre el que existe mucha documentación.
 			</p>
 			<p>
-				Es probable que nunca en la vida hayas visto uno, por lo que en los capítulos sobre el bootloader te va a venir muy bien tener a mano una <a href="https://www.deathwombat.com/diskgeometry">calculadora de geometría de disco</a>. Si te interesa conocer algo más sobre este tipo de disco, te puede resultar interesante leer <a href="https://elrincondecabra.com/momento-retro-disquetes-de-35/">este artículo del blog <i>El Rincón de Cabra</i></a>.
+				Es probable que nunca en la vida hayas visto uno, por lo que en los capítulos sobre el bootloader te va a venir muy bien tener a mano una <a href="https:/www.deathwombat.com/diskgeometry">calculadora de geometría de disco</a>. Si te interesa conocer algo más sobre este tipo de disco, te puede resultar interesante leer <a href="https:/elrincondecabra.com/momento-retro-disquetes-de-35/">este artículo del blog <i>El Rincón de Cabra</i></a>.
 			</p>
 			<p>
-				Todas estas variables tenemos que definirlas al principio de nuestro bootloader, antes del código que ya tenemos hecho. <b>Aquí tienes un <i>header</i> totalmente compatible con el tipo de disco que queremos emular</b>. Está diseñado para mi sistema operativo, <i>scratchOS</i>, y está basado en el diseñado por <a href="https://youtu.be/srbnMNk7K7k?list=PLFjM7v6KGMpiH2G-kT781ByCNC_0pKpPN&t=572">nanobyte</a> para su sistema operativo, pero siéntete libre de cambiarle el nombre:
+				Todas estas variables tenemos que definirlas al principio de nuestro bootloader, antes del código que ya tenemos hecho. <b>Aquí tienes un <i>header</i> totalmente compatible con el tipo de disco que queremos emular</b>. Está diseñado para mi sistema operativo, <i>scratchOS</i>, y está basado en el diseñado por <a href="https:/youtu.be/srbnMNk7K7k?list=PLFjM7v6KGMpiH2G-kT781ByCNC_0pKpPN&t=572">nanobyte</a> para su sistema operativo, pero siéntete libre de cambiarle el nombre:
 			</p>
 			<pre><code>; FAT HEADER
 jmp short start
@@ -548,7 +548,7 @@ mkfs.fat -F 12 -n "SCRATCH  OS" boot.img
 # Escribir la parte 1 de nuestro bootloader en los primeros 512 bytes
 dd if=boot.bin of=boot.img conv=notrunc</code></pre>
 			<p>
-				Ahora, <b>podremos meter y sacar archivos del disco</b> si lo montamos como una unidad externa usando cualquier explorador de archivos. También podremos meter archivos dentro utilizando el programa <a href="https://www.gnu.org/software/mtools/"><samp>mtools</samp></a>, de GNU.
+				Ahora, <b>podremos meter y sacar archivos del disco</b> si lo montamos como una unidad externa usando cualquier explorador de archivos. También podremos meter archivos dentro utilizando el programa <a href="https:/www.gnu.org/software/mtools/"><samp>mtools</samp></a>, de GNU.
 			</p>
 			<p>
 				Como curiosidad, si quieres que la imagen de disco se monte con el nombre de tu sistema operativo (algo <i>bastante recomendable</i>), lo puedes hacer incluyendo la opción <samp>-n</samp> al comando <samp>mkfs.fat</samp>. El siguiente ejemplo está tomado del código de <i>scratchOS</i>:
@@ -571,12 +571,12 @@ dd if=boot.bin of=boot.img conv=notrunc</code></pre>
 			</p>
 		</details>
 		<p id="footer">
-			<a href="/"><button>Portada</button></a>
-			<a href="/bloque-1/capitulo-4"><button>Siguiente capítulo</button></a>
+			<a href="../../"><button>Portada</button></a>
+			<a href="../capitulo-4"><button>Siguiente capítulo</button></a>
 		</p>
 	</div>
 
 	<!-- Library: highlight.js -->
-	<script src="/assets/lib/highlight/highlight.min.js"></script>
+	<script src="../../assets/lib/highlight/highlight.min.js"></script>
 	<script>hljs.highlightAll();</script>
 </body>

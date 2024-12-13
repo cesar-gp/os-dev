@@ -3,28 +3,28 @@
 <head>
 	<title>Manual de OSDev</title>
 	<meta charset="UTF-8">
-	<link rel="stylesheet" type="text/css" href="/assets/global.css">
-	<link rel="stylesheet" href="/assets/lib/highlight/styles/github-dark-dimmed.css">
+	<link rel="stylesheet" type="text/css" href="../../assets/global.css">
+	<link rel="stylesheet" href="../../assets/lib/highlight/styles/github-dark-dimmed.css">
 </head>
 <body class="flex col spaced">
-	<a id="navigator" class="flex col hcentered vcentered fixed hleft" href="/bloque-1">
-		<img width="40" height="40" src="/assets/icons/chevron-left.svg">
+	<a id="navigator" class="flex col hcentered vcentered fixed hleft" href="../">
+		<img width="40" height="40" src="../../assets/icons/chevron-left.svg">
 	</a>
-	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="/bloque-1/capitulo-2">
-		<img width="40" height="40" src="/assets/icons/chevron-right.svg">
+	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="../capitulo-2">
+		<img width="40" height="40" src="../../assets/icons/chevron-right.svg">
 	</a>
 	<div id="content">
 		<div class="navhelper">
-			<a href="/">Manual</a>
+			<a href="../../">Manual</a>
 			&nbsp;→&nbsp;
-			<a href="/bloque-1">Bloque 1</a>
+			<a href="../">Bloque 1</a>
 			&nbsp;→&nbsp;
 			<b>Capítulo 1</b>
 		</div>
 		<h1>Capítulo 1: Escribir en Assembly</h1>
 		<hr>
 		<p>
-			Assembly es muy difícil cuando no conoces <a href="/bloque-1#Sistemas_de_numeracion_y_manejo_de_memoria">qué es un <i>byte</i></a>, una <i>word</i> y todos esos conceptos básicos que hemos explicado en la introducción. También es importante saber que ningún compilador te va a dar todo hecho, por eso también hemos hablado de <a href="/bloque-1#Conceptos_basicos_para_crear_programas_ejecutables">cómo generar ejecutables</a>. Cuando los conoces, es un lenguaje que, con sus problemas, <b>resulta bastante simple</b>.
+			Assembly es muy difícil cuando no conoces <a href="../#Sistemas_de_numeracion_y_manejo_de_memoria">qué es un <i>byte</i></a>, una <i>word</i> y todos esos conceptos básicos que hemos explicado en la introducción. También es importante saber que ningún compilador te va a dar todo hecho, por eso también hemos hablado de <a href="../#Conceptos_basicos_para_crear_programas_ejecutables">cómo generar ejecutables</a>. Cuando los conoces, es un lenguaje que, con sus problemas, <b>resulta bastante simple</b>.
 		</p>
 		<p>
 			Si nunca en la vida has visto código assembly, <b>dedica el tiempo que necesites a entender cada parte de este capítulo</b>. Es probable que, si no lo haces, te cueste mucho continuar. Si ya controlas el lenguaje, siéntete libre de saltarte este capítulo.
@@ -50,7 +50,7 @@
 				<hr>
 			</summary>
 			<p>
-				En la introducción hemos tratado la memoria RAM, que almacena una sucesión de bytes. Actualmente se venden RAMs de 4 e incluso 32 GB. Nosotros, en un principio, vamos a comunicarnos con memorias mucho más pequeñas, pero infinitamente más rápidas, que están integradas en el mismo procesador. <b>Esas memorias se llaman <a href="https://es.wikipedia.org/wiki/Registro_(hardware)"><i>registros</i></a></b>.
+				En la introducción hemos tratado la memoria RAM, que almacena una sucesión de bytes. Actualmente se venden RAMs de 4 e incluso 32 GB. Nosotros, en un principio, vamos a comunicarnos con memorias mucho más pequeñas, pero infinitamente más rápidas, que están integradas en el mismo procesador. <b>Esas memorias se llaman <a href="https:/es.wikipedia.org/wiki/Registro_(hardware)"><i>registros</i></a></b>.
 			</p>
 			<p>
 				<div class="flex row bigspaced nostretch">
@@ -120,7 +120,7 @@
 						    </tr>
 						    <tr class="odd">
 						    	<td colspan="100%">
-						    		<b>Fuente de la tabla:</b> <a href="https://ggbaker.ca/295/x86">x86-64 Cheat Sheet en Greg's Web</a>.<br>
+						    		<b>Fuente de la tabla:</b> <a href="https:/ggbaker.ca/295/x86">x86-64 Cheat Sheet en Greg's Web</a>.<br>
 						    		*El registro <samp>sp</samp> debe estar alineado a 16 bits.
 						    	</td>
 						    </tr>
@@ -134,7 +134,7 @@
 							El tick de la columna <i>preserved</i> indica que al llamar una función, está garantizado que el valor guardado en el registro no cambiará.
 						</p>
 						<p>
-							Al llamar a una función en Linux, normalmente utilizaremos como <a href="https://es.wikipedia.org/wiki/Argumento_(inform%C3%A1tica)">argumentos</a> los registros <samp>di</samp>, <samp>si</samp>, <samp>dx</samp>, <samp>cx</samp>. Esta es una <a href="https://es.wikipedia.org/wiki/Convenci%C3%B3n_de_llamada_a_funci%C3%B3n">convención de llamada</a> propia de Linux. Nos interesa bastante poco, debido a que <b>nosotros no vamos a tener un sistema operativo como base</b>.
+							Al llamar a una función en Linux, normalmente utilizaremos como <a href="https:/es.wikipedia.org/wiki/Argumento_(inform%C3%A1tica)">argumentos</a> los registros <samp>di</samp>, <samp>si</samp>, <samp>dx</samp>, <samp>cx</samp>. Esta es una <a href="https:/es.wikipedia.org/wiki/Convenci%C3%B3n_de_llamada_a_funci%C3%B3n">convención de llamada</a> propia de Linux. Nos interesa bastante poco, debido a que <b>nosotros no vamos a tener un sistema operativo como base</b>.
 						</p>
 						<p>
 							Los registros <samp>bp</samp> y <samp>sp</samp> representan la base y el tope del stack. Si no sabes qué es el stack, tranqui. Lo veremos en este capítulo.</a>.
@@ -201,7 +201,7 @@
 				<hr>
 			</summary>
 			<p>
-				En assembly puedes definir 3 cosas distintas: <a href="https://es.wikipedia.org/wiki/Lenguaje_ensamblador#Elementos_b%C3%A1sicos"><b>directivas, instrucciones y símbolos</b></a>. Las <i>directivas</i> son anotaciones que van dirigidas al compilador (en nuestro caso, a NASM) para que las tenga en cuenta a la hora de producir lenguaje máquina.
+				En assembly puedes definir 3 cosas distintas: <a href="https:/es.wikipedia.org/wiki/Lenguaje_ensamblador#Elementos_b%C3%A1sicos"><b>directivas, instrucciones y símbolos</b></a>. Las <i>directivas</i> son anotaciones que van dirigidas al compilador (en nuestro caso, a NASM) para que las tenga en cuenta a la hora de producir lenguaje máquina.
 			</p>
 			<p>
 				La primera linea del código que hemos creado en la introducción era una directiva:
@@ -264,7 +264,7 @@ _start:
 exit:
     ...</code></pre>
 					</div>
-					<img src="/assets/icons/arrow-right.svg">
+					<img src="../../assets/icons/arrow-right.svg">
 					<div class="block">
 						<table class="memory">
 							<tr>
@@ -323,7 +323,7 @@ _start:               ; Entrada al programa:
 			</p>
 			<ul>
 				<li><samp>mov &#60destino&#62, &#60fuente&#62</samp>: copia el valor de <i>&#60fuente&#62</i> hacia <i>&#60destino&#62</i>. En este caso, estamos moviendo valores literales (como <samp>1</samp>) a un registro (como <samp>eax</samp>).</li>
-				<li><samp>int &#60número&#62</samp>: interrumpe el procesador para llamar a la función nº <i>&#60número&#62</i> de la <a href="https://wiki.osdev.org/Interrupt_Vector_Table">IVT</a>. Ya aprenderemos más sobre esto.</li>
+				<li><samp>int &#60número&#62</samp>: interrumpe el procesador para llamar a la función nº <i>&#60número&#62</i> de la <a href="https:/wiki.osdev.org/Interrupt_Vector_Table">IVT</a>. Ya aprenderemos más sobre esto.</li>
 			</ul>
 			<p>
 				Para aprender nuevas instrucciones, vamos a centrarnos en el código bajo el símbolo <samp>_start</samp>. Por ejemplo, así es como podemos conseguir que el ejecutable cierre con el código de salida <samp>10</samp> <b>usando las instrucciones <samp>add</samp>, <samp>inc</samp> y <samp>sub</samp></b>:
@@ -337,7 +337,7 @@ sub ebx, 5      ; ebx = ebx - 5 = 10
 
 int 0x80        ; Llamada a Linux</code></pre>
 			<p>
-				Si lo compilas, enlazas y ejecutas e introduces el comando <samp>echo $?</samp> en el terminal (tal y como hicimos en la <a href="/bloque-1#Conceptos_basicos_para_crear_programas_ejecutables">introducción</a>) verás que el código de salida ahora es <samp>10</samp>. <b>Aquí viene un ejemplo con las instrucciones <samp>mul</samp> y <samp>div</samp></b>:
+				Si lo compilas, enlazas y ejecutas e introduces el comando <samp>echo $?</samp> en el terminal (tal y como hicimos en la <a href="../#Conceptos_basicos_para_crear_programas_ejecutables">introducción</a>) verás que el código de salida ahora es <samp>10</samp>. <b>Aquí viene un ejemplo con las instrucciones <samp>mul</samp> y <samp>div</samp></b>:
 			</p>
 			<pre><code>mov ebx, 5      ; ebx = 5 (código de salida)
 mov eax, 6
@@ -359,7 +359,7 @@ div bx          ; ax = ax / bx</code></pre>
 				Por si eso fuera poco, la instrucción <samp>div</samp> realiza la división, guarda en <samp>ax</samp> el resultado <b>y además guarda en <samp>dx</samp> el resto</b>.
 			</p>
 			<pre><code>div bx          ; ax = ax / bx
-	                ; dx = <a href="https://es.wikipedia.org/wiki/Operaci%C3%B3n_m%C3%B3dulo">ax % bx</a></code></pre>
+	                ; dx = <a href="https:/es.wikipedia.org/wiki/Operaci%C3%B3n_m%C3%B3dulo">ax % bx</a></code></pre>
 	    </details>
 	    <details id="Mas_instrucciones_saltos_y_condiciones" open>
 	    	<summary>
@@ -407,7 +407,7 @@ other:
 				<hr>
 			</summary>
 			<p>
-				Todos los datos y el código de nuestro programa estarán en algún momento cargados en alguna dirección de la RAM. Por ejemplo, <b>así es como se ve el código del ejecutable que creamos en la introducción</b> si lo abrimos en <a href="https://sourceware.org/gdb/">GDB</a> (el programa de detección de errores de GNU):
+				Todos los datos y el código de nuestro programa estarán en algún momento cargados en alguna dirección de la RAM. Por ejemplo, <b>así es como se ve el código del ejecutable que creamos en la introducción</b> si lo abrimos en <a href="https:/sourceware.org/gdb/">GDB</a> (el programa de detección de errores de GNU):
 			</p>
 			<p>
 				<img class="block hcenter" src="img/gdb.png">
@@ -557,7 +557,7 @@ mov ebx, number</code></pre>
 					</table>
 					<div style="flex: 4;">
 						<p>
-							El <a href="https://wiki.osdev.org/Stack">stack</a> es una parte de la memoria que puedes asignar arbitrariamente cuando entras a una función. <b>Puedes meter un valor al stack usando la instrucción <samp>push</samp>, y sacarlo usando la instrucción <samp>pop</samp></b>. Está íntimamente relacionado con los registros <samp>bp</samp> y <samp>sp</samp>.
+							El <a href="https:/wiki.osdev.org/Stack">stack</a> es una parte de la memoria que puedes asignar arbitrariamente cuando entras a una función. <b>Puedes meter un valor al stack usando la instrucción <samp>push</samp>, y sacarlo usando la instrucción <samp>pop</samp></b>. Está íntimamente relacionado con los registros <samp>bp</samp> y <samp>sp</samp>.
 						</p>
 						<p>
 							Vamos a explicar bien lo que ocurre cuando metes o sacas un valor de esta estructura tan curiosa. <b>A la izquierda tienes el mapa de un stack con 4 valores</b>, que se han introducido usando las siguientes instrucciones en Assembly:
@@ -763,13 +763,13 @@ _start:
 				<b>En el capítulo siguiente empezaremos con el sistema operativo</b>. A partir de aquí es inevitable que suba un pelín la exigencia del manual, pero voy a hacer lo posible por no dar por hecho muchos conocimientos previos.
 			</p>
 			<p id="footer">
-				<a href="/"><button>Portada</button></a>
-				<a href="/bloque-1/capitulo-2"><button>Siguiente capítulo</button></a>
+				<a href="../../"><button>Portada</button></a>
+				<a href="../capitulo-2"><button>Siguiente capítulo</button></a>
 			</p>
 		</details>
 	</div>
 
 	<!-- Library: highlight.js -->
-	<script src="/assets/lib/highlight/highlight.min.js"></script>
+	<script src="../../assets/lib/highlight/highlight.min.js"></script>
 	<script>hljs.highlightAll();</script>
 </body>
