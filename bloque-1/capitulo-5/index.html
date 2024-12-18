@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+
+<head>
+	<title>Manual de OSDev</title>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" type="text/css" href="../../assets/global.css">
+	<link rel="stylesheet" href="../../assets/lib/highlight/styles/github-dark-dimmed.css">
+</head>
+<body class="flex col spaced">
+	<a id="navigator" class="flex col hcentered vcentered fixed hleft" href="../capitulo-4">
+		<img width="40" height="40" src="../../assets/icons/chevron-left.svg">
+	</a>
+	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="../capitulo-6">
+		<img width="40" height="40" src="../../assets/icons/chevron-right.svg">
+	</a>
+	<div id="content">
+		<div class="navhelper">
+			<a href="../../">Manual</a>
+			&nbsp;→&nbsp;
+			<a href="../">Bloque 1</a>
+			&nbsp;→&nbsp;
+			<b>Capítulo 5</b>
+		</div>
+		<h1>Capítulo 5: Leer y manipular el disco</h1>
+		<hr>
+		<p>
+			Ya hemos formateado nuestro disco y conocemos el sistema de archivos FAT12. Ya sabemos cómo está estructurado el contenido de nuestro disco y cómo interpretar los bytes incluidos en cada sector. <b>En este episodio, vamos a meter algunos archivos en el disco e incluir funciones en nuestro bootloader que nos permitan leerlos</b>.
+		</p>
+		<details id="Tabla_de_contenidos" open>
+			<summary>
+				<h2>Tabla de contenidos</h2>
+				<hr>
+			</summary>
+			<ol>
+				<li><a href="#Operacion_1_Reiniciar_el_disco">Operación 1: Reiniciar el disco</a></li>
+				<li><a href="#Operacion_2_Leer_parametros_del_disco">Operación 2: Leer parámetros del disco</a></li>
+				<li><a href="#Operacion_3_Leer_sectores_del_disco">Operación 3: Leer sectores del disco</a></li>
+				<li><a href="#Resumen">Resumen</a></li>
+			</ol>
+		</details>
+		<details id="Operacion_1_Reiniciar_el_disco" open>
+			<summary>
+				<h2>Operación 1: Reiniciar el disco</h2>
+				<hr>
+			</summary>
+			<p>
+				Antes de programar funciones más complicadas, como la que usaremos para leer archivos, primero tenemos que programar la función de reiniciar disco. <b>Esta función entrara en juego cuando cualquier operación falle</b>, y la propia documentación que usaremos (la <a href="https://www.ctyme.com/rbrown.htm"><i>Ralf Brown's Interrupt List</i></a>) recomienda tenerla escrita en nuestro programa. Su código es el siguiente:
+			</p>
+			<pre><code class="language-x86asm">disk_reset:
+    pusha            ; Guardar registros en el stack
+    
+    mov ah, 0
+    int 0x13         ; INT 13h/AH=0: Reinicia el disco
+
+    jc err_disk      ; Salta a err_disk si ha ocurrido un error
+    
+    popa             ; Restaurar los registros
+    ret
+
+err_disk:
+    mov ah, 0
+    int 0x16         ; INT 16h/AH=0: Esperar pulsación de una tecla
+
+    jmp 0x0FFFF:0    ; Saltar a la BIOS (reiniciar sistema)</code></pre>
+    	<p>
+    		Vamos a explicar las instrucciones nuevas:
+    	</p>
+    	<ul>
+    		<li><samp>pusha</samp> y <samp>popa</samp>: hacen push/pop a todos los registros de uso general (los que conocemos).</li>
+    		<li><samp>jc</samp>: ejecuta un salto si la <i>carry flag</i> es igual a 1 (<i>p. ej.</i>: cuando hacemos una operación en la que nos llevamos una).</li>
+    	</ul>
+    	<p>
+    		Los 2 <i>interrupts</i> que hemos usado son el <a href="http://www.ctyme.com/intr/rb-0605.htm">INT 13h/AH=00</a> y el <a href="http://www.ctyme.com/intr/rb-1754.htm">INT 16h/AH=00</a>.
+    	</p>
+    	<p>
+    		Este es un buen momento para explicar un registro muy importante: <a href="https://en.wikipedia.org/wiki/FLAGS_register">el registro <samp>FLAGS</samp></a>. Este registro ocupa 16 bits, y cada bit representa una <i>flag</i> (o <a href="https://en.wikipedia.org/wiki/Boolean_data_type"><i>variable booleana</i></a>). <b>Con la instrucción <samp>jc</samp> estamos comprobando el valor del primer bit del registro <samp>FLAGS</samp>, que se llama <i>carry flag</i>. Si su valor es <samp>1</samp>, salta. Si no, no</b>. Existen más <i>flags</i>, como la <a href="https://en.wikipedia.org/wiki/Direction_flag"><i>direction flag</i></a> o la <a href="https://en.wikipedia.org/wiki/Overflow_flag"><i>overflow flag</i></a>. Te invito a investigarlas si tienes más curiosidad o planeas desarrollar más programas en assembly en un futuro.
+    	</p>
+    	<p>
+    		Esta función es muy simple: <b>usa un <i>interrupt</i> para reiniciar el disco</b>, y, si no funciona, usa otro <i>interrupt</i> para esperar la pulsación de una tecla y reinicia el ordenador. <span style="opacity: 0.8;"><i>Adicionalmente, también podrías usar la función <samp>print</samp> que <a href="../bloque-1/capitulo-3/#Imprimir_y_declarar_una_cadena_de_texto">ya programamos</a> para poner un mensaje de error si así lo deseas.</i></span>
+    	</p>
+		</details>
+		<details id="Operacion_2_Leer_parametros_del_disco" open>
+			<summary>
+				<h2>Operación 2: Leer parámetros del disco</h2>
+				<hr>
+			</summary>
+			<p>
+				Todavía seguimos en la <i>stage1</i> de nuestro <i>bootloader</i>. En este programa, nuestra meta es <b>cargar el contenido de un archivo (la <i>stage2</i>) a la RAM</b> para poder ejecutarlo. Para ello, tenemos que seguir los siguientes pasos:
+			</p>
+			<ol>
+				<li><b>Averiguar parámetros del disco</b> (como el número de cilindros, cabezales y sectores).</li>
+				<li><b>Localizar la carpeta raíz de nuestro disco</b> usando esos parámetros y el <i>boot sector</i>.</li>
+				<li>Localizar, dentro de la carpeta raíz, la entrada del archivo que queremos leer.</li>
+				<li>Dentro de esa entrada, <b>localizar el primer cluster del archivo</b>.</li>
+				<li>Copiar su primer cluster en una dirección de la RAM y <b>usar la FAT para localizar los siguientes y hacer lo mismo con ellos</b> hasta el fin del archivo.</li>
+				<li>Una vez hecho esto, si queremos ejecutar el archivo, solo tendremos que realizar un salto hacia la dirección de la memoria a la que hayamos cargado su contenido, usando la instrucción <samp>jmp</samp>.</li>
+			</ol>
+			<p>
+				En este apartado, aprenderemos a realizar el primero de esos pasos.
+			</p>
+			<p>
+				Para hacer esto, <b>usaremos un <i>interrupt</i> un poco más avanzado que los anteriores: el <a href="https://www.ctyme.com/intr/rb-0621.htm">INT 13h/AH=08h</a></b>. En las siguientes tablas se ilustra, primero, los datos que el <i>interrupt</i> espera recibir; segundo, el estado de los registros tras haberlo llamado.
+			</p>
+			<p>
+				<div class="flex row bigspaced nostretch hcentered">
+					<table>
+						<tr>
+							<th class="right-aligned-text">ah</th>
+							<td>0x08</td>
+						</tr>
+						<tr>
+							<th class="right-aligned-text">dl</th>
+							<td>número de disco</td>
+						</tr>
+						<tr>
+							<th class="right-aligned-text">es:di</th>
+							<td>0x0000:0x0000</td>
+						</tr>
+					</table>
+					<table>
+						<tr>
+							<th class="right-aligned-text">CF</th>
+							<td>(<i>Carry flag</i>) Si hay error, <samp>1</samp>. Si no, <samp>0</samp>.</td>
+						</tr>
+						<tr>
+							<th class="right-aligned-text">ah</th>
+							<td>Código de error (<samp>0</samp> en caso de éxito)</td>
+						</tr>
+						<tr>
+							<th class="right-aligned-text">al</th>
+							<td><samp>0</samp> (en la mayoría de BIOS)</td>
+						</tr>
+						<tr>
+							<th class="right-aligned-text">bl</th>
+							<td>Tipo de disco (<samp>0x04</samp> = Floppy 1.44 MB)</td>
+						</tr>
+						<tr>
+							<th class="right-aligned-text">ch</th>
+							<td>Máximo <b>cilindro</b> (últimos 8 bits)</td>
+						</tr>
+						<tr>
+							<th class="right-aligned-text">cl</th>
+							<td><i>Bits 5-0</i>: máximo <b>sector</b><br>
+							<i>Bits 7-6</i>: máximo <b>cilindro</b> (primeros 2 bits)</td>
+						</tr>
+						<tr>
+							<th class="right-aligned-text">dh</th>
+							<td>Máximo <b>cabezal</b></td>
+						</tr>
+						<tr>
+							<th class="right-aligned-text">dl</th>
+							<td>Número del disco</td>
+						</tr>
+						<tr>
+							<th class="right-aligned-text">es:di</th>
+							<td>Tabla de parámetros (si es un <i>floppy</i>)</td>
+						</tr>
+					</table>
+				</div>
+			</p>
+			<p>
+				El registro <samp>cx</samp> (que, <a href="../capitulo-1/#Los_registros_que_son_y_como_usar_algunos_de_ellos">como ya vimos</a>, es la combinación de <samp>ch</samp> y <samp>cl</samp>) tiene un contenido un poco difícil de visualizar sin algo de ayuda. Además, está guardado en <a href="../capitulo-2/#Como_hacer_que_la_BIOS_nos_ceda_el_control"><i>little endian</i></a> (bits más significativos primero). Pongamos que, tras llamar a la función, el registro <samp>cx</samp> contiene los siguientes bits:
+			</p>
+			<p>
+				<div class="flex row bigspaced nostretch">
+					<div class="flex col spaced nostretch vcentered">
+						<h3 class="nopad-top"><samp>ch</samp></h3>
+						<table class="memory">
+							<tr>
+								<th>7</th>
+								<th>6</th>
+								<th>5</th>
+								<th>4</th>
+								<th>3</th>
+								<th>2</th>
+								<th>1</th>
+								<th>0</th>
+							</tr>
+							<tr>
+								<td class="okabe-ito-1 dark-text">1</td>
+								<td class="okabe-ito-1 dark-text">0</td>
+								<td class="okabe-ito-1 dark-text">1</td>
+								<td class="okabe-ito-1 dark-text">0</td>
+								<td class="okabe-ito-1 dark-text">0</td>
+								<td class="okabe-ito-1 dark-text">0</td>
+								<td class="okabe-ito-1 dark-text">0</td>
+								<td class="okabe-ito-1 dark-text">1</td>
+							</tr>
+						</table>
+					</div>
+					<div class="flex col spaced nostretch vcentered">
+						<h3 class="nopad-top"><samp>cl</samp></h3>
+						<table class="memory">
+							<tr>
+								<th>7</th>
+								<th>6</th>
+								<th>5</th>
+								<th>4</th>
+								<th>3</th>
+								<th>2</th>
+								<th>1</th>
+								<th>0</th>
+							</tr>
+							<tr>
+								<td class="okabe-ito-1 dark-text">1</td>
+								<td class="okabe-ito-1 dark-text">0</td>
+								<td class="okabe-ito-3 dark-text">0</td>
+								<td class="okabe-ito-3 dark-text">0</td>
+								<td class="okabe-ito-3 dark-text">0</td>
+								<td class="okabe-ito-3 dark-text">1</td>
+								<td class="okabe-ito-3 dark-text">0</td>
+								<td class="okabe-ito-3 dark-text">1</td>
+							</tr>
+						</table>
+					</div>
+				</div>
+			</p>
+			<p>
+				Los datos correspondientes al <samp class="okabe-ito-1 dark-text">cilindro</samp> muestran los bits <samp>10100001 10</samp>, y los correspondientes al <samp class="okabe-ito-3 dark-text">sector</samp> muestran los bits <samp>000101</samp>. <b>Cada número se debe leer al revés, dado que están escritos siguiendo el orden <i>little endian</i></b>. Además, debemos tener en cuenta que los bytes incluidos en <samp>ch</samp> deben colocarse <i>después</i> de los 2 primeros de <samp>cl</samp>.
+			</p>
+			<p>
+				Teniendo en cuenta eso, el máximo cilindro del disco sería <samp>01 10000101</samp> (en decimal: 389) y el máximo sector sería <samp>101000</samp> (en decimal: 40). <b>Para aislar estos 2 números usando assembly, tendremos que usar algunos <a href="https://es.wikipedia.org/wiki/Operador_a_nivel_de_bits">operadores a nivel de bit</a></b> (en inglés, <i>bitwise operators</i>).
+			</p>
+			<p>
+				<b>El código de nuestra función se encargará de llamar al <i>interrupt</i> <a href="https://www.ctyme.com/intr/rb-0621.htm">INT 13h/AH=08h</a></b>, comprobar si ha habido algún error y organizar correctamente el contenido de los registros. A continuación, presento la implementación que creé para mi sistema <i>scratchOS</i>. El código introduce por primera vez las instrucciones <a href="https://www.felixcloutier.com/x86/jcc"><samp>jg</samp></a> (saltar si un valor es mayor que otro), <a href="https://www.felixcloutier.com/x86/and"><samp>and</samp></a> (realizar la operación lógica <i>AND</i>) y <a href="https://www.felixcloutier.com/x86/xor"><samp>xor</samp></a> (realizar la operación lógica <i>EXCLUSIVE OR</i>).
+			</p>
+			<pre><code class="language-x86asm">disk_getdriveparams:
+    ; Guardar el extra segment
+    push es
+    
+    ; Llamar al interrupt
+    mov ah, 0x08
+    mov dl, [ebr_drive_number]
+    int 0x13
+    
+    ; Comprobar si ha habido un error
+    jc err_disk
+    
+    ; Comprobar si ha devuelto un número de disco incorrecto
+    cmp [ebr_drive_number], dl
+    jg err_disk                      ; Si dl > ebr_drive_number, jmp err_disk
+    
+    ; Restaurar el extra segment
+    pop es
+    
+    ; Guardar el número de sectores por track
+    and cl, 0x3F                       ; cl = cl & 0x3F
+    xor ch, ch                         ; ch = 0
+    mov [bdb_sectors_per_track], cx
+    
+    ; Guardar el número de cabezales
+    inc dh
+    mov [bdb_heads], dh</code></pre>
+    	<p>
+    		<b>De esta forma nos aseguramos de que todos los datos de nuestro <i>boot sector</i> son correctos</b>. El siguiente paso para poder leer archivos es crear una función para leer sectores del disco hacia la memoria RAM.
+    	</p>
+    	<p>
+    		¿Pero cómo hemos separado el máximo cilindro del máximo sector? Pues utilizando el operador <samp>AND</samp>. Siguiendo con el ejemplo anterior, en <i>ch</i> podemos encontrar el byte <samp>10100001</samp>, y en <i>cl</i> podemos encontrar el byte <samp>10000101</samp>.
+    	</p>
+    	<p>
+    		<b>Para quedarnos únicamente con los primeros 2 bits de un número, realizamos una operación <samp>AND</samp> con el número <samp>00111111</samp> (en hexadecimal: <samp>0x3F</samp>)</b>. En esta operación, si los 2 bits son <samp>1</samp>, el resultado es <samp>1</samp>, y en cualquier otro caso, el resultado es <samp>0</samp>. Veamos cómo se hace la operación con el contenido de <samp>cl</samp>:
+    	</p>
+    	<pre class="centered-text">  10000101
+& 00111111
+  --------
+  00000101</pre>
+  		<p>
+  			El resultado de esta operación son los últimos 6 bits aislados. En nuestro caso, esto equivale al <i>número máximo de sector</i>, o, dicho de otra forma, el número de <i>sectores por cilindro</i>. <b>En esta implementación, hemos perdido la información sobre el número máximo de cilindro, porque no la vamos a utilizar.</b>
+		</details>
+		<details id="Operacion_3_Leer_sectores_del_disco" open>
+			<summary>
+				<h2>Operación 3: Leer sectores del disco</h2>
+				<hr>
+			</summary>
+			<p>
+				<b>Para realizar esta operación usaremos el <i>interrupt</i> <a href="https://www.ctyme.com/intr/rb-0607.htm">INT 13h/AH=02h</a></b>. Esta función lee hacia la dirección <samp>es:bx</samp> de la RAM un sector de la memoria localizado en una dirección CHS del disco que proporcionemos. En concreto, el método espera encontrar los siguientes datos en los registros:
+			</p>
+			<p>
+				<table class="hcenter">
+					<tr>
+						<th class="right-aligned-text">ah</th>
+						<td>0x02</td>
+					</tr>
+					<tr>
+						<th class="right-aligned-text">al</th>
+						<td>número de sectores a leer</td>
+					</tr>
+					<tr>
+						<th class="right-aligned-text">ch</th>
+						<td><b>Cilindro</b> (últimos 8 bits)</td>
+					</tr>
+					<tr>
+						<th class="right-aligned-text">cl</th>
+						<td>
+							<i>Bits 0-5</i>: <b>sector</b><br>
+							<i>Bits 6-7</i>: <b>cilindro</b> (primeros 2 bits)
+						</td>
+					</tr>
+					<tr>
+						<th class="right-aligned-text">dh</th>
+						<td>número del cabezal</td>
+					</tr>
+					<tr>
+						<th class="right-aligned-text">dl</th>
+						<td>número del disco</td>
+					</tr>
+					<tr>
+						<th class="right-aligned-text">es:bx</th>
+						<td>dirección en la que guardar los datos</td>
+					</tr>
+				</table>
+			</p>
+			<h3>Traducir LBA a CHS</h3>
+			<p>
+				Proporcionar la dirección CHS cada vez que queramos leer un sector y además organizarla de esta forma en los registros, resulta <i>muy molesto</i>. <b>Diseñaremos nuestra función para que reciba la dirección LBA del sector que queramos leer</b>, e incorporaremos un <i>traductor</i> de LBA a CHS que organice el contenido como pide el <i>interrupt</i>.
+			</p>
+			<p>
+				Aquí adjunto la implementación de <a href="https://www.youtube.com/@nanobyte-dev">nanobyte</a> para su sistema operativo <i>nanobyteOS</i>:
+			</p>
+			<pre><code class="language-x86asm">lba_to_chs:
+    ; SE ESPERA:
+    ;     ax = LBA del sector a traducir
+
+    ; SE DEVUELVE:
+    ;     ch = cilindro (últimos 8 bits)
+    ;     cl = bits 0-5: sector
+    ;          bits 6-7: cilindro (primeros 2 bits)
+    ;     dh = cabezal
+
+    ; Guardar registros
+    push ax                             ; Guardar 'ax'
+    push dx                             ; Guardar 'dx'
+
+    ; sector = lba % sectors_per_track + 1
+    xor dx, dx                          ; dx = 0
+    div word [bdb_sectors_per_track]    ; ax = lba / sectors_per_track
+                                        ; dx = lba % sectors_per_track
+    inc dx                              ; dx = dx + 1
+    mov cx, dx                          ; cl = sector
+
+    ; cylinder = lba / sectors_per_track / heads
+    xor dx, dx                          ; dx = 0
+    div word [bdb_heads]                ; ax = cilindro
+    mov ch, al                          ; ch = cilindro (últimos 8 bits)
+    shl ah, 6                           ; ah (bits 6-7) = cilindro (primeros 2 bits)
+    or cl, ah                           ; cl (bits 6-7) = cilindro (primeros 2 bits)
+
+    ; head = lba / sectors_per_track % heads
+                                        ; dl = cabezal (resto de la anterior division)
+    mov dh, dl                          ; Mover cabezal a dh
+
+    ; Restaurar los registros
+    pop ax                              ; Restaurar 'dx' moviéndolo a 'ax'
+    mov dl, al                          ; Mover hacia 'dl' para no sobreescribir el cabezal (guardado en 'dh')
+    pop ax                              ; Restaurar 'ax'
+    ret</code></pre>
+    	<p>
+    		Aquí introducimos la operación <samp>OR</samp>, que devuelve <samp>1</samp> si cualquiera de los dos bits es <samp>1</samp>, y devuelve <samp>0</samp> en cualquier otro caso. Aquí tienes un ejemplo:
+    	</p>
+    	<pre class="centered-text">  11001111
+| 00001111
+  --------
+  11001111</pre>
+  		<p>
+  			En este caso, <b>usamos la operación para trasladar solo ciertos bits de un registro a otro sin sobreescribir los bits que queremos conservar</b>, aprovechando que un <i>OR</i> con 1 siempre convierte el bit en <samp>1</samp> y un <i>OR</i> con 0 lo mantiene. Así, por ejemplo, si queremos mantener únicamente los primeros 3 bits de un byte, podemos hacer un <i>OR</i> con el byte <samp>11100000</samp>.
+  		</p>
+  		<p>
+  			El método tiene muchas operaciones bastante condensadas, así que te recomiendo tomarte tu tiempo y leerlo varias veces si quieres entenderlo bien. Por ahora, lo más importante es que entiendas que <b>si quieres traducir el LBA 22 a una dirección CHS, puedes hacerlo así</b>:
+  		</p>
+  		<pre><code class="language-x86asm">mov ax, 22
+call lba_to_chs</code></pre>
+  		<h3>Llamar al <i>interrupt</i></h3>
+  		<p>
+  			<b>La función en sí, quitando el traductor, es bastante simple</b>. Una mala implementación simplemente llamaría al interrupt de una forma parecida a esta:
+  		</p>
+  		<pre><code class="language-x86asm">; Este código está incompleto.
+
+disk_read:
+    ; SE ESPERA:
+    ;    ax = LBA del sector a leer
+    ;    al = número de sectores que leer
+    ;    dl = número del disco
+    ;    es:bx = Dirección de la memoria en la que guardarlo
+
+    push ax          ; Guardar registros
+    push cx
+    push dx
+
+    call lba_to_chs  ; Guardar CHS en ch, cl y dh
+
+    stc              ; CARRY FLAG = 1
+    mov ah, 0x02     ; ah = 0x02 (para el int)
+    pusha            ; Guardar registros para el int
+    int 0x13
+    popa             ; Restaurarlos tras el int
+
+    jc err_disk      ; Si la carry flag == 1, ha habido un error.
+
+    pop dx           ; Restaurar registros
+    pop cx
+    pop ax</code></pre>
+    	<p>
+    		Lo más novedoso que hemos hecho aquí es <b>asegurarnos de que la <i>carry flag</i> tiene el valor de <samp>1</samp> modificándola mediante el comando <samp>stc</samp></b>. Hacemos esto porque algunas BIOS simplemente <i>cambian</i> el valor de la <i>carry flag</i> en caso de error. Si nos aseguramos de que es <samp>1</samp>, un valor de <samp>0</samp> siempre indicará error.
+    	</p>
+    	<p>
+    		Pero <b>esa implementación tiene un problema muy importante</b>. <a href="https://www.ctyme.com/intr/rb-0607.htm">La documentación que estamos usando</a> afirma que es muy probable que sucedan errores al intentar leer datos por primera vez, sobre todo si usamos un floppy físico. Por ello, <b>se necesita repetir la operación al menos 3 veces</b> antes de darla por fallida. En C, podríamos hacerlo así:
+    	</p>
+    	<pre><code class="language-c">for(int i = 0; i < 3; i++)
+    if(disk_read()) return true;
+
+return false;</code></pre>
+    	<p>
+    		Los bucles en assembly necesitan algunas lineas más de código:
+    	</p>
+    	<pre><code class="language-x86asm">disk_read:
+    push ax                ; Guardar registros
+    push bx
+    push cx
+    push dx
+    push di
+
+    push cx                ; Guardar cx (número de sectores que leer)
+    call lba_to_chs        ; Guardar CHS en ch, cl y dh
+    pop ax                 ; al = número de sectores que leer
+
+    mov ah, 0x02
+    mov di, 3              ; di = 3 (lo usaremos como contador de bucles)
+
+disk_read_loop:
+    pusha                  ; Guardar registros para el int
+    stc                    ; Activar la carry flag
+    int 0x13
+    popa                   ; Recuperar registros
+
+    jnc disk_read_return   ; Si la carry flag == 0, terminar bucle.
+    
+                           ; Si no:
+    call disk_reset        ;     1. Resetear el disco
+    dec di                 ;     2. di = di - 1 (un bucle menos)
+    test di, di            ;     3. Compara di consigo mismo
+    jnz disk_read_retry    ;     4. Si 'di' no es 0, nuevo bucle.
+    
+                           ; Si 'di' es igual a 0:
+    jmp err_disk           ;     Saltar al mensaje de error.
+
+disk_read_return:
+    pop di                 ; Restaurar registros y volver
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret</code></pre>
+    	<p>
+    		Este <i>script</i>, por mucho que abulte, es muy simple: traduce el LBA a CHS, llama al interrupt, y, si falla, lo vuelve a llamar hasta que el registro <samp>di</samp> tenga el valor de <samp>0</samp> (un máximo de 3 veces). Si falla las 3 veces, salta a nuestra función de error.
+    	</p>
+    	<p>
+    		<b>Cuando volvamos de la función, en la dirección de memoria <samp>es:bx</samp> estará escrito el contenido del sector que hayamos elegido</b>. Esta es una de las funciones más importantes de nuestro sistema operativo, y actúa como único puente entre el disco duro y la RAM.
+    	</p>
+		</details>
+		<details id="Resumen" open>
+			<summary>
+				<h2>Resumen</h2>
+				<hr>
+			</summary>
+			<p>
+				En este capítulo hemos aprendido a realizar algunas operaciones de disco bastante simples, pero muy potentes. <b>Ya podemos leer sectores del disco hacia nuestra memoria RAM y también reiniciar el disco en caso de fallo</b>. En el siguiente capítulo, usaremos estas funciones para leer archivos sector a sector y cargar así la <i>stage2</i> de nuestro bootloader.
+			</p>
+			<p>
+				Desde la <i>stage2</i>, tendremos más libertad para implementar funciones algo más avanzadas, como poner el procesador en <i>protected mode</i> y cargar el <i>kernel</i>, que será el primer programa de nuestro sistema operativo.
+			</p>
+		</details>
+		<p id="footer">
+			<a href="../../"><button>Portada</button>
+			<a href="../capitulo-6"><button>Siguiente capítulo</button></a>
+		</p>
+	</div>
+
+	<!-- Library: highlight.js -->
+	<script src="../../assets/lib/highlight/highlight.min.js"></script>
+	<script>hljs.highlightAll();</script>
+</body>

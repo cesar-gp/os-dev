@@ -152,6 +152,44 @@ mov ss, ax    ; ss = x (0).</code></pre>
 				<h2>Imprimir (y declarar) una cadena de texto</h2>
 				<hr>
 			</summary>
+			<h3>Preparar los registros y el stack</h3>
+			<p>
+				A continuación, usaremos el stack por primera vez en el código de nuestro <i>bootloader</i>. Para ello, <b>antes hay que inicializar el stack</b>. Es decir, decirle a nuestro programa <i>a qué dirección de la memoria van los datos que guardamos en el stack</i>. Junto al segmento del stack (<samp>ss</samp>), también es importante definir los segmentos que utilizaremos (<samp>ds</samp>, <samp>es</samp> y <samp>cs</samp>). Todos tendrán, por ahora, el valor <samp>0</samp>.
+			</p>
+			<p>
+				<b>Es recomendable configurar el stack para que crezca a partir de la dirección <samp>0x7C00</samp>, que es donde empieza nuestro programa</b>. Recuerda que <a href="../capitulo-1/#El_stack_la_memoria_mas_alla_de_los_registros">el stack crece hacia abajo</a>. Así, todo lo que mandemos al stack se situará en la parte de la memoria inmediatamente anterior a nuestro código. Con esta configuración, el stack puede ocupar hasta 29,75 KB sin escribir sobre memoria usada.
+			</p>
+			<p>
+				Para hacer eso, escribiremos este código justo en el punto de entrada de nuestro <i>bootloader</i>:
+			</p>
+			<pre><code class="language-x86asm">mov ax, 0
+
+; Data segment = 0
+mov ds, ax
+
+; Extra segment = 0
+mov es, ax
+
+; Inicio del stack = 0x0000:0x7C00
+mov ss, ax
+mov sp, 0x7C00
+
+; Garantizar que el code segment es 0x0000
+push es
+push word start_checked
+retf
+
+start_checked:
+    ; nuestro código</code></pre>
+    		<p>
+    			Conviene aclarar algunas partes del código:
+    		</p>
+    		<ul>
+    			<li>La razón por la que no movemos directamente el valor <samp>0</samp> a los segmentos es porque solo pueden recibir el valor de otros registros. Por eso, usamos <samp>ax</samp> como intermediario.</li>
+    			<li>Los registros <samp>sp</samp> y <samp>bp</samp> guardan direcciones de la memoria situadas en el segmento <samp>ss</samp>. Por eso, es mejor inicializar el segmento del stack antes que el registro <samp>sp</samp>.</li>
+    			<li><b>La instrucción <samp>retf</samp> salta hacia la dirección que tengamos guardada en el tope del stack, asumiendo que el primer valor es el <i>offset</i> y el segundo es el <i>segmento</i></b>. Por eso, primero cargamos al stack el segmento <samp>0</samp> y, a continuación, cargamos la dirección de nuestro siguiente apartado de código, y luego la llamamos para que haga el salto. Hacemos esto porque no podemos modificar el <i>code segment</i> (<samp>cs</samp>) de otra manera que no sea saltando.</li>
+    		</ul>
+			<h3>La función en sí</h3>
 			<p>
 				Si llamamos a nuestra función <samp>print</samp>, una implementación correcta sería, más o menos, la siguiente:
 			</p>
@@ -515,7 +553,7 @@ nop
 
 ; EXTENDED BOOT RECORD
            ebr_drive_number: db 0                    ; 0x00: floppy, 0x80: hdd
-                                db 0                    ; reservado
+                             db 0                    ; reservado
               ebr_signature: db 29h                  ; mejor que sea 0x29
               ebr_volume_id: db 12h, 34h, 56h, 78h
            ebr_volume_label: db 'SCRATCH  OS'

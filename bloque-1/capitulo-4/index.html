@@ -798,7 +798,7 @@ int datalba = rootlba + rootsec;</code></pre>
 			<p>
 				Este valor nos indica el <i>cluster</i> en el que se encuentra el archivo. <b>Los clusters se pueden traducir directamente a LBA</b> de forma muy sencilla:
 			</p>
-			<pre><code class="language-c">int LBA = lba_de_la_data_section + ((cluster * sectores_por_cluster) - 2)</code></pre>
+			<pre><code class="language-c">int LBA = lba_de_la_data_section + ((cluster * sectores_por_cluster) - 2);</code></pre>
 			<ul>
 				<li>Los <b>sectores que ocupa cada cluster</b> los tenemos en la variable <samp>bdb_sectors_per_cluster</samp> de nuestro header, que en nuestra configuración de disco es igual a <samp>1</samp>.</li>
 				<li>El <b>cluster que queremos buscar</b> es el <samp>28</samp> (<samp>0x1C</samp>).</li>
@@ -920,7 +920,7 @@ int datalba = rootlba + rootsec;</code></pre>
 				<b>Hemos visto en qué consisten las secciones reservada, de FAT, de directorio raíz y de datos de FAT12</b>. También hemos aprendido cómo calcular su posición en el disco y cómo usarlas para leer el contenido de un archivo. En el proceso, hemos aprendido sobre la <i>fragmentación de disco</i> y los <i>sistemas de direccionamiento LBA y CHS</i>.
 			</p>
 			<p>
-				<b>En el siguiente capítulo aprenderemos cómo leer parámetros del disco, cómo leer sus sectores y cómo cargar archivos en la memoria</b>. Para ello, necesitarás tener conocimientos mínimos de assembly (como los explicados en el <a href="01">capítulo 1</a>) y del sistema de archivos FAT12 (como los tratados en este capítulo).
+				<b>En el siguiente capítulo aprenderemos cómo leer parámetros del disco y cómo leer sus sectores hacia la memoria</b>. Para ello, necesitarás tener conocimientos mínimos de assembly (como los explicados en el <a href="01">capítulo 1</a>) y del sistema de archivos FAT12 (como los tratados en este capítulo).
 			</p>
 		</details>
 		<p id="footer">
