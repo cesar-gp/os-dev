@@ -162,23 +162,24 @@ mov ss, ax    ; ss = x (0).</code></pre>
 			<p>
 				Para hacer eso, escribiremos este código justo en el punto de entrada de nuestro <i>bootloader</i>:
 			</p>
-			<pre><code class="language-x86asm">mov ax, 0
-
-; Data segment = 0
-mov ds, ax
-
-; Extra segment = 0
-mov es, ax
-
-; Inicio del stack = 0x0000:0x7C00
-mov ss, ax
-mov sp, 0x7C00
-
-; Garantizar que el code segment es 0x0000
-push es
-push word start_checked
-retf
-
+			<pre><code class="language-x86asm">start:
+    mov ax, 0
+    
+    ; Data segment = 0
+    mov ds, ax
+    
+    ; Extra segment = 0
+    mov es, ax
+    
+    ; Inicio del stack = 0x0000:0x7C00
+    mov ss, ax
+    mov sp, 0x7C00
+    
+    ; Garantizar que el code segment es 0x0000
+    push es
+    push word start_checked
+    retf
+    
 start_checked:
     ; nuestro código</code></pre>
     		<p>

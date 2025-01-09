@@ -250,7 +250,8 @@ err_disk:
     
     ; Guardar el número de cabezales
     inc dh
-    mov [bdb_heads], dh</code></pre>
+    mov [bdb_heads], dh
+    ret</code></pre>
     	<p>
     		<b>De esta forma nos aseguramos de que todos los datos de nuestro <i>boot sector</i> son correctos</b>. El siguiente paso para poder leer archivos es crear una función para leer sectores del disco hacia la memoria RAM.
     	</p>
@@ -365,6 +366,16 @@ err_disk:
   			En este caso, <b>usamos la operación para trasladar solo ciertos bits de un registro a otro sin sobreescribir los bits que queremos conservar</b>, aprovechando que un <i>OR</i> con 1 siempre convierte el bit en <samp>1</samp> y un <i>OR</i> con 0 lo mantiene. Así, por ejemplo, si queremos mantener únicamente los primeros 3 bits de un byte, podemos hacer un <i>OR</i> con el byte <samp>11100000</samp>.
   		</p>
   		<p>
+  			<b>También introducimos otra más simple: la operación <samp>SHIFT</samp></b>, que "arrastra" los bits un número determinado de puestos hacia la izquierda o la derecha. Por ejemplo, aquí aplicamos un <i>shift</i> de 6 lugares hacia la izquierda:
+  		</p>
+  		<pre class="centered-text">   00000011
+<< 6       
+   --------
+   11000000</pre>
+   		<p>
+   			Para hacer <i>shift</i> hacia la izquierda, puedes usar la instrucción <samp>shl</samp>. Para hacerlo hacia la derecha, usa <samp>shr</samp>. Puedes encontrar más información sobre esta familia de instrucciones en <a href="https://www.felixcloutier.com/x86/sal:sar:shl:shr">la documentación de x86 Assembly realizada por Félix Cloutier</a>.
+   		</p>
+  		<p>
   			El método tiene muchas operaciones bastante condensadas, así que te recomiendo tomarte tu tiempo y leerlo varias veces si quieres entenderlo bien. Por ahora, lo más importante es que entiendas que <b>si quieres traducir el LBA 22 a una dirección CHS, puedes hacerlo así</b>:
   		</p>
   		<pre><code class="language-x86asm">mov ax, 22
@@ -398,7 +409,8 @@ disk_read:
 
     pop dx           ; Restaurar registros
     pop cx
-    pop ax</code></pre>
+    pop ax
+    ret</code></pre>
     	<p>
     		Lo más novedoso que hemos hecho aquí es <b>asegurarnos de que la <i>carry flag</i> tiene el valor de <samp>1</samp> modificándola mediante el comando <samp>stc</samp></b>. Hacemos esto porque algunas BIOS simplemente <i>cambian</i> el valor de la <i>carry flag</i> en caso de error. Si nos aseguramos de que es <samp>1</samp>, un valor de <samp>0</samp> siempre indicará error.
     	</p>
@@ -438,7 +450,7 @@ disk_read_loop:
     call disk_reset        ;     1. Resetear el disco
     dec di                 ;     2. di = di - 1 (un bucle menos)
     test di, di            ;     3. Compara di consigo mismo
-    jnz disk_read_retry    ;     4. Si 'di' no es 0, nuevo bucle.
+    jnz disk_read_loop     ;     4. Si 'di' no es 0, nuevo bucle.
     
                            ; Si 'di' es igual a 0:
     jmp err_disk           ;     Saltar al mensaje de error.

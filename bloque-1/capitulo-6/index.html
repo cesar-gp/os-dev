@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+
+<head>
+	<title>Manual de OSDev</title>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" type="text/css" href="../../assets/global.css">
+	<link rel="stylesheet" href="../../assets/lib/highlight/styles/github-dark-dimmed.css">
+</head>
+<body class="flex col spaced">
+	<a id="navigator" class="flex col hcentered vcentered fixed hleft" href="../capitulo-5">
+		<img width="40" height="40" src="../../assets/icons/chevron-left.svg">
+	</a>
+	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="../capitulo-7">
+		<img width="40" height="40" src="../../assets/icons/chevron-right.svg">
+	</a>
+	<div id="content">
+		<div class="navhelper">
+			<a href="../../">Manual</a>
+			&nbsp;→&nbsp;
+			<a href="../">Bloque 1</a>
+			&nbsp;→&nbsp;
+			<b>Capítulo 6</b>
+		</div>
+		<h1>Capítulo 6: Leer la <i>stage2</i> y saltar hacia ella</h1>
+		<hr>
+		<p>
+			<b>En este capítulo terminaremos la <i>stage1</i> y cederemos el control del sistema a la <i>stage2</i></b>. De esta forma, ampliaremos nuestro límite de espacio de 512 bytes a 29,75 KiB. En el proceso pondrás a prueba tu nivel de programación en assembly y tu conocimiento sobre FAT12.
+		</p>
+		<p>
+			Este es un capítulo complicado. Tómate tu tiempo en cada una de las secciones y asegúrate de que estás cómodo con tus conocimientos antes de pasar a la siguiente.
+		</p>
+		<details id="Tabla_de_contenidos" open>
+			<summary>
+				<h2>Tabla de contenidos</h2>
+				<hr>
+			</summary>
+			<ol>
+				<li><a href="#Instalar_un_cross_compiler">Instalar un <i>cross compiler</i></a></li>
+				<li><a href="#Copiar_archivos_a_nuestro_disco_con_mtools">Copiar archivos a nuestro disco con <samp>mtools</samp></a></li>
+				<li><a href="#Crear_nuestra_stage2">Crear nuestra <i>stage2</i></a></li>
+				<li><a href="#Buscar_stage2_bin_en_el_directorio_raiz">Buscar <samp>stage2.bin</samp> en el directorio raíz</a></li>
+				<li><a href="#Leer_los_contenidos_de_stage2_bin">Leer los contenidos de <samp>stage2.bin</samp></a></li>
+				<li><a href="#Saltar_a_la_stage2">Saltar a la <i>stage2</i></a></li>
+				<li><a href="#Resumen">Resumen</a></li>
+			</ol>
+		</details>
+		<details id="Instalar_un_cross_compiler" open>
+			<summary>
+				<h2>Instalar un <i>cross compiler</i></h2>
+				<hr>
+			</summary>
+			<p>
+				Hasta ahora tan solo hemos usado NASM para compilar nuestros programas, y no nos hemos tenido que preocupar de la <i>plataforma</i> para la que estamos programando nuestro sistema operativo, pero al crear la <i>stage2</i> debemos tenerla en cuenta.
+			</p>
+			<p>
+				Existen muchos tipos de procesador, y muchos sistemas operativos. Lo más probable es que el código producido para un procesador concreto, o para un sistema concreto, no funcione en los demás. Por eso, <b>existen distintas versiones de cada compilador dependiendo de la plataforma para la que queremos generar nuestro código</b>.
+			</p>
+			<p>
+				Yo, por ejemplo, escribo este texto desde la plataforma <samp>x86_64-pc-linux-gnu</samp>. El compilador GCC que tengo instalado produce código para esa misma plataforma. Sin embargo, <b>nosotros no estamos produciendo código para Linux, sino para nuestro propio sistema operativo</b>.
+			</p>
+			<p>
+				Existen versiones de GCC que generan código para <a href="https://wiki.osdev.org/Target_Triplet#Target_Triplets_for_Operating_Systems_Development">plataformas genéricas</a>, como <samp>i686-elf</samp> o <samp>arm-none-eabi</samp>. En este manual, por mantenernos en linea con la OSDev Wiki, y por la cantidad de documentación que existe en Internet, nos quedaremos con la arquitectura <samp>i686-elf</samp>.
+			</p>
+			<p>
+				En los apartados a continuación, se entiende que tienes a tu disposición una versión de GCC para la arquitectura <samp>i686-elf</samp>. Puedes seguir los siguientes materiales para realizar la instalación:
+			</p>
+			<ul>
+				<li><a href="https://wiki.osdev.org/GCC_Cross-Compiler">GCC Cross-compiler</a>, en la OSDev Wiki: una guía muy detallada para realizar correctamente la instalación.</li>
+				<li><a href="https://www.youtube.com/watch?v=TgIdFVOV_0U">Setting up an OS dev environment, building GCC toolchain</a>, de <i>nanobyte</i> en YouTube: una guía en vídeo, por si no te apetece leer un artículo tan detallado.</li>
+			</ul>
+			<!-- https://wiki.osdev.org/GCC_Cross-Compiler -->
+		</details>
+		<details id="Copiar_archivos_a_nuestro_disco_con_mtools" open>
+			<summary>
+				<h2>Copiar archivos a nuestro disco con <samp>mtools</samp></h2>
+				<hr>
+			</summary>
+			<p>
+				<a href="https://www.gnu.org/software/mtools/"><samp>mtools</samp></a> es un programa desarrollado por GNU que permite manipular discos de MS-DOS sin montarlos al sistema. Es probable que lo sepas, pero habitualmente para manipular un disco en Linux se usa el siguiente comando:
+			</p>
+			<pre><code class="language-bash">mount disco.img carpeta</code></pre>
+			<p>
+				Este comando carga los contenidos de <samp>disco.img</samp> a la carpeta <samp>carpeta</samp>. A partir de ahí, <b>las modificaciones que hagas en la carpeta se escribirán también en el disco</b>, y, al terminar, se usa el comando <samp>umount carpeta</samp> para desmontar el disco. Resulta simple, pero puede ser molesto tener que usar este método para cada cambio que queremos hacer en el disco. Por eso, nosotros vamos a utilizar <samp>mtools</samp>.
+			</p>
+			<p>
+				A continuación, presento una lista de comandos incluidos en mtools que nos pueden resultar bastante útiles.
+			</p>
+			<pre><code class="language-bash">## CARPETAS
+mdir -i disco.img # Muestra el directorio raíz de disco.img
+mdir -i disco.img -/ # Muestra todas sus carpetas
+mmd -i disco.img carpeta # Crea la carpeta "carpeta" en el disco
+mrd -i disco.img carpeta # Elimina la carpeta "carpeta"
+
+## ARCHIVOS
+mcopy -i disco.img archivo "::copia" # Crea en el disco el archivo "copia" con el contenido del archivo "archivo", ubicado fuera del disco.
+			</code></pre>
+			<p>
+				Existen muchos más comandos de <samp>mtools</samp>. Para poder verlos y usarlos por tu cuenta, descarga el paquete de <a href="https://archlinux.org/packages/extra/x86_64/mtools/"><samp>mtools</samp></a> que esté disponible para tu distribución de Linux.
+			</p>
+			<p>
+				<b>En este capítulo usaremos sobre todo el comando <samp>mcopy</samp></b>. Por ejemplo, si hemos creado el programa <samp>editor.exe</samp> y lo queremos trasladar a nuestro disco, podemos ejecutar el siguiente comando para copiarlo hacia la carpeta raíz.
+			</p>
+			<pre><code class="language-bash">mcopy -i disco.img editor.exe "::editor.exe"</code></pre>
+		</details>
+		<details id="Crear_nuestra_stage2" open>
+			<summary>
+				<h2>Crear nuestra <i>stage2</i></h2>
+				<hr>
+			</summary>
+			<p>
+				<b>Vamos a programar (por fin) un código mínimo para nuestra <i>stage2</i></b>. En este proceso, es importante tener muy claro qué es exactamente lo que estamos haciendo, y cuál va a ser su posición final en nuestro <i>bootloader</i>.
+			</p>
+			<p>
+				Estamos programando un <i>bootloader</i>. Hemos definido su punto de entrada y algunas funciones importantes en <samp>stage1.bin</samp>. Ahora vamos a crear <samp>stage2.bin</samp>, el segundo ejecutable del <i>bootloader</i>. <b>La <i>stage1</i> está escrita en los primeros 512 bytes de nuestro disco</b>, y se carga en la dirección <samp>0x7C00</samp> de la memoria antes de ser ejecutada. Por otra parte, <b>la <i>stage2</i> estará escrita en un archivo dentro de nuestro disco</b>, y podemos elegir la dirección de la RAM en la que la cargaremos.
+			</p>
+			<p>
+				Yo he escogido la dirección <samp>0x500</samp> para cargar mi <i>stage2</i>, por varias razones:
+			</p>
+			<ol>
+				<li><b>Es el primer byte de una región de memoria libre que ocupa 29,75 KiB</b>. Eso ofrece bastante espacio para nuestro código. Como curiosidad, esta región se sitúa justo antes de nuestro <i>boot sector</i> (<a href="https://wiki.osdev.org/Memory_Map_(x86)#Overview">más información</a>).</li>
+				<li><b>Está en el <a href="https://en.wikipedia.org/wiki/X86_memory_segmentation#Real_mode">primer segmento</a> de la memoria</b>, lo cual simplificará las cosas en el futuro cercano (al pasar de <i>real mode</i> a <i>protected mode</i>).</li>
+			</ol>
+			<p>
+				Otra dirección común es <samp>0x7E00</samp>, que ofrece más espacio. En cualquier caso, antes de elegir, asegúrate de conocer bien el <a href="https://wiki.osdev.org/Memory_Map_(x86)">mapa de la memoria RAM en la arquitectura x86</a>. Te ayudará a prevenir errores relacionados con la memoria, que pueden llegar a ser muy difíciles de solucionar a posteriori.
+			</p>
+			<h3>Definir la estructura del programa</h3>
+			<p>
+				¿Recuerdas el <i>linker</i>? Sí, ese programa que estamos utilizando para generar nuestro ejecutable después de compilarlo, como vimos en la <a href="http://localhost/bloque-1/#Conceptos_basicos_para_crear_programas_ejecutables">introducción del bloque 1</a>. Hasta ahora hemos creado programas de <i>un solo archivo</i>, así que no ha hecho falta configurar mucho... pero la <i>stage2</i> va a estar compuesta por muchos archivos. Por tanto, <b>hay que crear un <i>linker script</i> que defina las diferentes secciones de nuestro ejecutable</b>.
+			</p>
+			<p>
+				Aquí tienes una propuesta. Mi <i>linker script</i> se llama <samp>linker.ld</samp>. Está escrito usando la <a href="https://ftp.gnu.org/old-gnu/Manuals/ld-2.9.1/html_chapter/ld_3.html">sintaxis de <i>ld</i></a> y define varias secciones, que están explicadas en las anotaciones.
+			</p>
+			<pre><code class="language-c">/*
+ * Punto de entrada del programa: símbolo "entry".
+ * Formato del programa: binario (.obj)
+ */
+ENTRY(entry)
+OUTPUT_FORMAT("binary")
+
+SECTIONS
+{
+    /* La dirección del programa en la RAM (.) es 0x500 */
+    . = 0x500;
+
+    /* Sección "entry": punto de entrada del programa */
+    .entry              : { __entry_start = .;      *(.entry)   }
+
+    /* Sección "text": código posterior */
+    .text               : { __text_start = .;       *(.text)    }
+
+    /* Sección "data": variables inicializadas */
+    .data               : { __data_start = .;       *(.data)    }
+
+    /* Sección "rodata": variables de solo lectura */
+    .rodata             : { __rodata_start = .;     *(.rodata)  }
+
+    /* Sección "bss": variables no inicializadas */
+    .bss                : { __bss_start = .;        *(.bss)     }
+    
+    /* La variable "__end" apunta al inicio del programa */
+    __end = .;
+}</code></pre>
+			<p>
+				Desde el <i>linker script</i> hemos definido algunas variables que podremos usar en cualquier punto de la <i>stage2</i>, que son <samp>__entry_start</samp>, <samp>__text_start</samp>, <samp>__data_start</samp>, <samp>__rodata_start</samp> y <samp>__bss_start</samp>. Contienen la dirección de cada sección del ejecutable en la memoria RAM. Nos vendrán bien dentro de poco.
+			</p>
+			<h3>Escribir el código del programa</h3>
+			<p>
+				<b>Aquí tienes una propuesta de código</b>. Lo único que hace es definir la función <samp>print</samp> (igual que en la <i>stage1</i>) y escribir un mensaje en la pantalla con el texto <samp>Hola</samp>.
+			</p>
+			<pre><code class="language-x86asm">; Archivo "entry.asm"
+
+bits 16
+
+; INICIO DE LA SECCIÓN "entry"
+section .entry
+
+global entry                 ; Hacer el símbolo "entry" accesible para "linker.ld"
+entry:
+    mov si, msg_boot         ; Imprimir el mensaje
+    call print
+
+halt:                        ; Parar ejecución
+    hlt
+    jmp halt
+
+print:                       ; FUNCIÓN: print
+    mov ah, 0x0E
+    mov bl, 0
+
+print_loop:
+    lodsb
+    cmp al, 0
+    jz print_ret
+
+    int 0x10
+
+    jmp print_loop
+
+print_ret:
+    ret
+
+msg_boot:                     ; Mensaje
+    db "Hola", 0x0A, 0x0D, 0</code></pre>
+	    	<h3>Compilar y enlazar el programa</h3>
+	    	<p>
+	    		Por ahora solo tenemos uno, pero todos los archivos assembly de la <i>stage2</i> pueden ser compilados con NASM, tal y como lo hemos hecho hasta ahora, aunque con un matiz. Usaremos el formato <i>ELF</i>, en vez de usar <i>OBJ</i>. También pondremos la extensión <samp>.obj</samp>, para diferenciarlos del ejecutable final.
+	    	</p>
+	    	<pre><code class="language-bash">nasm -f elf -o entry.obj entry.asm</code></pre>
+	    	<p>
+	    		<b>Cuando ya tengamos todos los archivos compilados, podemos enlazarlos todos en un solo ejecutable llamado <samp>stage2.bin</samp></b>. El siguiente comando usa la configuración en <i>linker.ld</i> para enlazar los archivos <i>1.obj</i>, <i>2.obj</i> y <i>3.obj</i> en un entorno <i>freestanding</i>, sin utilizar la <a href="https://wiki.osdev.org/C_Library">biblioteca estándar de C</a>, y <a href="https://wiki.osdev.org/Libgcc">utilizando la biblioteca <i>libgcc</i></a>.
+	    	</p>
+	    	<pre><code class="language-bash">i686-elf-gcc -T linker.ld -nostdlib -o ejecutable.bin 1.obj 2.obj 3.obj -lgcc</code></pre>
+	    	<p>
+	    		En nuestro caso, enlazaremos <i>entry.obj</i> usando el siguiente comando:
+	    	</p>
+	    	<pre><code class="language-bash">i686-elf-gcc -T linker.ld -nostdlib -o stage2.bin entry.obj -lgcc</code></pre>
+	    	<h3>Copiar nuestro programa en el disco</h3>
+	    	<p>
+	    		<b>¡Ya tenemos el archivo <samp>stage2.bin</samp> terminado!</b> Tan solo tenemos que copiar el archivo al disco en el que estamos instalando nuestro sistema operativo. Por suerte, sabemos hacer eso usando <samp>mtools</samp>. Simplemente necesitamos el siguiente comando:
+	    	</p>
+	    	<pre><code class="language-bash">mcopy -i disco.img stage2.bin "::stage2.bin"</code></pre>
+	    	<p>
+	    		Puedes consultar el contenido del directorio raíz para ver si el archivo se ha copiado correctamente usando <samp>mdir</samp> tal que así:
+	    	</p>
+	    	<pre><code class="language-bash">mdir -i disco.img</code></pre>
+		</details>
+		<details id="Buscar_stage2_bin_en_el_directorio_raiz" open>
+			<summary>
+				<h2>Buscar <samp>stage2.bin</samp> en el directorio raíz</h2>
+				<hr>
+			</summary>
+			<div class="card">
+				<p>
+					Esta sección asume que has ido siguiendo las anteriores. Por tanto, tu <i>stage1</i> debería tener definido el <i>header de FAT12</i> y las funciones <samp>start</samp>, <samp>start_checked</samp>, <samp>print</samp>, <samp>disk_reset</samp>, <samp>disk_getdriveparams</samp>, <samp>disk_read</samp> y sus dependencias.
+				</p>
+				<p>
+					<b>Si no las tienes o las has programado por tu cuenta, procede con precaución.</b> Existe un alto riesgo de que el programa deje de funcionar en algún punto del código. Ten paciencia.
+				</p>
+			</div>
+			<p>
+				Vamos a reanudar el programa donde lo dejamos. Por ahora, hemos asegurado el valor de los registros y hemos saltado a <samp>start_checked</samp>. <b>Seguiremos con nuestro código desde ahí, usando el resto de funciones que hemos ido programando</b>.
+			</p>
+			<h3>Paso 1. Localizar el directorio raíz</h3>
+			<p>
+				Tras el símbolo <samp>start_checked</samp>, <b>consultaremos los parámetros del disco y los usaremos para calcular el LBA en el que empieza nuestro directorio raíz y su tamaño máximo</b>. Para ello, vamos a usar las fórmulas que ya conocemos e instrucciones aritméticas simples:
+			</p>
+			<pre><code class="language-x86asm">start_checked:
+    ; Consultar parámetros del disco
+    call disk_getdriveparams
+
+    ; rootlba = sectors_per_fat * fat_count + reserved_sectors
+    mov ax, [bdb_sectors_per_fat]
+    mov bl, [bdb_fat_count]
+    xor bh, bh
+    mul bx
+    add ax, [bdb_reserved_sectors]
+    push ax
+    
+    ; AX = tamaño del directorio raíz (en sectores)
+    ; rootsize = (dir_entries_count * 32) / bytes_per_sector
+    mov ax, [bdb_dir_entries_count]
+    shl ax, 5
+    xor dx, dx
+    div word [bdb_bytes_per_sector]
+    
+    ; Si el resto es 0, rootsize es un núm. entero, así que saltamos a la sig. sección
+    test dx, dx
+    jz start_rootread
+    
+    ; Si no, sumar 1 antes de saltar
+    inc ax
+    jmp start_rootread</code></pre>
+    		<h3>Paso 2. Buscar <samp>stage2.bin</samp> dentro del directorio raíz</h3>
+    		<p>
+    			Como ya sabemos, <b>en el sistema de archivos FAT12 una carpeta está compuesta por entradas de 32 bytes que nos indican datos básicos sobre cada uno de sus archivos</b>. Estas entradas son consecutivas. Si se terminan antes de llegar al límite del directorio raíz, solo encontramos bytes con el valor <samp>0</samp>.
+    		</p>
+    		<p>
+    			También sabemos que, dentro de los 32 bytes que componen cada entrada, los 11 primeros contienen el nombre del archivo. El nombre de nuestro archivo una vez incluido en el disco será <samp>STAGE2&nbsp;&nbsp;BIN</samp>. Por todo esto, nuestro método de búsqueda será <b>iterar por cada entrada y comprobar si sus primeros 11 bytes coinciden con ese nombre de archivo</b>.
+    		</p>
+    		<p>
+    			Si encontramos una entrada cuyo nombre sea <samp>STAGE2&nbsp;&nbsp;BIN</samp>, cargaremos el contenido del archivo en la RAM y saltaremos hacia la dirección en la que lo hayamos cargado. Si no lo encontramos, lanzaremos un mensaje de error y reiniciaremos el equipo.
+    		</p>
+    		<p>
+    			Para empezar, debemos definir una variable cuyo valor sea el nombre de archivo de nuestra <i>stage2</i>. El nombre es arbitrario, pero debe ocupar 11 bytes. El nombre de la variable también es arbitrario. Puedes usar el siguiente ejemplo:
+    		</p>
+    		<pre><code class="language-x86asm">file_stage2_bin:
+    db "STAGE2  BIN"</code></pre>
+    		<p>
+    			Para leer los contenidos de la carpeta raíz hacia la RAM utilizaremos nuestra función <samp>disk_read</samp>, que necesita que le proporcionemos un buffer hacia el que leer los datos. Para ello, <b>tras nuestra firma de <i>boot</i>, definiremos un símbolo llamado <samp>buffer</samp> en el que escribiremos los datos que vayamos leyendo</b>.
+    		</p>
+    		<pre><code class="language-x86asm">; Firma
+times 510-($-$$) db 0
+dw 0xAA55
+
+; AQUÍ situaremos nuestro buffer
+buffer:</code></pre>
+			<p>
+				<b>En el ejemplo que desarrollaremos a continuación, también hemos definido una función llamada <samp>err_stage2_not_found</samp></b>, que se ejecutará cuando no se encuentre el archivo. Aquí se muestra una implementación muy simple, aunque demasiado mínima, similar a la mostrada para la función <samp>err_disk</samp>. Es recomendable que se imprima un mensaje de error antes de reiniciar:
+			</p>
+			<pre><code class="language-x86asm">err_stage2_not_found:
+    mov ah, 0
+    int 0x16         ; INT 16h/AH=0: Esperar pulsación de una tecla
+
+    jmp 0x0FFFF:0    ; Saltar a la BIOS (reiniciar sistema)</code></pre>
+    		<p>
+    			<b>A continuación, se muestra una implementación básica de nuestra función de búsqueda de archivos en x86 Assembly</b>. Además, las anotaciones muestran una traducción de algunas partes del código a C:
+    		</p>
+    		<pre><code class="language-x86asm">start_rootread:
+    mov cl, al                     ; cl = tamaño del directorio raíz
+    pop ax 	                   ; ax = LBA del directorio raíz
+    mov dl, [ebr_drive_number]
+    mov bx, buffer
+    call disk_read
+    
+    xor bx, bx                     ; bx = contador de entradas
+    mov di, buffer                 ; di = puntero hacia el buffer
+    jmp start_search_stage2
+
+start_search_stage2:
+    mov si, file_stage2_bin        ; si = "STAGE2  BIN"
+    mov cx, 11                     ; cx = 11 (bytes del nombre)
+    
+    ; Comparamos los 11 caracteres de nuestra string con
+    ; los del nombre definido en la entrada actual.
+
+    ; bool is_stage2 = memcmp(es:di, ds:si, cx);
+    push di
+    repe cmpsb
+    pop di
+    
+    ; Si son iguales, continuamos hacia la siguiente sección.
+    ; Si no, avanzamos 32 bytes y sumamos una entrada más.
+
+    ; if(is_stage2) start_read_stage2();
+    ; else { di += 32; bx++; start_search_stage2(); }
+    je start_read_stage2
+    add di, 32                     ; di = di + 32 (tamaño de entrada en FAT12)
+    inc bx
+
+    ; Si la carpeta raíz no se ha acabado, repetimos bucle.
+    ; Si se ha acabado, lanzamos un mensaje de error.
+    
+    ; if(bx < bdb_dir_entries_count) start_search_stage2();
+    ; else err_stage2_not_found();
+    cmp bx, [bdb_dir_entries_count]
+    jl start_search_stage2
+    jmp err_stage2_not_found
+
+start_read_stage2:
+    ; siguiente código ...</code></pre>
+			<p>
+				Este fragmento de código es un poco más complicado que el resto de los ejemplos mostrados en este manual. Tómate tu tiempo para entenderlo correctamente, y ten en cuenta las siguientes aclaraciones:
+			</p>
+			<ul>
+				<li>La instrucción <a href="https://www.felixcloutier.com/x86/rep:repe:repz:repne:repnz"><samp>repe</samp></a> repite una instrucción el número de veces indicado en <samp>cx</samp>. También se detiene si la <i>zero flag</i> (que almacena el resultado de <samp>cmpsb</samp>) es igual a 1. Se usa para comparar cada letra del nombre de la entrada actual con nuestra cadena de texto (<samp>STAGE2&nbsp;&nbsp;BIN</samp>)</li>
+				<li>La función <samp>start_read_stage2</samp> será la siguiente que definamos. Por ahora, se ha dejado vacía a propósito.</li>
+				<li>La instrucción <samp>cmpsb</samp> (y todas las instrucciones que trabajan con <i>strings</i>) incrementa por sí sola el valor del registro <samp>di</samp> cada vez que es ejecutada. Por eso se puede ejecutar en bucle sin causar ningún problema.</li>
+			</ul>
+			<p>
+				A partir de aquí, si tenemos un archivo en la carpeta raíz llamado <samp>STAGE2&nbsp;&nbsp;BIN</samp>, el programa avanzará hasta la sección <samp>start_read_stage2</samp>. <b>El siguiente paso consistirá en leer los contenidos del archivo</b>.
+			</p>
+		</details>
+		<details id="Leer_los_contenidos_de_stage2_bin" open>
+			<summary>
+				<h2>Leer los contenidos de <samp>stage2.bin</samp></h2>
+				<hr>
+			</summary>
+			<p>
+				¿Recuerdas el apartado de teoría en el que explicamos <a href="http://localhost/bloque-1/capitulo-4/#Secciones_de_FAT12_La_seccion_de_datos">cómo leer el contenido de un archivo en la sección de datos de FAT12</a>? Pues ahora lo vamos a llevar a la práctica. <b>Vamos a encontrar el primer sector de <samp>stage2.bin</samp>, vamos a leerlo y usaremos la FAT para ir localizando los demás hasta llegar al límite del contenido</b>.
+			</p>
+			<h3>Paso 1. Localizar el primer cluster del archivo</h3>
+			<p>
+				Este paso es muy fácil de realizar. <b>El primer cluster de cualquier archivo viene directamente escrito en su entrada</b>, igual que su nombre y su tamaño en bytes. Si no recuerdas esto bien, puedes consultar el <a href="http://localhost/bloque-1/capitulo-4/#Secciones_de_FAT12_La_carpeta_raiz">apartado sobre la carpeta raíz</a> del capítulo 4.
+			</p>
+			<p>
+				Al llegar a <samp>start_read_stage2</samp>, tenemos almacenada en el registro <samp>di</samp> la dirección de la entrada del archivo. Si a esa dirección le sumamos el <i>offset</i> en el que se encuentran los últimos 2 bytes del primer cluster (<i>0x1A</i>), tendremos un <i>pointer</i> hacia el número que queremos conseguir. Basta con <a href="https://es.wikipedia.org/wiki/Operador_de_desreferencia">desreferenciar el puntero</a> para obtener el número en sí. En NASM Assembly, esto se hace rodeando la referencia con corchetes, tal que así:
+			</p>
+			<pre><code class="language-x86asm">start_read_stage2:
+    ; AX = últimos 2 bytes del primer cluster del archivo
+    mov ax, [di + 0x1A]</code></pre>
+    		<p>
+    			Este código tiene ciertas <i>limitaciones</i> que luego explicaremos, aunque es una buena opción para el sistema que estamos programando.
+    		</p>
+    		<p>
+    			Para asegurarnos de que no perdemos este valor, vamos a guardarlo directamente en nuestro ejecutable bajo el símbolo <samp>data_stage2_cluster</samp>, que contendrá una variable de 2 bytes:
+    		</p>
+    		<pre><code class="language-x86asm">start_read_stage2:
+    mov ax, [di + 0x1A]
+    mov [data_stage2_cluster], ax
+
+; ... avanzar hasta donde definas tus variables ...
+
+data_stage2_cluster:
+    dw 0
+    		</code></pre>
+    		<h3>Paso 2. Guardar la FAT en nuestro buffer</h3>
+    		<p>
+    			Hacer esto también es fácil. Se trata de hacer una simple llamada a nuestra función <samp>disk_read</samp>. Tenemos ya calculados los 4 argumentos necesarios para llamarla:
+    		</p>
+    		<ul>
+    			<li><b>LBA</b> (<i>ax</i>): La dirección LBA de la FAT es equivalente al número de sectores reservados, que está guardado en <samp>bdb_reserved_sectors</samp>.</li>
+    			<li><b>Buffer</b> (<i>bx</i>): Usaremos el símbolo <samp>buffer</samp> que ya hemos definido anteriormente.</li>
+    			<li><b>Número de sectores a leer</b> (<i>cl</i>): usaremos los sectores que ocupa una FAT, definidos en <samp>bdb_sectors_per_fat</samp>.</li>
+    			<li><b>Número de disco</b> (<i>dl</i>): lo tenemos almacenado en <samp>ebr_drive_number</samp>.</li>
+    		</ul>
+    		<p>
+    			Y, sin más dilación, la llamada como tal:
+    		</p>
+    		<pre><code class="language-x86asm">mov ax, [bdb_reserved_sectors]
+mov bx, buffer
+mov cl, [bdb_sectors_per_fat]
+mov dl, [ebr_drive_number]
+call disk_read</code></pre>
+			<h3>Paso 3. Calcular el LBA de la <i>data section</i></h3>
+			<p>
+				No explicaré muchos detalles debido a que ya conocemos las fórmulas y <a href="http://localhost/bloque-1/capitulo-4/#Secciones_de_FAT12_La_seccion_de_datos">ya hicimos los cálculos en el capítulo 4</a>. Lo único nuevo de esta sección es que los cálculos están en assembly, y no en C.
+			</p>
+			<p>
+				Para empezar, definiremos un símbolo bajo el que almacenaremos el LBA de la <i>data section</i>:
+			</p>
+			<pre><code class="language-x86asm">data_datasectionlba:
+    dw 0</code></pre>
+    		<p>
+    			A continuación, calculamos su valor y lo almacenamos:
+    		</p>
+			<pre><code class="language-x86asm">; rootsize (cx) = dir_entries_count / bytes_per_sector / 32;
+mov cx, [bdb_bytes_per_sector]
+shr cx, 5
+mov ax, [bdb_dir_entries_count]
+div cx
+mov cx, ax
+
+; fatsize (ax) = fat_count * sectors_per_fat
+mov ax, [bdb_sectors_per_fat]
+mul byte [bdb_fat_count]
+
+; datasectionlba (cx) = reserved_sectors + fatsize + rootsize
+add cx, ax
+add cx, [bdb_reserved_sectors]
+mov [data_datasectionlba], cx</code></pre>
+			<p>
+				<b>En este código, se usa la instrucción <samp>shr cx, 5</samp> debido a que es equivalente a dividir entre 32</b>, pero su ejecución es más rápida y clara que la de la instrucción <samp>div</samp>. Además, nos ahorramos guardar un resto que no vamos a usar para nada.
+			</p>
+			<h3>Paso 4. Decidir en qué dirección cargaremos la <i>stage2</i>.</h3>
+			<p>
+				Hasta ahora, hemos estado usando nuestro símbolo <samp>buffer</samp> para cargar contenido, pero <b>la decisión sobre dónde cargar la <i>stage2</i> es un poco más compleja</b>. Ya lo hemos cubierto en <a href="#Crear_nuestra_stage2">la sección sobre la creación de nuestra <i>stage2</i></a>. En este capítulo cargaremos nuestro programa en la dirección <samp>0x500</samp>.
+			</p>
+			<p>
+				Sea como sea, conviene definir el segmento y el <i>offset</i> en el que cargaremos la <i>stage2</i> como 2 constantes dentro de nuestro código. En NASM, podemos hacerlo usando la directiva <samp>equ</samp>:
+			</p>
+			<pre><code class="language-x86asm">STAGE2_LOAD_SEGMENT: equ 0
+STAGE2_LOAD_OFFSET: equ 0x500</code></pre>
+			<p>
+				Para <i>cargar</i> el programa en la memoria, simplemente leeremos el primer sector hacia <samp>0x500</samp>, el segundo hacia <samp>0x700</samp>... y así, llamando a <samp>disk_read</samp> una y otra vez hasta que terminemos. Por lo tanto, debemos anotar el segmento en el registro <samp>es</samp> y el <i>offset</i> en el registro <samp>bx</samp>. Como el <i>extra segment</i> no se puede manipular directamente, lo haremos así:
+			</p>
+			<pre><code class="language-x86asm">mov bx, STAGE2_LOAD_SEGMENT
+mov es, bx
+mov bx, STAGE2_LOAD_OFFSET
+
+; Hecho esto, saltamos al loop en el que leeremos los sectores.
+jmp start_read_stage2_loop</code></pre>
+			<h3>Paso 5. Leer el archivo sector a sector</h3>
+			<p>
+				Hemos cubierto este proceso anteriormente, pero puede resultar complicado de entender, así que lo resumiré aquí. <b>Si un archivo comienza en el cluster nº 2, tendríamos que seguir los siguientes pasos</b>:
+			</p>
+			<ol>
+				<li><b>Traducir <i>cluster</i> a LBA</b>: si la <i>data section</i> empieza en el sector 31, nuestro LBA sería <samp>31 + (2-2) = 31</samp>.</li>
+				<li><b>Leer el sector nº 31</b>.</li>
+				<li><b>Consultar la entrada nº 2 de la FAT<a href="#note1">*</a></b>, que nos indica el siguiente <i>cluster</i> (pongamos que es el 10).</li>
+				<br>
+				<li><b>Traducir <i>cluster</i> a LBA</b>: <samp>31 + (10-2) = 39</samp>.</li>
+				<li><b>Leer el sector nº 39</b>.</li>
+				<li><b>Consultar la entrada nº 10 de la FAT<a href="#note1">*</a></b>, que nos indica el siguiente <i>cluster</i> (pongamos que es el 11).</li>
+				<br>
+				<li><b>Cluster 11</b>: traducir, leer, consultar...</li>
+				<li><b>Cluster 12</b>: traducir, leer, consultar...</li>
+				<li><b>Cluster 20</b>: traducir, leer, consultar...</li>
+				<br>
+				<li><b>Seguimos hasta que la siguiente entrada de la FAT apunte al cluster <samp>FF8</samp> o más</b>. Eso nos indica que hemos leído el archivo completo.</li>
+			</ol>
+			<p id="note1">
+				<i><b>*Debido a que cada entrada ocupa 12 bits (1,5 bytes) calcular el byte en el que se encuentra cada entrada es un poco complicado</b>. La entrada 0 empieza en el byte 0, la entrada 1 empieza en el byte 1, la entrada 2 empieza en el byte 3... En cualquier caso, el byte de comienzo (llamado índice o <samp>fatindex</samp>) se calcula siguiendo la fórmula <samp>cluster / 2 * 3</samp>. <b>Se entiende mejor en el código</b>.</i>
+			</p>
+			<p>
+				Una implementación válida de ese proceso en NASM se escribiría de una forma parecida a esta:
+			</p>
+			<pre><code class="language-x86asm">start_read_stage2_loop:
+    ; Traducir cluster a LBA
+    ; stage2_lba (ax) = datasectionlba + (stage2_cluster - 2)
+    mov ax, [data_stage2_cluster]
+    sub ax, 2
+    add ax, cx
+
+    ; Leer el cluster usando la función disk_read
+    mov cl, [bdb_sectors_per_cluster]
+    mov dl, [ebr_drive_number]
+    call disk_read
+
+    ; Mover bx 512 bytes adelante para escribir el siguiente sector
+    add bx, [bdb_bytes_per_sector]
+
+    ; Calcular el índice de la entrada de la FAT que debemos consultar
+    ; fatindex (ax) = cluster / 2 * 3
+    mov ax, [data_stage2_cluster]
+    mov cx, 3
+    mul cx
+    mov cx, 2
+    div cx
+
+    ; Consultar la entrada para saber el siguiente cluster
+    ; ax = Contenido de la entrada FAT en fatindex (sig. cluster)
+    mov si, buffer
+    add si, ax
+    mov ax, [ds:si]
+
+    ; Comprobar si el índice de la entrada es par o impar
+    or dx, dx
+    jz start_read_stage2_even
+
+start_read_stage2_odd:
+    ; Si es impar, descartar sus últimos 4 bits
+    shr ax, 4
+    jmp start_read_stage2_nextloop
+
+start_read_stage2_even:
+    ; Si es par, descartar sus primeros 4 bits.
+    and ax, 0x0FFF
+
+start_read_stage2_nextloop:
+    ; Si el cluster >= 0xFF8, continuar (hemos leído toda la stage2)
+    cmp ax, 0x0FF8
+    jae start_read_stage2_jump
+
+    ; Si no lo es, continuar leyendo el siguiente sector
+    mov [data_stage2_cluster], ax
+    jmp start_read_stage2_loop</code></pre>
+    		<p>
+    			Es normal si no entiendes este código a la primera, pero si te cuesta mucho entenderlo te recomiendo repasar la sección sobre la <a href="http://localhost/bloque-1/capitulo-4/">estructura de FAT12</a>. Sobre todo, lo relativo a la sección de FAT y su división en entradas de 12 bits. <b>En el futuro, implementaremos esta misma función en C</b>, y eso te puede ayudar a entenderlo mejor.
+    		</p>
+    	</details>
+    	<details id="Saltar_a_la_stage2" open>
+    		<summary>
+    			<h2>Saltar a la <i>stage2</i></h2>
+    			<hr>
+    		</summary>
+    		<p>
+    			Este es el momento de la verdad. Hemos copiado todo el contenido de nuestra <i>stage2</i> en la dirección <samp>0x500</samp> de la RAM, nos hemos asegurado de que el ejecutable empieza directamente con el código. <b>Lo único que nos queda es ejecutar el archivo</b>.
+    		</p>
+    		<p>
+    			<b>¿Y cómo se ejecuta un archivo? Por ahora, la única manera que tenemos es <i>saltando</i></b>. Ahora mismo estamos ejecutando código en una dirección cercana a <samp>0x7E00</samp>. Simplemente tenemos que cambiar esa <i>dirección de ejecución</i> a <samp>0x500</samp> mediante lo que se conoce como un <i>far jump</i>.
+    		</p>
+    		<p>
+    			Esta es la forma segura de ejecutar ese <i>far jump</i>. Además, mediante este método mantenemos el número de disco guardado en el registro <samp>dl</samp> una vez entremos en la <i>stage2</i>:
+    		</p>
+    		<pre><code class="language-x86asm">start_read_stage2_jump:
+    ; Almacenar el número de disco en 'dl'
+    mov dl, [ebr_drive_number]
+
+    ; Configurar el nuevo segmento
+    mov ax, STAGE2_LOAD_SEGMENT
+    mov ds, ax
+    mov es, ax
+
+    ; Far jump hacia stage2.bin
+    jmp STAGE2_LOAD_SEGMENT:STAGE2_LOAD_OFFSET
+
+    ; El proceso no debería volver nunca desde stage2.bin
+    ; Si lo hace, esperaremos la pulsación de una tecla y
+    ; reiniciaremos el sistema.
+    mov ah, 0
+    int 0x16         ; INT 16h/AH=0: Esperar pulsación de una tecla
+    jmp 0x0FFFF:0    ; Saltar a la BIOS (reiniciar sistema)</code></pre>
+    		<p>
+    			A partir de este punto, hemos transferido el control de ejecución a <samp>stage2.bin</samp>. En el nuevo ejecutable, nuestro límite de espacio asciende de 512 bytes a 29,75 KiB. Eso nos permitirá ejecutar operaciones mucho más complejas y saltar a funciones escritas en C, aunque para llegar ahí todavía nos queda un paso más: pasar de <i>real mode</i> a <i>protected mode</i>.
+    		</p>
+    		<h3>Cómo comprobar su funcionamiento</h3>
+    		<p>
+    			<b>Puedes comprobar si el <i>bootloader</i> funciona correctamente emulándolo con QEMU</b>. Aquí tienes una recapitulación de los comandos necesarios para compilar, enlazar y emular nuestro bootloader.
+    		</p>
+    		<pre><code clsas="language-bash"># Definir variables
+GCC="localización del ejecutable i686-elf-gcc de tu cross-compiler"
+
+# Compilar stage1.bin
+nasm -f bin -o stage1.bin stage1.asm
+
+# Compilar y enlazar stage2.bin
+nasm -f elf -o entry.obj entry.asm
+${GCC} -T linker.ld -nostdlib -o stage2.bin entry.obj -lgcc
+
+# Formatear el disco
+dd if="/dev/zero" of="disco.img" bs=512 count=2880
+mkfs.fat -F 12 -n "EJEMPLO  OS" disco.img
+
+# Instalar stage1
+dd if="stage1.bin" of="disco.img" conv=notrunc
+
+# Instalar stage2
+mcopy -i disco.img stage2.bin "::stage2.bin"
+
+# Emular el bootloader con QEMU
+qemu-system-i386 -fda disco.img</code></pre>
+		<p>
+			Tras ejecutar esto, debería aparecer una pantalla en la que se emula un equipo iniciado desde la imagen <samp>disco.img</samp>. <b>En el equipo emulado debería aparecer en la última linea de texto el mensaje "Hola"</b>. Si no aparece, ha ocurrido algún error.
+		</p>
+		<p>
+			Para facilitar la corrección de errores y la organización de tu proyecto, <b>aquí tienes un archivo comprimido que contiene todo el código que llevamos escrito hasta ahora</b>. La <i>stage1</i> y la <i>stage2</i> están cada una en su propia carpeta, y vienen con un <i>script</i> llamado <samp>build.sh</samp>, que pondrá todos los archivos que genere en una carpeta llamada <i>build</i>.
+		</p>
+		<div class="flex hcentered">
+			<a href="capitulo-6.tar.gz"><button>Descárgate el código</button></a>
+		</div>
+		</details>
+		<details id="Resumen" open>
+			<summary>
+				<h2>Resumen</h2>
+				<hr>
+			</summary>
+			<p>
+				<b>Este es uno de los capítulos con más contenido del bloque</b>. Hemos aprendido a crear programas, enlazarlos y copiarlos en nuestro disco, a buscarlos dentro del directorio raíz, a leer su contenido utilizando funciones en assembly y a ejecutar su código mediante un <i>far jump</i>.
+			</p>
+			<p>
+				A partir de aquí, <b>nuestro trabajo se centrará en pasar del <i>modo real</i> del procesador (en el que estamos actualmente) al <i>modo protegido</i></b>, que nos permitirá emitir código de 32 bits y acceder a la memoria sin preocuparnos de los segmentos, entre otras muchas cosas.
+			</p>
+			<p>
+				Después de eso, pasaremos de assembly a C, y haremos las últimas preparaciones para terminar nuestro <i>bootloader</i> y ceder el control al <i>kernel</i>, el primer programa de nuestro sistema operativo.
+			</p>
+		</details>
+		<p id="footer">
+			<a href="../../"><button>Portada</button>
+			<a href="../capitulo-7"><button>Siguiente capítulo</button></a>
+		</p>
+	</div>
+
+	<!-- Library: highlight.js -->
+	<script src="../../assets/lib/highlight/highlight.min.js"></script>
+	<script>hljs.highlightAll();</script>
+</body>
