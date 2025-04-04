@@ -68,7 +68,6 @@
 				<li><a href="https://wiki.osdev.org/GCC_Cross-Compiler">GCC Cross-compiler</a>, en la OSDev Wiki: una guía muy detallada para realizar correctamente la instalación.</li>
 				<li><a href="https://www.youtube.com/watch?v=TgIdFVOV_0U">Setting up an OS dev environment, building GCC toolchain</a>, de <i>nanobyte</i> en YouTube: una guía en vídeo, por si no te apetece leer un artículo tan detallado.</li>
 			</ul>
-			<!-- https://wiki.osdev.org/GCC_Cross-Compiler -->
 		</details>
 		<details id="Copiar_archivos_a_nuestro_disco_con_mtools" open>
 			<summary>
@@ -76,7 +75,7 @@
 				<hr>
 			</summary>
 			<p>
-				<a href="https://www.gnu.org/software/mtools/"><samp>mtools</samp></a> es un programa desarrollado por GNU que permite manipular discos de MS-DOS sin montarlos al sistema. Es probable que lo sepas, pero habitualmente para manipular un disco en Linux se usa el siguiente comando:
+				<a href="https://www.gnu.org/software/mtools/"><samp>mtools</samp></a> es un programa desarrollado por GNU que permite manipular discos de MS-DOS sin montarlos al sistema. Es probable que lo sepas, pero habitualmente para poder manipular un disco en Linux se usa el siguiente comando:
 			</p>
 			<pre><code class="language-bash">mount disco.img carpeta</code></pre>
 			<p>
@@ -123,12 +122,42 @@ mcopy -i disco.img archivo "::copia" # Crea en el disco el archivo "copia" con e
 			<p>
 				Otra dirección común es <samp>0x7E00</samp>, que ofrece más espacio. En cualquier caso, antes de elegir, asegúrate de conocer bien el <a href="https://wiki.osdev.org/Memory_Map_(x86)">mapa de la memoria RAM en la arquitectura x86</a>. Te ayudará a prevenir errores relacionados con la memoria, que pueden llegar a ser muy difíciles de solucionar a posteriori.
 			</p>
-			<h3>Definir la estructura del programa</h3>
+			<h3>Organizar las carpetas de nuestro proyecto</h3>
 			<p>
-				¿Recuerdas el <i>linker</i>? Sí, ese programa que estamos utilizando para generar nuestro ejecutable después de compilarlo, como vimos en la <a href="http://localhost/bloque-1/#Conceptos_basicos_para_crear_programas_ejecutables">introducción del bloque 1</a>. Hasta ahora hemos creado programas de <i>un solo archivo</i>, así que no ha hecho falta configurar mucho... pero la <i>stage2</i> va a estar compuesta por muchos archivos. Por tanto, <b>hay que crear un <i>linker script</i> que defina las diferentes secciones de nuestro ejecutable</b>.
+				Nuestro proyecto se está haciendo mayor. Ahora vamos a tener 2 programas distintos dentro de nuestro código (<i>stage1</i> y <i>stage2</i>), y el proceso de compilación se va a hacer un poquito más lioso. Por eso, <b>debemos tener claro cómo vamos a organizar nuestro proyecto antes de comenzar</b>.
 			</p>
 			<p>
-				Aquí tienes una propuesta. Mi <i>linker script</i> se llama <samp>linker.ld</samp>. Está escrito usando la <a href="https://ftp.gnu.org/old-gnu/Manuals/ld-2.9.1/html_chapter/ld_3.html">sintaxis de <i>ld</i></a> y define varias secciones, que están explicadas en las anotaciones.
+				La organización que te voy a proponer a lo largo de este capítulo soluciona varios de nuestros problemas:
+			</p>
+			<ul>
+				<li>Diferencia claramente los archivos por su nombre (hasta ahora, hemos llamado <i>boot</i> a casi todo).</li>
+				<li>Separa claramente el código de la <i>stage1</i> y de la <i>stage2</i>.</li>
+				<li>Separa claramente los archivos de compilación (carpeta <i>build</i>) de los archivos de código (carpeta <i>src</i>).</li>
+			</ul>
+			<p>
+				Por supuesto, hay problemas añadidos que <b>no</b> soluciona. En el futuro, crearemos una estructura de carpetas que nos permita compilar cada programa de forma independiente, y nos permita expandir el programa tanto como queramos. Hasta entonces, nos quedaremos con esta estructura provisional para la carpeta <samp>src</samp>:
+			</p>
+			<pre><code>src
+|-- stage1
+|   |-- stage1.asm
+|-- stage2
+|   |-- entry.asm
+|   |-- linker.ld
+			</code></pre>
+			<p>
+				Esta estructura se diferencia de la que hemos seguido hasta ahora porque:
+			</p>
+			<ul>
+				<li>Hemos colocado la <i>stage1</i> y la <i>stage2</i> en carpetas separadas.</li>
+				<li>Hemos cambiado el nombre del archivo de código de la <i>stage1</i> de <samp>boot.asm</samp> a <samp>stage1.asm</samp>.</li>
+				<li>Hemos creado los archivos <samp>entry.asm</samp> y <samp>linker.ld</samp> en la carpeta <i>stage2</i>, aunque por ahora están vacíos.</li>
+			</ul>
+			<h3>Definir la estructura del programa</h3>
+			<p>
+				¿Recuerdas el <i>linker</i>? Sí, ese programa que estamos utilizando para generar nuestro ejecutable después de compilarlo, como vimos en la <a href="http://localhost/bloque-1/#Conceptos_basicos_para_crear_programas_ejecutables">introducción del bloque 1</a>. Hasta ahora hemos creado programas de <i>un solo archivo</i>, así que no ha hecho falta configurar mucho... pero la <i>stage2</i> va a estar compuesta por muchos archivos. Por tanto, <b>hay que crear un <i>linker script</i></b> (nosotros lo llamaremos <samp>linker.ld</samp>) <b>que defina las diferentes secciones de nuestro ejecutable</b>.
+			</p>
+			<p>
+				Aquí tienes una propuesta para tu archivo <samp>linker.ld</samp>. Está escrito usando la <a href="https://ftp.gnu.org/old-gnu/Manuals/ld-2.9.1/html_chapter/ld_3.html">sintaxis de <i>ld</i></a> y define varias secciones, que están explicadas en las anotaciones.
 			</p>
 			<pre><code class="language-c">/*
  * Punto de entrada del programa: símbolo "entry".
@@ -161,15 +190,13 @@ SECTIONS
     __end = .;
 }</code></pre>
 			<p>
-				Desde el <i>linker script</i> hemos definido algunas variables que podremos usar en cualquier punto de la <i>stage2</i>, que son <samp>__entry_start</samp>, <samp>__text_start</samp>, <samp>__data_start</samp>, <samp>__rodata_start</samp> y <samp>__bss_start</samp>. Contienen la dirección de cada sección del ejecutable en la memoria RAM. Nos vendrán bien dentro de poco.
+				Desde el <i>linker script</i> hemos definido algunas variables que podremos usar en cualquier punto de la <i>stage2</i>, que son <samp>__entry_start</samp>, <samp>__text_start</samp>, <samp>__data_start</samp>, <samp>__rodata_start</samp> y <samp>__bss_start</samp>. Contienen la dirección de cada sección del ejecutable en la RAM. Nos vendrán bien dentro de poco.
 			</p>
 			<h3>Escribir el código del programa</h3>
 			<p>
-				<b>Aquí tienes una propuesta de código</b>. Lo único que hace es definir la función <samp>print</samp> (igual que en la <i>stage1</i>) y escribir un mensaje en la pantalla con el texto <samp>Hola</samp>.
+				<b>Aquí tienes una propuesta de código para tu archivo <samp>entry.asm</samp></b>. Lo único que hace es definir la función <samp>print</samp> (igual que en la <i>stage1</i>) y escribir un mensaje en la pantalla con el texto <samp>Hola</samp>.
 			</p>
-			<pre><code class="language-x86asm">; Archivo "entry.asm"
-
-bits 16
+			<pre><code class="language-x86asm">bits 16
 
 ; INICIO DE LA SECCIÓN "entry"
 section .entry
@@ -203,7 +230,7 @@ msg_boot:                     ; Mensaje
     db "Hola", 0x0A, 0x0D, 0</code></pre>
 	    	<h3>Compilar y enlazar el programa</h3>
 	    	<p>
-	    		Por ahora solo tenemos uno, pero todos los archivos assembly de la <i>stage2</i> pueden ser compilados con NASM, tal y como lo hemos hecho hasta ahora, aunque con un matiz. Usaremos el formato <i>ELF</i>, en vez de usar <i>OBJ</i>. También pondremos la extensión <samp>.obj</samp>, para diferenciarlos del ejecutable final.
+	    		<b>Todos los archivos de código assembly de la <i>stage2</i> pueden ser compilados con NASM</b>, tal y como lo hemos hecho hasta ahora, aunque con un matiz. Usaremos el formato <i>ELF</i>, en vez de usar <i>OBJ</i>. También pondremos la extensión <samp>.obj</samp>, para diferenciarlos de su ejecutable final.
 	    	</p>
 	    	<pre><code class="language-bash">nasm -f elf -o entry.obj entry.asm</code></pre>
 	    	<p>
@@ -214,6 +241,9 @@ msg_boot:                     ; Mensaje
 	    		En nuestro caso, enlazaremos <i>entry.obj</i> usando el siguiente comando:
 	    	</p>
 	    	<pre><code class="language-bash">i686-elf-gcc -T linker.ld -nostdlib -o stage2.bin entry.obj -lgcc</code></pre>
+	    	<p>
+	    		Conviene tener en cuenta que <b>cuando ejecutemos estos comandos lo haremos desde nuestro archivo <samp>build.sh</samp></b>, que está en la carpeta raíz del proyecto. Por tanto, rutas de archivo como <i>linker.ld</i> se deberán escribir como <i>src/stage2/linker.ld</i>.
+	    	</p>
 	    	<h3>Copiar nuestro programa en el disco</h3>
 	    	<p>
 	    		<b>¡Ya tenemos el archivo <samp>stage2.bin</samp> terminado!</b> Tan solo tenemos que copiar el archivo al disco en el que estamos instalando nuestro sistema operativo. Por suerte, sabemos hacer eso usando <samp>mtools</samp>. Simplemente necesitamos el siguiente comando:
@@ -238,7 +268,10 @@ msg_boot:                     ; Mensaje
 				</p>
 			</div>
 			<p>
-				Vamos a reanudar el programa donde lo dejamos. Por ahora, hemos asegurado el valor de los registros y hemos saltado a <samp>start_checked</samp>. <b>Seguiremos con nuestro código desde ahí, usando el resto de funciones que hemos ido programando</b>.
+				Vamos a reanudar la programación de nuestra <i>stage1</i> donde la dejamos. Por ahora, hemos asegurado el valor de los registros y hemos saltado a <samp>start_checked</samp> y hemos imprimido un texto que dice <i>Hola</i>. <b>Seguiremos con nuestro código desde ahí, usando el resto de funciones que hemos ido programando</b>.
+			</p>
+			<p>
+				<b>Friendly reminder:</b> todo el código de esta sección se debe escribir en nuestro archivo <i>src/stage1/stage1.asm</i>. El archivo antes se llamaba <samp>boot.asm</samp>. Si no le has cambiado el nombre, tenlo en cuenta cuando empecemos a compilar el programa.
 			</p>
 			<h3>Paso 1. Localizar el directorio raíz</h3>
 			<p>
@@ -295,7 +328,7 @@ dw 0xAA55
 ; AQUÍ situaremos nuestro buffer
 buffer:</code></pre>
 			<p>
-				<b>En el ejemplo que desarrollaremos a continuación, también hemos definido una función llamada <samp>err_stage2_not_found</samp></b>, que se ejecutará cuando no se encuentre el archivo. Aquí se muestra una implementación muy simple, aunque demasiado mínima, similar a la mostrada para la función <samp>err_disk</samp>. Es recomendable que se imprima un mensaje de error antes de reiniciar:
+				<b>En el ejemplo que desarrollaremos a continuación, también hemos definido una función llamada <samp>err_stage2_not_found</samp></b>, que se ejecutará cuando no se encuentre el archivo. Aquí se muestra una implementación muy simple, aunque demasiado mínima, similar a la mostrada para la función <samp>err_disk</samp>. Es recomendable que se imprima un mensaje de error antes de reiniciar, pero eso te lo dejo a ti como tarea:
 			</p>
 			<pre><code class="language-x86asm">err_stage2_not_found:
     mov ah, 0
@@ -352,7 +385,7 @@ start_read_stage2:
 				Este fragmento de código es un poco más complicado que el resto de los ejemplos mostrados en este manual. Tómate tu tiempo para entenderlo correctamente, y ten en cuenta las siguientes aclaraciones:
 			</p>
 			<ul>
-				<li>La instrucción <a href="https://www.felixcloutier.com/x86/rep:repe:repz:repne:repnz"><samp>repe</samp></a> repite una instrucción el número de veces indicado en <samp>cx</samp>. También se detiene si la <i>zero flag</i> (que almacena el resultado de <samp>cmpsb</samp>) es igual a 1. Se usa para comparar cada letra del nombre de la entrada actual con nuestra cadena de texto (<samp>STAGE2&nbsp;&nbsp;BIN</samp>)</li>
+				<li>La instrucción <a href="https://www.felixcloutier.com/x86/rep:repe:repz:repne:repnz"><samp>repe</samp></a> repite una instrucción el número de veces indicado en <samp>cx</samp>. También se detiene si la <i>zero flag</i> (que almacena el resultado de <samp>cmpsb</samp>) es igual a 1 (es decir, si las letras comparadas no son iguales). Se usa para comparar cada letra del nombre de la entrada actual con nuestra cadena de texto (<samp>STAGE2&nbsp;&nbsp;BIN</samp>)</li>
 				<li>La función <samp>start_read_stage2</samp> será la siguiente que definamos. Por ahora, se ha dejado vacía a propósito.</li>
 				<li>La instrucción <samp>cmpsb</samp> (y todas las instrucciones que trabajan con <i>strings</i>) incrementa por sí sola el valor del registro <samp>di</samp> cada vez que es ejecutada. Por eso se puede ejecutar en bucle sin causar ningún problema.</li>
 			</ul>
@@ -451,7 +484,7 @@ mov [data_datasectionlba], cx</code></pre>
 			<pre><code class="language-x86asm">STAGE2_LOAD_SEGMENT: equ 0
 STAGE2_LOAD_OFFSET: equ 0x500</code></pre>
 			<p>
-				Para <i>cargar</i> el programa en la memoria, simplemente leeremos el primer sector hacia <samp>0x500</samp>, el segundo hacia <samp>0x700</samp>... y así, llamando a <samp>disk_read</samp> una y otra vez hasta que terminemos. Por lo tanto, debemos anotar el segmento en el registro <samp>es</samp> y el <i>offset</i> en el registro <samp>bx</samp>. Como el <i>extra segment</i> no se puede manipular directamente, lo haremos así:
+				Para <i>cargar</i> el programa en la memoria, simplemente leeremos el primer sector hacia <samp>0x500</samp>, el segundo hacia <samp>0x700</samp>... y así, llamando a <samp>disk_read</samp> una y otra vez hasta que terminemos. La función espera que anotemos el segmento en el registro <samp>es</samp> y el <i>offset</i> en el registro <samp>bx</samp>. Como el <i>extra segment</i> (<samp>es</samp>) no se puede manipular directamente, lo haremos así:
 			</p>
 			<pre><code class="language-x86asm">mov bx, STAGE2_LOAD_SEGMENT
 mov es, bx
@@ -575,39 +608,62 @@ start_read_stage2_nextloop:
     		</p>
     		<h3>Cómo comprobar su funcionamiento</h3>
     		<p>
-    			<b>Puedes comprobar si el <i>bootloader</i> funciona correctamente emulándolo con QEMU</b>. Aquí tienes una recapitulación de los comandos necesarios para compilar, enlazar y emular nuestro bootloader.
+    			<b>Puedes comprobar si el <i>bootloader</i> funciona correctamente compilándolo y luego emulándolo con QEMU</b>. Aquí tienes una recapitulación de los comandos necesarios para compilar, enlazar y emular nuestro bootloader. Esta debería ser, aproximadamente, la estructura de tu script <samp>build.sh</samp>.
     		</p>
+    		<p>
+    			Tras ejecutar el script, tendremos la siguiente estructura de carpetas dentro de nuestro proyecto:
+    		</p>
+    		<pre><code>proyecto
+|-- build
+|   |-- bin
+|   |   |-- stage1.bin
+|   |   |-- stage2.bin
+|   |-- obj
+|   |   |-- entry.obj
+|   |-- disco.img
+|-- src
+|   |-- stage1
+|   |   |-- stage1.asm
+|   |-- stage2
+|       |-- entry.asm
+|       |-- linker.ld
+|-- build.sh
+			</code></pre>
+			<p>
+				Teniendo en cuenta cómo hemos organizado nuestros proyectos y cómo queremos que quede nuestra carpeta <samp>build</samp>, el script debería ser parecido a este:
+			</p>
     		<pre><code clsas="language-bash"># Definir variables
-GCC="localización del ejecutable i686-elf-gcc de tu cross-compiler"
+GCC="ubicación de tu cross-compiler de GCC para i686-elf"
+
+# Asegurarse de borrar builds desactualizadas
+rm -rf build
+
+# Crear la carpeta 'build' y todas las subcarpetas necesarias
+mkdir -p build/bin
+mkdir -p build/obj
 
 # Compilar stage1.bin
-nasm -f bin -o stage1.bin stage1.asm
+nasm -f bin -o build/bin/stage1.bin src/stage1/stage1.asm
 
 # Compilar y enlazar stage2.bin
-nasm -f elf -o entry.obj entry.asm
-${GCC} -T linker.ld -nostdlib -o stage2.bin entry.obj -lgcc
+nasm -f elf -o build/obj/entry.obj src/stage2/entry.asm
+${GCC} -T src/stage2/linker.ld -nostdlib -o build/bin/stage2.bin build/obj/entry.obj -lgcc
 
 # Formatear el disco
-dd if="/dev/zero" of="disco.img" bs=512 count=2880
-mkfs.fat -F 12 -n "EJEMPLO  OS" disco.img
+dd if="/dev/zero" of="build/disco.img" bs=512 count=2880
+mkfs.fat -F 12 -n "SCRATCH  OS" build/disco.img
 
 # Instalar stage1
-dd if="stage1.bin" of="disco.img" conv=notrunc
+dd if="build/bin/stage1.bin" of="build/disco.img" conv=notrunc
 
 # Instalar stage2
-mcopy -i disco.img stage2.bin "::stage2.bin"
+mcopy -i build/disco.img build/bin/stage2.bin "::stage2.bin"
 
 # Emular el bootloader con QEMU
-qemu-system-i386 -fda disco.img</code></pre>
-		<p>
-			Tras ejecutar esto, debería aparecer una pantalla en la que se emula un equipo iniciado desde la imagen <samp>disco.img</samp>. <b>En el equipo emulado debería aparecer en la última linea de texto el mensaje "Hola"</b>. Si no aparece, ha ocurrido algún error.
-		</p>
-		<p>
-			Para facilitar la corrección de errores y la organización de tu proyecto, <b>aquí tienes un archivo comprimido que contiene todo el código que llevamos escrito hasta ahora</b>. La <i>stage1</i> y la <i>stage2</i> están cada una en su propia carpeta, y vienen con un <i>script</i> llamado <samp>build.sh</samp>, que pondrá todos los archivos que genere en una carpeta llamada <i>build</i>.
-		</p>
-		<div class="flex hcentered">
-			<a href="capitulo-6.tar.gz"><button>Descárgate el código</button></a>
-		</div>
+qemu-system-i386 -fda build/disco.img</code></pre>
+			<p>
+				Tras ejecutar esto, debería aparecer una pantalla en la que se emula un equipo iniciado desde la imagen <samp>disco.img</samp>. <b>En el equipo emulado debería aparecer en la última linea de texto el mensaje "Hola"</b>. Si no aparece, ha ocurrido algún error.
+			</p>
 		</details>
 		<details id="Resumen" open>
 			<summary>
@@ -622,6 +678,15 @@ qemu-system-i386 -fda disco.img</code></pre>
 			</p>
 			<p>
 				Después de eso, pasaremos de assembly a C, y haremos las últimas preparaciones para terminar nuestro <i>bootloader</i> y ceder el control al <i>kernel</i>, el primer programa de nuestro sistema operativo.
+			</p>
+		</details>
+		<details open>
+			<summary>
+				<h2>Ejemplo descargable</h2>
+				<hr>
+			</summary>
+			<p>
+				A estas alturas, puede ser que tu proyecto se haya desviado un pelín del ejemplo que desarrollo en este capítulo. De todas formas, si te interesa consultar el código que llevamos hasta ahora, descarga el archivo <a href="capitulo-6.tar.gz">capitulo-6.tar.gz</a>, descomprímelo y ejecuta el script <samp>build.sh</samp>.
 			</p>
 		</details>
 		<p id="footer">

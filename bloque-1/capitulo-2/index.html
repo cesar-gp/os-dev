@@ -170,21 +170,55 @@ dw 0xAA55                 ; Escribe la firma que espera la BIOS.</code></pre>
 			<p>
 				<b>Primero hace falta <i>compilarlo</i></b>, es decir, convertirlo en ejecutable. En este caso, como estamos compilando un sistema operativo, <b>no vamos a crear un ejecutable al uso</b>, sino una <a href="https:/es.wikipedia.org/wiki/Imagen_de_disco">imagen de disco iniciable</a>. Por suerte, eso con NASM y algunas utilidades preinstaladas en Linux es bastante fácil.
 			</p>
+			<p>
+				Pero antes de poner comandos porque sí, <b>vamos a organizarnos un poco</b>:
+			</p>
+			<ol>
+				<li>Pon todos los archivos de tu proyecto bajo una misma carpeta.</li>
+				<li>Dentro de ella, mueve todos los archivos de código (en este caso, solo <samp>boot.asm</samp>) a una carpeta llamada <samp>src</samp>.</li>
+				<li>Ahora, vamos a hacer un script que mande todos los archivos generados al compilar nuestro código a la carpeta <samp>build</samp>.</li>
+			</ol>
+			<p>
+				Teniendo esto claro, ya podemos ponernos a ejecutar comandos. <b>Te recomiendo hacer un archivo llamado <samp>build.sh</samp> en la carpeta raíz de tu proyecto</b> y poner todos los comandos en orden ahí, para poder compilar tu proyecto todas las veces que quieras ejecutando tan solo un archivo.
+			</p>
 			<ol>
 				<li>
-					<samp>nasm -f bin -o boot.obj boot.asm</samp><br>Traduce el archivo a lenguaje máquina (en formato binario puro) y guárdalo en <i>boot.obj</i>.<br>
+					<samp>rm -rf build</samp><br>
+					Elimina la carpeta <samp>build</samp>, si ya existe.<br>
 					<br>
 				</li>
 				<li>
-					<samp>dd if=/dev/zero of=boot.img bs=512 count=2880</samp><br>
+					<samp>mkdir build</samp><br>
+					Vuelve a crear la carpeta <samp>build</samp>, esta vez vacía.<br>
+					<br>
+				</li>
+				<li>
+					<samp>nasm -f bin -o build/boot.obj src/boot.asm</samp><br>Traduce nuestro código a lenguaje máquina (en formato binario puro) y guárdalo en <i>boot.obj</i>.<br>
+					<br>
+				</li>
+				<li>
+					<samp>dd if=/dev/zero of=build/boot.img bs=512 count=2880</samp><br>
 					Crea la imagen <i>boot.img</i> y llénala con 1440 KB de ceros.<br>
 					<br>
 				</li>
 				<li>
-					<samp>dd if=boot.bin of=boot.img conv=notrunc</samp><br>
+					<samp>dd if=build/boot.bin of=build/boot.img conv=notrunc</samp><br>
 					Copia el contenido de <i>boot.bin</i> a los primeros 512 bytes de la imagen de disco.
 				</li>
 			</ol>
+			<p>
+				Tras compilar, la estructura de la carpeta debería ser parecida a esta:
+			</p>
+			<pre><code>proyecto
+|-- build
+|   |-- boot.obj
+|   |-- boot.img
+|-- src
+|   |-- boot.asm
++-- build.sh</code></pre>
+			<p>
+				Puedes borrar la carpeta <samp>build</samp> siempre que quieras, dado que el script <samp>build.sh</samp> la puede volver a crear siempre que la necesites.
+			</p>
 			<p>
 				Hecho esto, puedes <b>ejecutarlo en un emulador</b>, cosa que te recomiendo, o puedes intentar ejecutar tu bootloader en tu propio ordenador. Esto último es algo más difícil.
 			</p>
@@ -242,6 +276,15 @@ dw 0xAA55                 ; Escribe la firma que espera la BIOS.</code></pre>
 			</p>
 			<p>
 				En el siguiente capítulo todavía no vamos a saltar a la parte 2 del bootloader, pero sí que <b>aprenderemos a imprimir texto desde la stage1</b> y formatear el disco con el sistema de archivos FAT12. Estos pasos son esenciales para poder continuar hacia <samp>stage2</samp>.
+			</p>
+		</details>
+		<details open>
+			<summary>
+				<h2>Ejemplo descargable</h2>
+				<hr>
+			</summary>
+			<p>
+				Descarga el archivo <a href="capitulo-2.tar.gz">capitulo-2.tar.gz</a> y descomprímelo para tener un ejemplo usable de todo lo que llevamos hasta ahora.
 			</p>
 		</details>
 		<p id="footer">

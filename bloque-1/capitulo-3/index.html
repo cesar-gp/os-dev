@@ -523,7 +523,7 @@ nop</code></pre>
 				<b>Puedes pasar el ratón por encima de la tabla para ver una descripción más detallada de cada elemento.</b>
 			</p>
 			<p>
-				Si te interesa saber más sobre la especificación, puedes irte directamente al <a href="http:/download.microsoft.com/download/1/6/1/161ba512-40e2-4cc9-843a-923143f3456c/fatgen103.doc">documento de Microsoft</a> o al <a href="https:/en.wikipedia.org/wiki/Design_of_the_FAT_file_system">artículo de Wikipedia sobre los sistemas de archivos FAT</a>, que es extensísimo y muy detallado.
+				Si te interesa saber más sobre la especificación, puedes irte directamente al <a href="https://download.microsoft.com/download/1/6/1/161ba512-40e2-4cc9-843a-923143f3456c/fatgen103.doc">documento de Microsoft</a> o al <a href="https:/en.wikipedia.org/wiki/Design_of_the_FAT_file_system">artículo de Wikipedia sobre los sistemas de archivos FAT</a>, que es extensísimo y muy detallado.
 			</p>
 			<p>
 				¿Qué valores le ponemos a todo esto? Eso depende de la geometría de nuestro disco, y para eso tenemos que tener claro qué tipo de disco queremos representar en nuestro archivo <i>.img</i>. Por suerte, ya hemos tomado algunas decisiones: nuestra imagen de disco ocupa 1440 KB. No es casualidad: <b>la intención es emular un floppy de alta densidad de 3 pulgadas y media</b> (<i>3½" DSHD 1.44MB</i>), que es un formato sobre el que existe mucha documentación.
@@ -568,9 +568,9 @@ nop
 	        <p>
 	        	Estos datos no nos valen para nada si el disco no está <i>formateado</i> con el sistema de archivos FAT12. Para hacer eso, <b>tendremos que cambiar ligeramente nuestro sistema para construir el archivo <samp>boot.img</samp></b>. Hasta ahora, lo hemos hecho así:
 	        </p>
-	        <pre><code class="language-bash">nasm -f bin boot.obj boot.asm                 # Compilar boot.asm
-dd if=/dev/zero of=boot.img bs=512 count=2880 # Crear imagen llena de ceros
-dd if=boot.bin of=boot.img conv=notrunc       # Copiar boot.bin a la imagen</code></pre>
+	        <pre><code class="language-bash">nasm -f bin -o build/boot.obj src/boot.asm                # Compilar boot.asm
+dd if=/dev/zero of=build/boot.img bs=512 count=2880    # Crear imagen llena de ceros
+dd if=build/boot.obj of=build/boot.img conv=notrunc    # Copiar boot.bin a la imagen</code></pre>
 			<p>
 				<b>Nota:</b> Si no recuerdas esto, puede que te ayude leer el <a href="02">capítulo anterior</a>.
 			</p>
@@ -578,14 +578,14 @@ dd if=boot.bin of=boot.img conv=notrunc       # Copiar boot.bin a la imagen</cod
 				A partir de ahora, <b>añadiremos el comando <samp>mkfs.fat</samp> a nuestro <i>script</i></b>. Este comando nos permitirá formatear nuestra imagen de disco con el sistema de archivos FAT12. Gracias a esto, podremos meter archivos en el disco antes incluso de tener nuestro sistema listo.
 			</p>
 			<pre><code class="language-bash"># Compilar
-nasm -f bin boot.obj boot.asm
+nasm -f bin -o build/boot.obj src/boot.asm
 
 # Crear disco y formatearlo
-dd if=/dev/zero of=boot.img bs=512 count=2880
-mkfs.fat -F 12 -n "SCRATCH  OS" boot.img
+dd if=/dev/zero of=build/boot.img bs=512 count=2880
+mkfs.fat -F 12 -n "SCRATCH  OS" build/boot.img
 
 # Escribir la parte 1 de nuestro bootloader en los primeros 512 bytes
-dd if=boot.bin of=boot.img conv=notrunc</code></pre>
+dd if=build/boot.obj of=build/boot.img conv=notrunc</code></pre>
 			<p>
 				Ahora, <b>podremos meter y sacar archivos del disco</b> si lo montamos como una unidad externa usando cualquier explorador de archivos. También podremos meter archivos dentro utilizando el programa <a href="https:/www.gnu.org/software/mtools/"><samp>mtools</samp></a>, de GNU.
 			</p>
@@ -607,6 +607,15 @@ dd if=boot.bin of=boot.img conv=notrunc</code></pre>
 			</p>
 			<p>
 				En el siguiente capítulo, aprenderemos a <b>obtener información del disco, reiniciarlo y hacer algunas operaciones simples con él</b>. También empezaremos a ver exactamente qué es FAT12 y cómo se organiza nuestro disco una vez formateado.
+			</p>
+		</details>
+		<details open>
+			<summary>
+				<h2>Ejemplo descargable</h2>
+				<hr>
+			</summary>
+			<p>
+				En el archivo <a href="capitulo-3.tar.gz">capitulo-3.tar.gz</a> puedes encontrar un ejemplo usable de todo lo que llevamos hasta ahora. Tan solo descomprímelo y ejecuta <samp>build.sh</samp> para tener todos los archivos.
 			</p>
 		</details>
 		<p id="footer">
