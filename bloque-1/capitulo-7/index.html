@@ -48,6 +48,7 @@
 				<li><a href="#Paso_5_Prepararnos_para_el_modo_protegido">Paso 5: Prepararnos para el modo protegido</a></li>
 				<li><a href="#Extra_poner_un_mensaje_desde_el_modo_protegido">Extra: poner un mensaje desde el modo protegido</a></li>
 				<li><a href="#Resumen">Resumen</a></li>
+				<li><a href="#Ejemplo_descargable">Ejemplo descargable</a></li>
 			</ol>
 		</details>
 		<details id="Paso_1_Habilitar_la_linea_A20" open>
@@ -125,6 +126,9 @@ entry:
 
     ; El código seguirá por aquí...
 
+    ; Una vez acabe el código, detener el sistema
+    jmp halt
+
 ; REAL MODE PRINT
 rmode_print:
     [bits 16]
@@ -143,9 +147,14 @@ rmode_print_loop:
 rmode_print_ret:
     ret
 
+; DETENER SISTEMA
+halt:
+    hlt
+    jmp halt
+
 ; VARIABLES
 msg_boot:
-    db "Sistema iniciado correctamente!", 0xA, 0
+    db "Hola", 0x0A, 0x0D, 0
 
 boot_drive:
     db 0</code></pre>
@@ -932,13 +941,13 @@ rep stosb                  ; memcpy(edi, al, ecx);</code></pre>
 						<th colspan="8">0x0</td>
 					</tr>
 					<tr>
-						<td colspan="8">0x48</td>
+						<td colspan="8">0x4D</td>
 						<td colspan="8">0x<span style="color: rgb(0, 0, 255)">1</span><span style="color: white">F</span></td>
 					</tr>
 				</table>
 			</p>
 			<p>
-				Estaríamos definiendo la letra H mayúscula con un color de fondo azul y un color de frente blanco, como esta: <samp style="background-color: rgb(0, 0, 170); color: white">H</samp>.
+				Estaríamos definiendo la letra <i>M mayúscula</i> con un color de fondo azul y un color de frente blanco, como esta: <samp style="background-color: rgb(0, 0, 170); color: white">M</samp>.
 			</p>
 			<p>
 				La dirección <samp>0xB8000</samp> de la memoria guarda los datos de la primera celda de nuestra tabla, por lo que si escribimos nuestra letra (<samp>0x411F</samp>) a esa dirección, nuestra pantalla de 8 caracteres por 4 lineas mostrará esto:
@@ -946,7 +955,7 @@ rep stosb                  ; memcpy(edi, al, ecx);</code></pre>
 			<p>
 				<table class="memory w2 hcenter">
 					<tr>
-						<td style="background-color: rgb(0, 0, 170); color: white">H</td>
+						<td style="background-color: rgb(0, 0, 170); color: white">M</td>
 						<td></td>
 						<td></td>
 						<td></td>
@@ -993,7 +1002,7 @@ rep stosb                  ; memcpy(edi, al, ecx);</code></pre>
 			<p>
 				<table class="memory w2 hcenter">
 					<tr>
-						<td style="background-color: rgb(0, 0, 170); color: white">H</td>
+						<td style="background-color: rgb(0, 0, 170); color: white">M</td>
 						<td style="background-color: rgb(0, 0, 170); color: white">o</td>
 						<td></td>
 						<td></td>
@@ -1040,22 +1049,22 @@ rep stosb                  ; memcpy(edi, al, ecx);</code></pre>
 			<p>
 				<table class="memory w2 hcenter">
 					<tr>
-						<td style="background-color: rgb(0, 0, 170); color: white">H</td>
+						<td style="background-color: rgb(0, 0, 170); color: white">M</td>
 						<td style="background-color: rgb(0, 0, 170); color: white">o</td>
-						<td style="background-color: rgb(0, 0, 170); color: white">l</td>
-						<td style="background-color: rgb(0, 0, 170); color: white">a</td>
-						<td></td>
-						<td></td>
-						<td></td>
-						<td></td>
+						<td style="background-color: rgb(0, 0, 170); color: white">d</td>
+						<td style="background-color: rgb(0, 0, 170); color: white">o</td>
+						<td style="background-color: rgb(0, 0, 170); color: white">&nbsp;</td>
+						<td style="background-color: rgb(0, 0, 170); color: white">p</td>
+						<td style="background-color: rgb(0, 0, 170); color: white">r</td>
+						<td style="background-color: rgb(0, 0, 170); color: white">o</td>
 					</tr>
 					<tr>
-						<td>&nbsp;</td>
-						<td></td>
-						<td></td>
-						<td></td>
-						<td></td>
-						<td></td>
+						<td style="background-color: rgb(0, 0, 170); color: white">t</td>
+						<td style="background-color: rgb(0, 0, 170); color: white">e</td>
+						<td style="background-color: rgb(0, 0, 170); color: white">g</td>
+						<td style="background-color: rgb(0, 0, 170); color: white">i</td>
+						<td style="background-color: rgb(0, 0, 170); color: white">d</td>
+						<td style="background-color: rgb(0, 0, 170); color: white">o</td>
 						<td></td>
 						<td></td>
 					</tr>
@@ -1086,6 +1095,14 @@ rep stosb                  ; memcpy(edi, al, ecx);</code></pre>
 				Para que el código sea legible, lo primero que vamos a hacer es <b>definir una constante que contenga la dirección del <i>buffer VGA</i></b>. Yo la he llamado <samp>memory_screen_buffer</samp>:
 			</p>
 			<pre><code class="language-x86asm">memory_screen_buffer equ 0xB8000</code></pre>
+			<p>
+				También vamos a definir nuestra nueva cadena de texto en la parte del archivo en la que tengamos nuestras variables:
+			</p>
+			<pre><code class="language-x86asm">msg_protected:
+    db "Modo protegido", 0</code></pre>
+    		<p>
+    			Dado que ahora no tenemos acceso al <i>BIOS interrupt</i> que usábamos antes, los caracteres <samp>0x0D</samp> (retorno de carro) y <samp>0x0A</samp> (salto de linea), que hemos incluido en todas nuestras cadenas de texto hasta ahora, no realizarán sus funciones correctamente. Llegado el momento, implementaremos los cambios necesarios para que vuelvan a ser funcionales, pero <b>por ahora, lo mejor es no incluirlos en nuestra variable</b>.
+    		</p>
 			<p>
 				Ahora vamos a redactar la función en sí. <b>Nuestra implementación nos permitirá mostrar cualquier cadena de texto, en cualquier posición de la pantalla, en cualquier color</b>. Recibiremos esos 3 datos en los siguientes registros:
 			</p>
@@ -1130,13 +1147,16 @@ pmode_print_loop:
 
 pmode_print_ret:
     ret                   ; Terminar la función</code></pre>
-    	<p>
-    		Ahora, si quisiéramos imprimir el texto <samp>Hola</samp>, en la esquina superior izquierda de la pantalla, en blanco sobre azul, solo tendríamos que invocar la función tal que así:
-    	</p>
-    	<pre><code class="language-x86asm">mov edi, memory_screen_buffer
-mov esi, msg_boot
+	    	<p>
+	    		Ahora, si quisiéramos imprimir el texto <samp>Modo protegido</samp>, en la esquina superior izquierda de la pantalla, de color blanco sobre azul, solo tendríamos que invocar la función tal que así:
+	    	</p>
+	    	<pre><code class="language-x86asm">mov edi, memory_screen_buffer
+mov esi, msg_protected
 mov bl, 0x1F
 call pmode_print</code></pre>
+			<p>
+				Por último, <b>asegúrate de que, después de estas lineas, el código salta a la función <samp>halt</samp></b>. Se asume que durante todo el capítulo has ido poniendo la linea <samp>jmp halt</samp> al final del código que hemos ido añadiendo. Si no, el programa seguirá ejecutándose linea por linea y dará error.
+			</p>
 		</details>
 		<details id="Resumen" open>
 			<summary>
@@ -1144,10 +1164,19 @@ call pmode_print</code></pre>
 				<hr>
 			</summary>
 			<p>
-				En este episodio hemos aprendido a hacer dos cosas: pasar al modo protegido y escribir al buffer VGA (o <i>memoria de vídeo</i>). <b>Esto nos deja muy cerca del final de nuestro bootloader</b>. Tan solo nos queda un paso: programar un kernel mínimo y saltar a él. Al dar este paso, podremos escribir (por fin) código en C y habremos entrado en el primer programa de nuestro sistema operativo.
+				En este episodio hemos aprendido a hacer dos cosas: pasar al modo protegido y escribir al buffer VGA (o <i>memoria de vídeo</i>). <b>Esto nos deja muy cerca de nuestro primer archivo escrito en C</b>. Tan solo nos queda un paso: programar el punto de entrada a C y aprender a saltar a ese punto.
 			</p>
 			<p>
 				Antes de llegar ahí, aprenderemos también <b>cómo pasar del modo protegido al modo real de nuevo</b>. Esto será necesario cuando queramos usar cualquier <i>BIOS interrupt</i>, lo cual resulta necesario en algunos casos.
+			</p>
+		</details>
+		<details id="Ejemplo_descargable" open>
+			<summary>
+				<h2>Ejemplo descargable</h2>
+				<hr>
+			</summary>
+			<p>
+				Como siempre que añadimos código al proyecto, puedes descargar un ejemplo de sistema operativo con lo que llevamos escrito hasta ahora (<a href="capitulo-7.tar.gz">capitulo-7.tar.gz</a>).
 			</p>
 		</details>
 		<p id="footer">
