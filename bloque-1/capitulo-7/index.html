@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+
+<head>
+	<title>Manual de OSDev</title>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" type="text/css" href="../../assets/global.css">
+	<link rel="stylesheet" href="../../assets/lib/highlight/styles/github-dark-dimmed.css">
+</head>
+<body class="flex col spaced">
+	<a id="navigator" class="flex col hcentered vcentered fixed hleft" href="../capitulo-6">
+		<img width="40" height="40" src="../../assets/icons/chevron-left.svg">
+	</a>
+	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="../capitulo-8">
+		<img width="40" height="40" src="../../assets/icons/chevron-right.svg">
+	</a>
+	<div id="content">
+		<div class="navhelper">
+			<a href="../../">Manual</a>
+			&nbsp;→&nbsp;
+			<a href="../">Bloque 1</a>
+			&nbsp;→&nbsp;
+			<b>Capítulo 7</b>
+		</div>
+		<h1>Capítulo 7: Del modo real al modo protegido</h1>
+		<hr>
+		<p>
+			<b>Ha llegado el momento de abandonar los 16 bits.</b> En la <a href="../">introducción a este bloque</a> vimos que entre las funciones del <i>bootloader</i> se encuentra la de crear un entorno favorable para el kernel. Con esa frase, nos referimos principalmente a pasar a un entorno de 32 bits. Para eso, es indispensable pasar del modo real del procesador (que hemos estado usando todo este tiempo) al modo protegido.
+		</p>
+		<p>
+			En el <a href="http://localhost/bloque-1/capitulo-3/#Imprimir_caracteres_usando_la_BIOS">capítulo 3</a> se explican las características del <i>modo real</i> del procesador. Por resumir: la mayoría de los valores están limitados a 65.535 y solo son accesibles los primeros 64 KB de la RAM, pero a cambio <b>podemos acceder a los <i>BIOS interrupts</i></b>. Ahora que hemos pasado a la <i>stage2</i> y tenemos más espacio, podemos ocuparnos de dejar el modo real y pasar al modo protegido.
+		</p>
+		<p>
+			<b>Pasar a los 32 bits es una mejora en casi todos los sentidos</b>: podremos utilizar código escrito en C para nuestro bootloader, podremos acceder hasta los primeros 4 GB de la RAM... sin embargo, hay un problema: no podremos usar los BIOS interrupts.
+		</p>
+		<p>
+			En este capítulo veremos <b>cómo pasar del modo real al modo protegido</b>, y en el siguiente veremos cómo podemos volver del modo protegido al modo real, en caso de que nos haga falta usar un <i>BIOS interrupt</i>.
+		</p>
+		<details id="Tabla_de_contenidos" open>
+			<summary>
+				<h2>Tabla de contenidos</h2>
+				<hr>
+			</summary>
+			<ol>
+				<li><a href="#Paso_1_Habilitar_la_linea_A20">Paso 1: Habilitar la linea A20</a></li>
+				<li><a href="#Paso_2_Cargar_la_Global_Descriptor_Table_(GDT)">Paso 2: Cargar la <i>Global Descriptor Table</i> (GDT)</a></li>
+				<li><a href="#Paso_3_Activar_la_PE_flag">Paso 3: Activar la <i>PE flag</i></a></li>
+				<li><a href="#Paso_4_Saltar_a_un_segmento_de_código_de_32_bits">Paso 4: Saltar a un segmento de código de 32 bits</a></li>
+				<li><a href="#Paso_5_Prepararnos_para_el_modo_protegido">Paso 5: Prepararnos para el modo protegido</a></li>
+				<li><a href="#Extra_poner_un_mensaje_desde_el_modo_protegido">Extra: poner un mensaje desde el modo protegido</a></li>
+				<li><a href="#Resumen">Resumen</a></li>
+			</ol>
+		</details>
+		<details id="Paso_1_Habilitar_la_linea_A20" open>
+			<summary>
+				<h2>Paso 1: Habilitar la linea A20</h2>
+				<hr>
+			</summary>
+			<p>
+				¡Jajaja! ¡Te mentí! Ese no es el primer paso. En realidad, el primer paso es <i>deshabilitar los interrupts</i> mediante la instrucción <samp>cli</samp>. Hacemos esto porque <b>es esencial que ningún evento externo interrumpa el paso de un modo del procesador a otro</b>. Si el proceso se ve interrumpido, las cosas pueden acabar <i>muy mal</i>.
+			</p>
+			<p>
+				Pero bueno, una vez hemos hecho eso tenemos que <i>habilitar la línea A20</i>. ¿Y qué es eso? Bueno, vamos a intentar explicarlo sin meternos a demasiadas complicaciones relacionadas con el hardware. Mi principal fuente va a ser el <a href="https://en.wikipedia.org/wiki/A20_line#Overview">artículo de Wikipedia</a>, que sintentiza muy bien toda la información, pero aún así vas a tener que tener paciencia.
+			</p>
+			<h3>¿Qué es la línea A20?</h3>
+			<p>
+				La principal característica de un procesador de 16 bits es que solo puede acceder a direcciones de memoria que ocupen 16 bits o menos. Es decir, <b>solo puede acceder a los primeros 64 KB de cualquier memoria</b>. Esta limitación supuso un problema para Intel, que desarrolló un sistema para que sus procesadores pudieran acceder a todo el primer MB de cualquier memoria. Es decir, que pudieran acceder a direcciones de hasta 20 bits.
+			</p>
+			<p>
+				Así es como nació la <b>segmentación de memoria</b>, ese sistema que hemos estado usando, por el cual las direcciones en la RAM se escriben siguiendo el esquema <i>SEGMENTO:OFFSET</i>. Esto se contrapone a la memoria lineal, en la cual tan solo escribes el <i>OFFSET</i> para acceder a cualquier dirección.
+			</p>
+			<p>
+				La dirección del código que está siendo procesado en el momento actual se almacena en una memoria especial, que consta de una línea eléctrica para cada bit. Por ejemplo, si la dirección de memoria actual es <samp>00110101</samp> y tenemos un procesador de 8 bits, las lineas eléctricas estarán encendidas o apagadas según su bit, de esta forma:
+			</p>
+			<div class="flex row hcentered bigpad">
+				<div class="electrical-line"></div>
+				<div class="electrical-line"></div>
+				<div class="electrical-line on"></div>
+				<div class="electrical-line on"></div>
+				<div class="electrical-line"></div>
+				<div class="electrical-line on"></div>
+				<div class="electrical-line"></div>
+				<div class="electrical-line on"></div>
+			</div>
+			<p>
+				Estas lineas, vistas de izquierda a derecha, <b>se llamarían A7, A6, A5, A4, A3, A2, A1 y A0</b>. Los procesadores de 20 bits que desarrolló Intel tenían líneas de la 0 a la 19. Cuando se añadieron nuevas lineas para acceder a más memoria, <b>IBM decidió introducir una <i>puerta lógica</i> llamada <i>Gate-A20</i> que permitía desactivar la línea 20</b>, y así emular el funcionamiento de los procesadores anteriores para mantener la compatibilidad con programas antiguos.
+			</p>
+			<p>
+				En los ordenadores de la arquitectura x86 (como el nuestro) la línea A20 viene desactivada por defecto. <b>¿Y cómo la activamos? Pues... interactuando con el controlador de teclado</b>, porque en un principio se vinculó la <i>Gate-A20</i> a ese controlador.
+			</p>
+			<h3>Preparación previa</h3>
+			<p>
+				Antes de nada, un recordatorio: estamos en la <i>stage2</i> (en concreto, en el archivo <i>src/stage2/entry.asm</i>), y el único código que contiene actualmente sirve para poner un mensaje en la pantalla que hemos llamado <samp>msg_boot</samp>, cuyo valor es <i>"Hola"</i>.
+			</p>
+			<p>
+				Vamos a preparar nuestra <i>stage2</i> para hacer cosas más avanzadas. Para empezar, <b>volveremos a asegurarnos de que todos los segmentos tienen el valor esperado</b> (en este caso, <samp>0</samp>), y también cambiaremos el nombre de nuestra función <samp>print</samp> a <samp>rmode_print</samp> y vamos a ponerle la directiva <samp>[bits 16]</samp> para dejar claro que solo funciona en modo real.
+			</p>
+			<p>
+				El código de nuestro archivo <samp>entry.asm</samp> debería parecerse a este:
+			</p>
+			<pre><code class="language-x86asm">bits 16
+
+; SECCIÓN DEL EJECUTABLE: .entry
+section .entry
+
+; Variables importadas de linker.ld
+extern __bss_start
+extern __end
+
+; Entry point (exportado para linker.ld)
+global entry
+
+entry:
+    ; Poner mensaje de bienvenida a la 'stage2'
+    mov si, msg_boot
+    call rmode_print
+
+    ; Copiar el número guardado en DL a una variable propia.
+    mov [boot_drive], dl
+
+    ; Configuramos el stack, partiendo de que ds = 0.
+    mov ax, ds
+    mov ss, ax
+    mov sp, 0xFFF0
+    mov bp, sp
+
+    ; El código seguirá por aquí...
+
+; REAL MODE PRINT
+rmode_print:
+    [bits 16]
+    mov ah, 0x0E
+    mov bl, 0
+
+rmode_print_loop:
+    lodsb
+    cmp al, 0
+    jz rmode_print_ret
+
+    int 0x10
+
+    jmp rmode_print_loop
+
+rmode_print_ret:
+    ret
+
+; VARIABLES
+msg_boot:
+    db "Sistema iniciado correctamente!", 0xA, 0
+
+boot_drive:
+    db 0</code></pre>
+		    <p>
+		    	Una vez realizados estos cambios, podemos expandir el código de nuestra <i>stage2</i> de forma segura. Siguiendo los pasos ya explicados, <b>vamos a desactivar los <i>interrupts</i> y crear una función en la que activaremos la línea A20</b>. El siguiente código se debe insertar donde se encuentra la anotación <i>"El código seguirá por aquí..."</i>:
+		    </p>
+		    <pre><code class="language-x86asm">cli
+call a20_enable</code></pre>
+			<h3>Activar (ahora sí) la línea A20</h3>
+			<p>
+				En esta nueva función tendremos que seguir los siguientes pasos:
+			</p>
+			<ol>
+				<li>Desactivar el teclado</li>
+				<li>Mandar un comando para leer el estado del teclado</li>
+				<li>Guardar el valor recibido en el stack</li>
+				<li>Mandar un comando para escribir el estado del teclado</i></li>
+				<li>Copiar el estado anterior, aunque con el segundo bit encendido. Ese segundo bit es el que determina si la línea A20 está activada o no.</li>
+				<li>Guardar los cambios.</li>
+				<li>Volver a activar el teclado.</li>
+			</ol>
+			<p>
+				A todos estos pasos, se les añade el hecho de que <b>cuando queremos escribir o leer a un controlador, tenemos que esperar a que dicho controlador responda</b>. Por ello, también tendremos que crear son los métodos <samp>a20_waitinput</samp> y <samp>a20_waitoutput</samp>.
+			</p>
+			<p>
+				¿Y cómo mandamos comandos y leemos respuestas del controlador de teclado? Pues para eso <b>tendremos que comunicarnos con los puertos de <i>comandos</i> y de <i>datos</i> del controlador de teclado, usando las instrucciones <samp>in</samp> y <samp>out</samp></b>. Para una mayor legibilidad, vamos a apuntar las IDs de cada puerto en nuestro programa usando la directiva <samp>equ</samp>, tal que así:
+			</p>
+			<pre><code class="language-x86asm">keyboard_port_data equ 0x60
+keyboard_port_cmd equ 0x64</code></pre>
+			<p>
+				Los comandos que vamos a enviar también tienen IDs numéricas. De nuevo, las apuntamos en la parte del programa que mejor nos venga, usando la directiva <samp>equ</samp>:
+			</p>
+			<pre><code class="language-x86asm">keyboard_cmd_disable equ 0xAD
+keyboard_cmd_enable equ 0xAE
+keyboard_cmd_readoutput equ 0xD0
+keyboard_cmd_writeoutput equ 0xD1</code></pre>
+			<p>
+				A continuación, <b>definimos las funciones que se encargarán de esperar a que el controlador de teclado nos permita escribir datos o nos devuelva los que le hemos solicitado</b>. Esto lo haremos comunicándonos en bucle con <samp>keyboard_port_cmd</samp> hasta que el registro <i>al</i> refleje los cambios esperados:
+			</p>
+			<pre><code class="language-x86asm">a20_waitinput:
+    [bits 16]
+    ; Recibir datos de 'keyboard_cmd_port' hacia 'al'
+    in al, keyboard_port_cmd
+
+    ; Esperar hasta que su segundo bit (input buffer) sea 0.
+    test al, 2
+    jnz a20_waitinput
+    ret
+
+a20_waitoutput:
+    [bits 16]
+    ; Recibir datos de 'keyboard_cmd_port' hacia 'al'
+    in al, keyboard_port_cmd
+
+    ; Esperar hasta que su primer bit (output buffer) sea 1.
+    test al, 1
+    jz a20_waitoutput
+    ret</code></pre>
+    		<p>
+    			Ahora que ya tenemos todo lo necesario, <b>vamos a traducir los pasos que hemos escrito antes a Assembly</b> para crear nuestro método <samp>a20_enable</samp>. En todos los casos, esperaremos a que el controlador esté disponible, escribiremos o leeremos los datos necesarios, y pasaremos al siguiente paso:
+    		</p>
+    		<pre><code class="language-x86asm">a20_enable:
+    [bits 16]
+
+    ; 1. Desactivar el teclado
+    call a20_waitinput
+    mov al, keyboard_cmd_disable
+    out keyboard_port_cmd, al
+
+    ; 2. Mandar cmd para leer estado del teclado a 'keyboard_port_data'.
+    call a20_waitinput
+    mov al, keyboard_cmd_readoutput
+    out keyboard_port_cmd, al
+
+    ; 3. Leer 'keyboard_port_data' hacia 'al' y guardarlo en el stack.
+    call a20_waitoutput
+    in al, keyboard_port_data
+    push eax
+
+    ; 4. Mandar cmd para escribir el estado del teclado en 'keyboard_port_data'
+    call a20_waitinput
+    mov al, keyboard_cmd_writeoutput
+    out keyboard_port_cmd, al
+
+    ; 5. Recuperar estado del teclado (guardado en el stack) y encender
+    ; su segundo bit, que indica si la línea A20 está activada o no.
+    call a20_waitinput
+    pop eax
+    or al, 2
+
+    ; 6. Escribir el estado modificado a 'keyboard_port_data'
+    out keyboard_port_data, al
+
+    ; 7. Volver a activar el teclado.
+    call a20_waitinput
+    mov al, keyboard_cmd_enable
+    out keyboard_port_cmd, al
+    call a20_waitinput
+    ret</code></pre>
+		</details>
+		<details id="Paso_2_Cargar_la_Global_Descriptor_Table_(GDT)" open>
+			<summary>
+				<h2>Paso 2: Cargar la <i>Global Descriptor Table</i> (GDT)</h2>
+				<hr>
+			</summary>
+			<p>
+				Lo siguiente que vamos a poner en nuestra funcion principal (<samp>entry</samp>), después de haber llamado a <samp>a20_enable</samp> y haber vuelto, es esta línea:
+			</p>
+			<pre><code class="language-x86asm">call gdt_load</code></pre>
+			<p>
+				El siguiente método que escribiremos servirá para cargar la GDT o <i><a href="https://wiki.osdev.org/Global_Descriptor_Table">Global Descriptor Table</a></i>. De nuevo, nos encontramos con otro concepto que no hemos tocado en ningún punto del manual... déjame explicarte antes de seguir.
+			</p>
+			<h3>¿Qué es la GDT?</h3>
+			<p>
+				Usando la terminología de Intel, <b>un <i>segmento</i> es una sección de la memoria que tiene unas propiedades concretas</b> (<i>p. ej.:</i> si solo ciertos procesos pueden acceder a dicho segmento, o si dentro del segmento se almacenan datos o código ejecutable).
+			</p>
+			<p>
+				La GDT define los segmentos de memoria que usaremos en nuestro bootloader y sistema operativo. <b>Cada entrada de la tabla ocupa 8 bytes</b> y puede contener un <i>descriptor de segmento</i>, un <i>Task State Segment</i>, una <i>Local Descriptor Table (LDT)</i> o una <i>call gate</i>. Por ahora, a nosotros solo nos interesan los descriptores de segmento (o <i>segment descriptors</i>). Su estructura es la siguiente:
+			</p>
+			<p>
+				<table class="memory">
+					<tr>
+						<th>0x3F</th>
+						<th>0x3E</th>
+						<th>0x3D</th>
+						<th>0x3C</th>
+						<th>0x3B</th>
+						<th>0x3A</th>
+						<th>0x39</th>
+						<th>0x38</th>
+						<th>0x37</th>
+						<th>0x36</th>
+						<th>0x35</th>
+						<th>0x34</th>
+						<th>0x33</th>
+						<th>0x32</th>
+						<th>0x31</th>
+						<th>0x30</th>
+					</tr>
+					<tr>
+						<td class="okabe-ito-1 dark-text" colspan="8">base</td>
+						<td class="okabe-ito-4 dark-text" colspan="4">flags</td>
+						<td class="okabe-ito-2 dark-text" colspan="4">limit</td>
+					</tr>
+					<tr>
+						<th>0x2F</th>
+						<th>0x2E</th>
+						<th>0x2D</th>
+						<th>0x2C</th>
+						<th>0x2B</th>
+						<th>0x2A</th>
+						<th>0x29</th>
+						<th>0x28</th>
+						<th>0x27</th>
+						<th>0x26</th>
+						<th>0x25</th>
+						<th>0x24</th>
+						<th>0x23</th>
+						<th>0x22</th>
+						<th>0x21</th>
+						<th>0x20</th>
+					</tr>
+					<tr>
+						<td class="okabe-ito-6 dark-text" colspan="8">access byte</td>
+						<td class="okabe-ito-1 dark-text" colspan="8">base</td>
+					</tr>
+					<tr>
+						<th>0x1F</th>
+						<th>0x1E</th>
+						<th>0x1D</th>
+						<th>0x1C</th>
+						<th>0x1B</th>
+						<th>0x1A</th>
+						<th>0x19</th>
+						<th>0x18</th>
+						<th>0x17</th>
+						<th>0x16</th>
+						<th>0x15</th>
+						<th>0x14</th>
+						<th>0x13</th>
+						<th>0x12</th>
+						<th>0x11</th>
+						<th>0x10</th>
+					</tr>
+					<tr>
+						<td class="okabe-ito-1 dark-text" colspan="16">base</td>
+					</tr>
+					<tr>
+						<th>0xF</th>
+						<th>0xE</th>
+						<th>0xD</th>
+						<th>0xC</th>
+						<th>0xB</th>
+						<th>0xA</th>
+						<th>0x9</th>
+						<th>0x8</th>
+						<th>0x7</th>
+						<th>0x6</th>
+						<th>0x5</th>
+						<th>0x4</th>
+						<th>0x3</th>
+						<th>0x2</th>
+						<th>0x1</th>
+						<th>0x0</th>
+					</tr>
+					<tr>
+						<td class="okabe-ito-2 dark-text" colspan="16">limit</td>
+					</tr>
+				</table>
+			</p>
+			<p>
+				<b>Nota importante:</b> algunos valores están desperdigados por la tabla, por lo que conviene pararse bien a mirar su estructura antes de experimentar con ella. Por dar un ejemplo más claro, en la tabla mostrada a continuación:
+			</p>
+			<p>
+				<table class="memory">
+					<tr>
+						<th>0x3F</th>
+						<th>0x3E</th>
+						<th>0x3D</th>
+						<th>0x3C</th>
+						<th>0x3B</th>
+						<th>0x3A</th>
+						<th>0x39</th>
+						<th>0x38</th>
+						<th>0x37</th>
+						<th>0x36</th>
+						<th>0x35</th>
+						<th>0x34</th>
+						<th>0x33</th>
+						<th>0x32</th>
+						<th>0x31</th>
+						<th>0x30</th>
+					</tr>
+					<tr>
+						<td class="okabe-ito-1 dark-text" style="border-right: 2px dashed var(--bg)">1</td>
+						<td class="okabe-ito-1 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">1</td>
+						<td class="okabe-ito-1 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">1</td>
+						<td class="okabe-ito-1 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-1 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-1 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-1 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-1 dark-text noborder-left">0</td>
+						<td class="okabe-ito-4 dark-text" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-4 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-4 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">1</td>
+						<td class="okabe-ito-4 dark-text noborder-left">1</td>
+						<td class="okabe-ito-2 dark-text" style="border-right: 2px dashed var(--bg)">1</td>
+						<td class="okabe-ito-2 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">1</td>
+						<td class="okabe-ito-2 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-2 dark-text noborder-left">1</td>
+					</tr>
+					<tr>
+						<th>0x2F</th>
+						<th>0x2E</th>
+						<th>0x2D</th>
+						<th>0x2C</th>
+						<th>0x2B</th>
+						<th>0x2A</th>
+						<th>0x29</th>
+						<th>0x28</th>
+						<th>0x27</th>
+						<th>0x26</th>
+						<th>0x25</th>
+						<th>0x24</th>
+						<th>0x23</th>
+						<th>0x22</th>
+						<th>0x21</th>
+						<th>0x20</th>
+					</tr>
+					<tr>
+						<td class="okabe-ito-6 dark-text" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-6 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">1</td>
+						<td class="okabe-ito-6 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-6 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-6 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-6 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">1</td>
+						<td class="okabe-ito-6 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">1</td>
+						<td class="okabe-ito-6 dark-text noborder-left">0</td>
+						<td class="okabe-ito-1 dark-text" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-1 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-1 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-1 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-1 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-1 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-1 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-1 dark-text noborder-left">0</td>
+					</tr>
+					<tr>
+						<th>0x1F</th>
+						<th>0x1E</th>
+						<th>0x1D</th>
+						<th>0x1C</th>
+						<th>0x1B</th>
+						<th>0x1A</th>
+						<th>0x19</th>
+						<th>0x18</th>
+						<th>0x17</th>
+						<th>0x16</th>
+						<th>0x15</th>
+						<th>0x14</th>
+						<th>0x13</th>
+						<th>0x12</th>
+						<th>0x11</th>
+						<th>0x10</th>
+					</tr>
+					<tr>
+						<td class="okabe-ito-1 dark-text" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-1 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-1 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-1 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-1 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-1 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-1 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-1 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-1 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-1 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-1 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-1 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-1 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-1 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-1 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">0</td>
+						<td class="okabe-ito-1 dark-text noborder-left">0</td>
+					</tr>
+					<tr>
+						<th>0xF</th>
+						<th>0xE</th>
+						<th>0xD</th>
+						<th>0xC</th>
+						<th>0xB</th>
+						<th>0xA</th>
+						<th>0x9</th>
+						<th>0x8</th>
+						<th>0x7</th>
+						<th>0x6</th>
+						<th>0x5</th>
+						<th>0x4</th>
+						<th>0x3</th>
+						<th>0x2</th>
+						<th>0x1</th>
+						<th>0x0</th>
+					</tr>
+					<tr>
+						<td class="okabe-ito-2 dark-text" style="border-right: 2px dashed var(--bg)">1</td>
+						<td class="okabe-ito-2 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">1</td>
+						<td class="okabe-ito-2 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">1</td>
+						<td class="okabe-ito-2 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">1</td>
+						<td class="okabe-ito-2 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">1</td>
+						<td class="okabe-ito-2 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">1</td>
+						<td class="okabe-ito-2 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">1</td>
+						<td class="okabe-ito-2 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">1</td>
+						<td class="okabe-ito-2 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">1</td>
+						<td class="okabe-ito-2 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">1</td>
+						<td class="okabe-ito-2 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">1</td>
+						<td class="okabe-ito-2 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">1</td>
+						<td class="okabe-ito-2 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">1</td>
+						<td class="okabe-ito-2 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">1</td>
+						<td class="okabe-ito-2 dark-text noborder-left" style="border-right: 2px dashed var(--bg)">1</td>
+						<td class="okabe-ito-2 dark-text noborder-left">1</td>
+					</tr>
+				</table>
+			</p>
+			<p>
+				Las partes del descriptor serían las siguientes:
+			</p>
+			<ul>
+				<li><samp class="okabe-ito-1 dark-text">base</samp> = <samp>00000000 00000000 00000000 00000111</samp></li>
+				<li><samp class="okabe-ito-2 dark-text">limit</samp> = <samp>11111111 11111111 1011</samp></li>
+				<li><samp class="okabe-ito-6 dark-text">access byte</samp> = <samp>01100010</samp></li>
+				<li><samp class="okabe-ito-4 dark-text">flags</samp> = <samp>1100</samp></li>
+			</ul>
+			<p>
+				La variable <samp class="okabe-ito-1 dark-text">base</samp> define el byte en el que empieza un segmento, y <samp class="okabe-ito-2 dark-text">limit</samp> define su tamaño en bytes. Las demás características de un segmento se definen en los bits del <samp class="okabe-ito-6 dark-text">access byte</samp> y las <samp class="okabe-ito-4 dark-text">flags</samp>.
+			</p>
+			<p>
+				El <i>access byte</i> define la siguiente información (siguiendo el esquema de la <a href="https://wiki.osdev.org/Global_Descriptor_Table#Segment_Descriptor">OS Dev Wiki</a>):
+			</p>
+			<p>
+				<table class="memory">
+					<tr>
+						<th>0x7</th>
+						<th>0x6</th>
+						<th>0x5</th>
+						<th>0x4</th>
+						<th>0x3</th>
+						<th>0x2</th>
+						<th>0x1</th>
+						<th>0x0</th>
+					</tr>
+					<tr>
+						<td class="info">
+							P
+							<div class="infobox">
+								<b>Present bit</b>
+								<hr class="equalspace">
+								Indica si el segmento es válido (<samp>1</samp>) o no (<samp>0</samp>).
+							</div>
+						</td>
+						<td class="info" colspan="2">
+							DPL
+							<div class="infobox">
+								<b>Descriptor Privilege Level bit</b>
+								<hr class="equalspace">
+								Nivel de privilegios del segmento, del <samp>0</samp> <i>(kernel)</i> al <samp>3</samp> <i>(programas de usuario)</i>.
+							</div>
+						</td>
+						<td class="info">
+							S
+							<div class="infobox">
+								<b>Descriptor Type bit</b>
+								<hr class="equalspace">
+								Define si es un segmento de sistema (<samp>0</samp>) o un segmento de código/datos (<samp>1</samp>).
+							</div>
+						</td>
+						<td class="info">
+							E
+							<div class="infobox">
+								<b>Executable bit</b>
+								<hr class="equalspace">
+								Define si es un segmento de datos (<samp>0</samp>) o de código ejecutable (<samp>1</samp>).
+							</div>
+						</td>
+						<td class="info">
+							DC
+							<div class="infobox">
+								<b>Direction/Conforming bit</b>
+								<hr class="equalspace">
+								En segmentos de código: <i>define si el código puede ejecutarse solo desde el nivel definido en el DPL (<samp>0</samp>) o desde cualquiera igual o inferior (<samp>1</samp>).</i><br>
+								<br>
+								En segmentos de datos: <i>define si el segmento crece normal (<samp>0</samp>) o al revés (<samp>1</samp>).</i>
+							</div>
+						</td>
+						<td class="info">
+							RW
+							<div class="infobox">
+								<b>Readable/Writable bit</b>
+								<hr class="equalspace">
+								En segmentos de código: <i>define si el segmento se puede leer (<samp>1</samp>) o no (<samp>0</samp>). La escritura nunca es posible.</i><br>
+								<br>
+								En segmentos de datos: <i>define si en el segmento se puede escribir (<samp>1</samp>) o no (<samp>0</samp>). La lectura siempre es posible.
+							</div>
+						</td>
+						<td class="info">
+							A
+							<div class="infobox">
+								<b>Accessed bit</b>
+								<hr class="equalspace">
+								La CPU le asigna el valor <samp>1</samp> al acceder a él.<br>
+								<br>
+								Es recomendable asignarle manualmente un <samp>1</samp> desde el principio, porque si la CPU intenta modificar este bit en segmentos de solo lectura, provocará una violación de segmento.
+							</div>
+						</td>
+					</tr>
+				</table>
+				<br>
+				<b>Puedes pasar el ratón por encima de la tabla para ver una descripción más detallada de cada elemento.</b>
+			</p>
+			<p>
+				Las <i>flags</i> disponibles son las siguientes:
+			</p>
+			<p>
+				<table class="memory">
+					<tr>
+						<th>0x3</th>
+						<th>0x2</th>
+						<th>0x1</th>
+						<th>0x0</th>
+					</tr>
+					<tr>
+						<td class="info">
+							G
+							<div class="infobox">
+								<b>Granularity flag</b>
+								<hr class="equalspace">
+								Indica si el tamaño de segmento definido en <i>limit</i> se expresa en unidades de 1 byte (<samp>0</samp> o de 4 KB (<samp>1</samp>).
+							</div>
+						</td>
+						<td class="info">
+							DB
+							<div class="infobox">
+								<b>Size flag</b>
+								<hr class="equalspace">
+								Define si el segmento es de 16 bits (<samp>0</samp>) o de 32 bits (<samp>1</samp>).
+							</div>
+						</td>
+						<td class="info">
+							L
+							<div class="infobox">
+								<b>Long-mode code flag</b>
+								<hr class="equalspace">
+								En segmentos de código: <i>define si el segmento contiene instrucciones de 64 bits (<samp>1</samp>) o no (<samp>0</samp>). La size flag (DB) debe ser 0 si esta está activada.</i><br>
+								<br>
+								En cualquier otro caso: <i>debe dejarse desactivada (<samp>0</samp>)</i>.
+							</div>
+						</td>
+						<td>Reservado</td>
+					</tr>
+				</table>
+				<br>
+				<b>Puedes pasar el ratón por encima de la tabla para ver una descripción más detallada de cada elemento.</b>
+			</p>
+			<h3>Cómo escribir nuestra GDT</h3>
+			<p>
+				Teniendo esto en cuenta, ¡ya podemos definir nuestra propia GDT! Por ahora, <b>crearemos una tabla muy simple</b>, algo insuficiente para un sistema de uso general, como esta:
+			</p>
+			<pre><code class="language-x86asm">gdt_start:
+    ; Primera entrada: debe estar vacía
+    dq 0
+
+    ; Todas las entradas van del byte 0 al máximo en su caso.
+
+    ; Segunda entrada: 32-bit CODE segment (0x08)
+    dw 0xFFFF
+    dw 0
+    db 0
+    db 10011010b    ; Access: +P, DPL=0. +S, +E, -DC, +RW, -A
+    db 11001111b    ; Flags: +G, +DB, -L
+    db 0
+
+    ; Tercera entrada: 32-bit DATA segment (0x10)
+    dw 0xFFFF
+    dw 0
+    db 0
+    db 10010010b    ; Access: +P, DPL=0. +S, -E, -DC, +RW, -A
+    db 11001111b    ; Flags: +G, +DB, -L
+    db 0
+
+    ; Cuarta entrada: 16-bit CODE segment (0x18)
+    dw 0xFFFF
+    dw 0
+    db 0
+    db 10011010b    ; Access: +P, DPL=0. +S, +E, -DC, +RW, -A
+    db 00001111b    ; Flags: -G, -DB, -L
+    db 0
+
+    ; Quinta entrada: 16-bit DATA segment (0x20)
+    dw 0xFFFF
+    dw 0
+    db 0
+    db 10010010b    ; Access: +P, DPL=0. +S, -E, -DC, +RW, -A
+    db 00001111b    ; Flags: -G, -DB, -L
+    db 0</code></pre>
+			<p>
+				Esta tabla describe 2 entradas de 16 bits y 2 de 32 bits. En ambos casos, la primera es de código y la segunda de datos. <b>Ahora, definiremos el <i>GDT descriptor</i>, que contiene la información necesaria para cargar la GDT</b>.
+			</p>
+			<p>
+				<b>Todo el espacio del disco es accesible desde todos los segmentos</b>. Hacemos esto para simplificar las cosas, aunque dependiendo de nuestra organización posterior, puede ser que nos acabe interesando cambiar los límites de los segmentos.
+			</p>
+			<h3>Definir el GDT descriptor y cargar la GDT</h3>
+			<p>
+				Por suerte, <b>el GDT descriptor es mucho más simple</b>: se trata de una estructura de 6 bytes. Los 4 primeros definen la <i>base</i> de la tabla (es decir, el byte en el que empieza), y los 2 siguientes definen el tamaño de la tabla en bytes.
+			</p>
+			<p>
+				Si colocamos el descriptor justo debajo de nuestra GDT, es tan fácil como hacer esto:
+			</p>
+			<pre><code class="language-x86asm">gdt_desc:
+    dw gdt_desc - gdt_start - 1    ; Tamaño (2 bytes)
+    dd gdt_start                   ; Base (4 bytes)</code></pre>
+			<p>
+				Con todo esto ya declarado, <b>solo nos queda completar nuestra función <samp>gdt_load</samp></b>, en la que cargaremos nuestra tabla usando la instrucción <samp>lgdt</samp>, y, como argumento, incluiremos un puntero hacia nuestro GDT descriptor.
+			</p>
+			<pre><code class="language-x86asm">gdt_load:
+    [bits 16]
+    lgdt [gdt_desc]
+    ret</code></pre>
+		</details>
+		<details id="Paso_3_Activar_la_PE_flag" open>
+			<summary>
+				<h2>Paso 3: Activar la <i>PE flag</i></h2>
+				<hr>
+			</summary>
+			<p>
+				La <i>PE flag</i> (<i>Protected Enable Flag</i>) es una de las variables que se guardan en el primer <a href="https://en.wikipedia.org/wiki/Control_register">registro de control</a>, llamado <samp>cr0</samp>. Ocupa tan solo un bit (el más bajo de todo el registro), e indica al procesador si estamos en modo protegido (<samp>1</samp>) o no (<samp>0</samp>).
+			</p>
+			<p>
+				Este paso es <i>muy simple</i>. Tenemos que:
+			</p>
+			<ul>
+				<li>Leer los contenidos del registro <samp>cr0</samp> a un registro de 32 bits de uso arbitrario (como <samp>eax</samp>).</li>
+				<li>Activar el último bit del registro escogido.</li>
+				<li>Sobreescribir el registro <samp>cr0</samp> con los contenidos del registro escogido.</li>
+			</ul>
+			<p>
+				Bueno, así dicho parece más difícil de lo que es. Vamos a hacerlo directamente en Assembly:
+			</p>
+			<pre><code class="language-x86asm">mov eax, cr0
+or al, 1
+mov cr0, eax</code></pre>
+			<p>
+				¡Y ya está! Después de la explicación de la GDT esto se debe sentir como un soplo de aire fresco.
+			</p>
+		</details>
+		<details id="Paso_4_Saltar_a_un_segmento_de_código_de_32_bits" open>
+			<summary>
+				<h2>Paso 4: Saltar a un segmento de código de 32 bits</h2>
+				<hr>
+			</summary>
+			<p>
+				Ahora que tenemos nuestra GDT cargada, tenemos que tener cuidado para no producir <i>violaciones de segmento</i> (es decir, acceder a una parte de la memoria no disponible, o intentar ejecutar código desde desde un segmento de datos). <b>Es importante tener claro qué segmentos tenemos declarados en nuestra GDT y qué propiedades tiene cada uno</b>.
+			</p>
+			<p>
+				A nosotros nos interesa ejecutar código de 32 bits, y para ello tendremos que saltar a un segmento de código de 32 bits. <b>El único que tenemos declarado está en el offset <samp>0x08</samp> de nuestra GDT</b>. Así que para ejecutar un <i>far jump</i> hacia ese segmento tendríamos que ejecutar la siguiente instrucción:
+			</p>
+			<pre><code class="language-x86asm">jmp dword 0x08:pmode32
+
+; Nota: el nombre 'pmode32' es arbitrario, podemos llamar a la siguiente sección como queramos.</code></pre>
+			<p>
+				A partir de aquí, el modo del procesador cambiará a <i>modo protegido de 32 bits</i>, y saltaremos hacia el símbolo <samp>pmode32</samp> de nuestro código, que declararemos así:
+			</p>
+			<pre><code class="language-x86asm">pmode32:
+    [bits 32]
+    ; nuestro código...</code></pre>
+		</details>
+		<details id="Paso_5_Prepararnos_para_el_modo_protegido" open>
+			<summary>
+				<h2>Paso 5: Prepararnos para el modo protegido</h2>
+				<hr>
+			</summary>
+			<p>
+				Hemos cambiado el <i>code segment</i> (<samp>cs</samp>) al segmento <samp>0x08</samp>, pero el segmento de datos (<samp>ds</samp>) y el del stack (<samp>ss</samp>) no los hemos actualizado. <b>En nuestra GDT, el segmento de datos de 32 bits está en el offset <samp>0x10</samp></b>, así que para evitar fallos nos conviene preparar los segmentos tal que así:
+			</p>
+			<pre><code class="language-x86asm">; En la sección 'pmode32'
+
+mov ax, 0x10
+mov ds, ax
+mov ss, ax</code></pre>
+			<p>
+				Otra cosa que seguramente nos de problemas es que <b>tenemos varios datos guardados sin inicializar en la sección <samp>.bss</samp> de nuestro proceso</b>. Al cambiar de 16 bits a 32 bits, conviene hacer limpia para evitar lecturas erróneas. Para ello, vamos a pasar por cada byte de la sección y dejarlo en 0.
+			</p>
+			<p>
+				Para hacer esto, utilizaremos la instrucción <samp>stosb</samp>, que copia en el byte al que apunte <samp>edi</samp> el contenido de <samp>al</samp> y suma 1 al valor de <samp>edi</samp>. También usaremos la instrucción <samp>rep</samp>, que repite una instrucción el número de veces indicado en <samp>ecx</samp>... <b>Es más claro verlo en código.</b>
+			</p>
+			<pre><code class="language-x86asm">mov edi, __bss_start       ; edi = comienzo de BSS
+mov ecx, __end             ; ecx = final del proceso
+sub ecx, edi               ; ecx = tamaño de BSS
+mov al, 0                  ; al = 0
+cld                        ; Direction flag = adelante
+rep stosb                  ; memcpy(edi, al, ecx);</code></pre>
+			<p>
+				A partir de aquí, ya no deberíamos tener problemas de memoria ni violaciones de segmento si hacemos las cosas bien. Como ejemplo, <b>en la siguiente sección vamos a poner en el terminal un mensaje desde el modo protegido.</b>
+			</p>
+		</details>
+		<details id="Extra_poner_un_mensaje_desde_el_modo_protegido" open>
+			<summary>
+				<h2>Extra: poner un mensaje desde el modo protegido</h2>
+				<hr>
+			</summary>
+			<p>
+				¿Recuerdas cómo poníamos mensajes cuando estábamos en <i>modo real</i>? Usábamos el <samp><a href="https://www.ctyme.com/intr/rb-0106.htm">INT 10h/AH=0Eh</a></samp> para poner cada caracter en el terminal. Ahora, en el modo protegido, no podemos acceder a la parte de la memoria en la que está escrito el código de los <i>BIOS interrupts</i>, así que... no podemos hacer eso. <b>Tenemos que implementar la función nosotros mismos.</b>
+			</p>
+			<h3>El buffer VGA</h3>
+			<p>
+				Nuestro procesador se encuentra ahora mismo en un modo de vídeo que se basa en un <i>buffer VGA</i>. Es decir, <b>existe una sección de la memoria, que abarca desde el byte <samp>0xA0000</samp> hasta el byte <samp>0xBFFFF</samp> en la que se define cada uno de los píxeles visibles en la pantalla</b>. Si escribimos en esta región de la memoria, podemos modificar los contenidos de la pantalla.
+			</p>
+			<p>
+				Dentro de esa región de la memoria existen varias partes distintas. A nosotros nos interesa la sección que abarca desde el byte <samp>0xB8000</samp> hasta el byte <samp>0xB8FA0</samp>. <b>Es un área de 4000 bytes que en la que está escrito cada caracter de la pantalla, su color de fondo y su color de frente, formando una tabla de 80 carácteres por 25 líneas</b>.
+			</p>
+			<p>
+				Para explicarlo, vamos a imaginar que la cuadrícula es de 8 caracteres por 4 lineas, formando esta tabla:
+			</p>
+			<p>
+				<table class="memory w2 hcenter">
+					<tr>
+						<td>&nbsp;</td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+					</tr>
+					<tr>
+						<td>&nbsp;</td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+					</tr>
+					<tr>
+						<td>&nbsp;</td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+					</tr>
+					<tr>
+						<td>&nbsp;</td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+					</tr>
+				</table>
+			</p>
+			<p>
+				Cada caracter ocupa 2 bytes, que se distribuyen tal que así:
+			</p>
+			<p>
+				<table class="memory">
+					<tr>
+						<th>0xF</th>
+						<th>0xE</th>
+						<th>0xD</th>
+						<th>0xC</th>
+						<th>0xB</th>
+						<th>0xA</th>
+						<th>0x9</th>
+						<th>0x8</th>
+						<th>0x7</th>
+						<th>0x6</th>
+						<th>0x5</th>
+						<th>0x4</th>
+						<th>0x3</th>
+						<th>0x2</th>
+						<th>0x1</th>
+						<th>0x0</th>
+					</tr>
+					<tr>
+						<td colspan="8">caracter</td>
+						<td colspan="4">fondo</td>
+						<td colspan="4">frente</td>
+					</tr>
+				</table>
+			</p>
+			<p>
+				De izquierda a derecha, el primer byte almacena la ID en <a href="https://www.ascii-code.com/">código ASCII</a> del caracter que queramos mostrar (<samp>0x41</samp> para la <samp>A</samp>, <samp>0x42</samp> para la <samp>B</samp>, etc.). El segundo byte almacena en sus primeros 4 bits la ID del color de fondo, y en sus últimos 4 bits la ID del color de frente. La tabla a continuación muestra la ID de cada color:
+			</p>
+			<p>
+				<table class="memory">
+					<tr>
+						<th>0x0</th>
+						<th>0x1</th>
+						<th>0x2</th>
+						<th>0x3</th>
+						<th>0x4</th>
+						<th>0x5</th>
+						<th>0x6</th>
+						<th>0x7</th>
+						<th>0x8</th>
+						<th>0x9</th>
+						<th>0xA</th>
+						<th>0xB</th>
+						<th>0xC</th>
+						<th>0xD</th>
+						<th>0xE</th>
+						<th>0xF</th>
+					</tr>
+					<tr>
+						<td style="background-color: rgb(0, 0, 0)"></td>
+						<td style="background-color: rgb(0, 0, 170)"></td>
+						<td style="background-color: rgb(0, 170, 0)"></td>
+						<td style="background-color: rgb(0, 170, 170)"></td>
+						<td style="background-color: rgb(170, 0, 0)"></td>
+						<td style="background-color: rgb(170, 0, 170)"></td>
+						<td style="background-color: rgb(170, 85, 0)"></td>
+						<td style="background-color: rgb(170, 170, 170)"></td>
+						<td style="background-color: rgb(85, 85, 85)"></td>
+						<td style="background-color: rgb(85, 85, 255)"></td>
+						<td style="background-color: rgb(85, 255, 85)"></td>
+						<td style="background-color: rgb(85, 255, 255)"></td>
+						<td style="background-color: rgb(255, 85, 85)"></td>
+						<td style="background-color: rgb(255, 85, 255)"></td>
+						<td style="background-color: rgb(255, 255, 85)"></td>
+						<td style="background-color: rgb(255, 255, 255)"></td>
+					</tr>
+				</table>
+			</p>
+			<p>
+				Por lo tanto, si definimos una estructura de 2 bytes con los siguientes datos:
+			</p>
+			<p>
+				<table class="memory">
+					<tr>
+						<th colspan="8">0x1</td>
+						<th colspan="8">0x0</td>
+					</tr>
+					<tr>
+						<td colspan="8">0x48</td>
+						<td colspan="8">0x<span style="color: rgb(0, 0, 255)">1</span><span style="color: white">F</span></td>
+					</tr>
+				</table>
+			</p>
+			<p>
+				Estaríamos definiendo la letra H mayúscula con un color de fondo azul y un color de frente blanco, como esta: <samp style="background-color: rgb(0, 0, 170); color: white">H</samp>.
+			</p>
+			<p>
+				La dirección <samp>0xB8000</samp> de la memoria guarda los datos de la primera celda de nuestra tabla, por lo que si escribimos nuestra letra (<samp>0x411F</samp>) a esa dirección, nuestra pantalla de 8 caracteres por 4 lineas mostrará esto:
+			</p>
+			<p>
+				<table class="memory w2 hcenter">
+					<tr>
+						<td style="background-color: rgb(0, 0, 170); color: white">H</td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+					</tr>
+					<tr>
+						<td>&nbsp;</td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+					</tr>
+					<tr>
+						<td>&nbsp;</td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+					</tr>
+					<tr>
+						<td>&nbsp;</td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+					</tr>
+				</table>
+			</p>
+			<p>
+				Si avanzamos 2 bytes y escribimos en la dirección <samp>0xB802</samp> la letra <samp>0x6F1F</samp> (<i>0x6F</i> para la <i>o minúscula</i>, <i>0x1</i> para el color azul de fondo y <i>0xF</i> para el color blanco de fondo), veremos esto:
+			</p>
+			<p>
+				<table class="memory w2 hcenter">
+					<tr>
+						<td style="background-color: rgb(0, 0, 170); color: white">H</td>
+						<td style="background-color: rgb(0, 0, 170); color: white">o</td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+					</tr>
+					<tr>
+						<td>&nbsp;</td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+					</tr>
+					<tr>
+						<td>&nbsp;</td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+					</tr>
+					<tr>
+						<td>&nbsp;</td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+					</tr>
+				</table>
+			</p>
+			<p>
+				Si has seguido la explicación, deberías tener las herramientas teóricas para imaginarte ya cómo se hace esto, que es nuestra idea:
+			</p>
+			<p>
+				<table class="memory w2 hcenter">
+					<tr>
+						<td style="background-color: rgb(0, 0, 170); color: white">H</td>
+						<td style="background-color: rgb(0, 0, 170); color: white">o</td>
+						<td style="background-color: rgb(0, 0, 170); color: white">l</td>
+						<td style="background-color: rgb(0, 0, 170); color: white">a</td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+					</tr>
+					<tr>
+						<td>&nbsp;</td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+					</tr>
+					<tr>
+						<td>&nbsp;</td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+					</tr>
+					<tr>
+						<td>&nbsp;</td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+						<td></td>
+					</tr>
+				</table>
+			</p>
+			<h3>¿Cómo trasladamos eso a nuestro código?</h3>
+			<p>
+				Para que el código sea legible, lo primero que vamos a hacer es <b>definir una constante que contenga la dirección del <i>buffer VGA</i></b>. Yo la he llamado <samp>memory_screen_buffer</samp>:
+			</p>
+			<pre><code class="language-x86asm">memory_screen_buffer equ 0xB8000</code></pre>
+			<p>
+				Ahora vamos a redactar la función en sí. <b>Nuestra implementación nos permitirá mostrar cualquier cadena de texto, en cualquier posición de la pantalla, en cualquier color</b>. Recibiremos esos 3 datos en los siguientes registros:
+			</p>
+			<ul>
+				<li>
+					<samp>edi</samp>: puntero hacia la dirección de nuestro <i>buffer VGA</i>.<br>
+					<i><b>Ejemplo:</b> <samp>0xB8000</samp> para el principio del buffer, o <samp>0xB8002</samp> para el segundo caracter.<br>
+					<span style="color: rgb(235, 105, 105)"><b>Aviso:</b> Los números impares provocarán comportamientos inesperados.</span></i><br><br>
+				</li>
+				<li>
+					<samp>esi</samp>: puntero hacia nuestra cadena de texto.<br>
+					<i><b>Ejemplo:</b> <samp>msg_boot</samp> para nuestro mensaje de bienvenida.</i><br><br>
+				</li>
+				<li>
+					<samp>bl</samp>: colores de frente y de fondo para el texto.<br>
+					<i><b>Ejemplo:</b> <samp>0x20</samp> para texto verde sobre fondo negro.</i>
+				</li>
+			</ul>
+			<p>
+				Es interesante destacar el uso de algunos registros de 32 bits (<samp>edi</samp> y <samp>esi</samp>). Esto se debe a que en el modo de 32 bits, los punteros ocupan 32 bits. Concretamente, en este caso el uso de registros de 16 bits no debería ocasionar problemas, pero conviene adaptarse. Además, estos registros no son arbitrarios. <b>El uso de otros registros, aunque sean de 32 bits, puede ocasionar problemas</b>.
+			</p>
+			<p>
+				También usamos un registro de un solo byte (<samp>bl</samp>) para el color, debido a que no hace falta más espacio. <b>Este registro sí es arbitrario</b>. Puede cambiarse, por ejemplo, por <samp>cl</samp> o <samp>dl</samp>.
+			</p>
+			<p>
+				A partir de aquí, el código es parecido al de la función <samp>rmode_print</samp>:
+			</p>
+			<pre><code class="language-x86asm">pmode_print:
+    [bits 32]             ; Emitir código de 32 bits
+
+pmode_print_loop:
+    lodsb                 ; Copiar 'edi' a 'al' e incrementar 'al'
+    or al, al             ; Comprobar si 'al' es igual a 0
+    jz pmode_print_ret    ; Si lo es, terminar la función
+
+    mov [edi], al         ; Copiar 'al' hacia nuestro buffer
+    inc edi               ; Apuntar al siguiente byte del buffer
+    mov [edi], bl         ; Copiar el código de color hacia buffer
+    inc edi               ; Incrementar 'edi' para apuntar hacia el siguiente caracter
+
+    call pmode_print_loop ; Comprobar el siguiente caracter
+
+pmode_print_ret:
+    ret                   ; Terminar la función</code></pre>
+    	<p>
+    		Ahora, si quisiéramos imprimir el texto <samp>Hola</samp>, en la esquina superior izquierda de la pantalla, en blanco sobre azul, solo tendríamos que invocar la función tal que así:
+    	</p>
+    	<pre><code class="language-x86asm">mov edi, memory_screen_buffer
+mov esi, msg_boot
+mov bl, 0x1F
+call pmode_print</code></pre>
+		</details>
+		<details id="Resumen" open>
+			<summary>
+				<h2>Resumen</h2>
+				<hr>
+			</summary>
+			<p>
+				En este episodio hemos aprendido a hacer dos cosas: pasar al modo protegido y escribir al buffer VGA (o <i>memoria de vídeo</i>). <b>Esto nos deja muy cerca del final de nuestro bootloader</b>. Tan solo nos queda un paso: programar un kernel mínimo y saltar a él. Al dar este paso, podremos escribir (por fin) código en C y habremos entrado en el primer programa de nuestro sistema operativo.
+			</p>
+			<p>
+				Antes de llegar ahí, aprenderemos también <b>cómo pasar del modo protegido al modo real de nuevo</b>. Esto será necesario cuando queramos usar cualquier <i>BIOS interrupt</i>, lo cual resulta necesario en algunos casos.
+			</p>
+		</details>
+		<p id="footer">
+			<a href="../../"><button>Portada</button>
+			<a href="../capitulo-8"><button>Siguiente capítulo</button></a>
+		</p>
+	</div>
+
+	<!-- Library: highlight.js -->
+	<script src="../../assets/lib/highlight/highlight.min.js"></script>
+	<script>hljs.highlightAll();</script>
+</body>

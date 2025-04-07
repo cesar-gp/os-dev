@@ -672,6 +672,16 @@ table.stylized th.centered-cell, table.stylized td.centered-cell {
 	content: '7F 45 4C 46\a 01 01 01 00\a ...';
 }
 
+.electrical-line {
+	border-left: 4px solid #303030;
+	padding-right: 8px;
+	height: 64px;
+}
+
+.electrical-line.on {
+	border-left: 4px solid #3DB71B;
+}
+
 .info {
 	transition: 0.4s cubic-bezier(0.33, 1, 0.68, 1);
 }
