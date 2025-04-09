@@ -950,7 +950,10 @@ rep stosb                  ; memcpy(edi, al, ecx);</code></pre>
 				Estaríamos definiendo la letra <i>M mayúscula</i> con un color de fondo azul y un color de frente blanco, como esta: <samp style="background-color: rgb(0, 0, 170); color: white">M</samp>.
 			</p>
 			<p>
-				La dirección <samp>0xB8000</samp> de la memoria guarda los datos de la primera celda de nuestra tabla, por lo que si escribimos nuestra letra (<samp>0x411F</samp>) a esa dirección, nuestra pantalla de 8 caracteres por 4 lineas mostrará esto:
+				Debido a que los datos se deben guardar siguiendo la convención <i>little endian</i>, los bytes separados se escribirían <samp>0x4D, 0x1F</samp>, <b>pero al escribirlos como una <i>word</i> (2 bytes), el orden se invierte: <samp>0x1F4D</samp></b>.
+			</p>
+			<p>
+				La dirección <samp>0xB8000</samp> de la memoria guarda los datos de la primera celda de nuestra tabla, por lo que si escribimos nuestra letra (<samp>0x1F4D</samp>) a esa dirección, nuestra pantalla de 8 caracteres por 4 lineas mostrará esto:
 			</p>
 			<p>
 				<table class="memory w2 hcenter">
@@ -997,7 +1000,7 @@ rep stosb                  ; memcpy(edi, al, ecx);</code></pre>
 				</table>
 			</p>
 			<p>
-				Si avanzamos 2 bytes y escribimos en la dirección <samp>0xB802</samp> la letra <samp>0x6F1F</samp> (<i>0x6F</i> para la <i>o minúscula</i>, <i>0x1</i> para el color azul de fondo y <i>0xF</i> para el color blanco de fondo), veremos esto:
+				Si avanzamos 2 bytes y escribimos en la dirección <samp>0xB8002</samp> la letra <samp>0x1F6F</samp> (<i>0x6F</i> para la <i>o minúscula</i>, <i>0x1</i> para el color azul de fondo y <i>0xF</i> para el color blanco de fondo), veremos esto:
 			</p>
 			<p>
 				<table class="memory w2 hcenter">
@@ -1155,7 +1158,7 @@ mov esi, msg_protected
 mov bl, 0x1F
 call pmode_print</code></pre>
 			<p>
-				Por último, <b>asegúrate de que, después de estas lineas, el código salta a la función <samp>halt</samp></b>. Se asume que durante todo el capítulo has ido poniendo la linea <samp>jmp halt</samp> al final del código que hemos ido añadiendo. Si no, el programa seguirá ejecutándose linea por linea y dará error.
+				Por último, <b>asegúrate de que, después de estas lineas, el código salta a la función <samp>halt</samp></b>. Se asume que durante todo el capítulo has ido arrastrando la linea <samp>jmp halt</samp> al final del código que hemos ido añadiendo. Si no, el programa seguirá ejecutándose linea por linea y dará error.
 			</p>
 		</details>
 		<details id="Resumen" open>
@@ -1167,7 +1170,7 @@ call pmode_print</code></pre>
 				En este episodio hemos aprendido a hacer dos cosas: pasar al modo protegido y escribir al buffer VGA (o <i>memoria de vídeo</i>). <b>Esto nos deja muy cerca de nuestro primer archivo escrito en C</b>. Tan solo nos queda un paso: programar el punto de entrada a C y aprender a saltar a ese punto.
 			</p>
 			<p>
-				Antes de llegar ahí, aprenderemos también <b>cómo pasar del modo protegido al modo real de nuevo</b>. Esto será necesario cuando queramos usar cualquier <i>BIOS interrupt</i>, lo cual resulta necesario en algunos casos.
+				Antes de llegar ahí, aprenderemos también <b>cómo pasar del modo protegido al modo real de nuevo</b>. Esto será necesario cuando queramos usar cualquier <i>BIOS interrupt</i>, lo cual resulta necesario en algunos casos. También dedicaremos un apartado a <b>organizar nuestro código correctamente</b> para poder extender el proyecto sin preocuparnos de rehacer <samp>build.sh</samp>.
 			</p>
 		</details>
 		<details id="Ejemplo_descargable" open>

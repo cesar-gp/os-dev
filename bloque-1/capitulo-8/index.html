@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+
+<head>
+	<title>Manual de OSDev</title>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" type="text/css" href="../../assets/global.css">
+	<link rel="stylesheet" href="../../assets/lib/highlight/styles/github-dark-dimmed.css">
+</head>
+<body class="flex col spaced">
+	<a id="navigator" class="flex col hcentered vcentered fixed hleft" href="../capitulo-7">
+		<img width="40" height="40" src="../../assets/icons/chevron-left.svg">
+	</a>
+	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="../capitulo-9">
+		<img width="40" height="40" src="../../assets/icons/chevron-right.svg">
+	</a>
+	<div id="content">
+		<div class="navhelper">
+			<a href="../../">Manual</a>
+			&nbsp;→&nbsp;
+			<a href="../">Bloque 1</a>
+			&nbsp;→&nbsp;
+			<b>Capítulo 8</b>
+		</div>
+		<h1>Capítulo 8: <i>Here, There and Back Again</i></h1>
+		<hr>
+		<p>
+			Hasta ahora, solo hemos saltado hacia adelante en nuestro kernel. De la BIOS a la <i>stage1</i>, de la <i>stage1</i> a la <i>stage2</i>, de los 16 bits a los 32 bits... <b>En este capítulo, aprenderemos a volver atrás siempre que sea necesario.</b>
+		</p>
+		<p>
+			No solo me refiero a las <i>secciones</i> de nuestro bootloader. <b>También aprenderemos a saltar de Assembly a C</b>. Si no sabes escribir en C, no te preocupes mucho (<i>por ahora</i>), porque escribiremos muy pocas lineas, solo para aprender a movernos entre los dos lenguajes.
+		</p>
+		<details id="Tabla_de_contenidos" open>
+			<summary>
+				<h2>Tabla de contenidos</h2>
+				<hr>
+			</summary>
+			<ol>
+				<li><a href="#Volver_al_modo_real">Volver al modo real</a></li>
+				<li><a href="#Saltar_a_código_escrito_en_C">Saltar a código escrito en C</a></li>
+				<li><a href="#Resumen">Resumen</a></li>
+				<li><a href="#Ejemplo_descargable">Ejemplo descargable</a></li>
+			</ol>
+		</details>
+		<details id="Volver_al_modo_real" open>
+			<summary>
+				<h2>Volver al modo real</h2>
+				<hr>
+			</summary>
+			<p>
+				Ya sabes que para usar los <i>BIOS interrupts</i> tenemos que volver al modo real del procesador. <b>Este proceso se considera costoso, y es recomendable evitarlo cuando sea posible.</b> Sin embargo, también es necesario para algunas funciones básicas del <i>bootloader</i>.
+			</p>
+			<h3>La teoría: ¿por qué no nos quedamos en el modo real?</h3>
+			<p>
+				<b>Respuesta corta:</b> porque estamos usando GCC, y además, queremos usar más de 64 KB de RAM.<br>
+				<b>Respuesta larga:</b> para empezar, tienes que entender la diferencia entre el código de 16 bits y el de 32.
+			</p>
+			<p>
+				NASM se encarga de traducir nuestro código Assembly a código máquina. Las secciones marcadas con la directiva <samp>[bits 16]</samp> se traducen a código máquina de 16 bits, y las marcadas con la directiva <samp>[bits 32]</samp>... te puedes imaginar.
+			</p>
+			<p>
+				El procesador tiene que saber cuánto ocupa cada instrucción para poder saltar a la siguiente al terminar cada instrucción. Para entendernos, <b>ve nuestro código de 16 bits aproximadamente así</b>:
+			</p>
+			<p>
+				<table class="memory">
+					<tr>
+						<th>0x00</th>
+						<th>0x01</th>
+						<th>0x02</th>
+						<th>0x03</th>
+						<th>0x04</th>
+						<th>0x05</th>
+						<th>0x06</th>
+						<th>0x07</th>
+						<th>0x08</th>
+						<th>0x09</th>
+						<th>0x0A</th>
+						<th>0x0B</th>
+						<th>0x0C</th>
+						<th>0x0D</th>
+						<th>0x0E</th>
+						<th>0x0F</th>
+					</tr>
+					<tr>
+						<td colspan="4">instrucción 1</td>
+						<td colspan="4">instrucción 2</td>
+						<td colspan="4">instrucción 3</td>
+						<td colspan="4">instrucción 4</td>
+					</tr>
+				</table>
+			</p>
+			<p>
+				Y el código de 32 bits, así:
+			</p>
+			<p>
+				<table class="memory">
+					<tr>
+						<th>0x00</th>
+						<th>0x01</th>
+						<th>0x02</th>
+						<th>0x03</th>
+						<th>0x04</th>
+						<th>0x05</th>
+						<th>0x06</th>
+						<th>0x07</th>
+						<th>0x08</th>
+						<th>0x09</th>
+						<th>0x0A</th>
+						<th>0x0B</th>
+						<th>0x0C</th>
+						<th>0x0D</th>
+						<th>0x0E</th>
+						<th>0x0F</th>
+					</tr>
+					<tr>
+						<td colspan="8">instrucción 1</td>
+						<td colspan="8">instrucción 2</td>
+					</tr>
+				</table>
+			</p>
+			<p>
+				Si saltamos a una sección que contiene código de 32 bits <b>sin cambiar de segmento en nuestra GDT</b> (es decir, sin avisarle del cambio de tamaño), intentará ejecutar como instrucciones cosas que no lo son. Leerá instrucciones partidas a la mitad y se comportará de formas inesperadas. El cambio de segmento <i>avisa</i> al procesador para evitar esto.
+			</p>
+			<p>
+				<b>¿Y para eso hace falta entrar en modo protegido? Sí.</b> Para cargar la GDT y poder definir y usar segmentos de 32 bits, Intel te obliga a cargar el modo protegido antes (linea A20, cambiar la <i>PE flag</i>, etc.). Si intentamos ejecutar código de 32 bits antes del cambio, provocaremos un <a href="https://en.wikipedia.org/wiki/General_protection_fault"><i>General Protection Fault</i></a> o un <a href="https://en.wikipedia.org/wiki/Segmentation_fault"><i>Segmentation fault</i></a> dependiendo del caso. Por eso hemos hecho el salto en el capítulo anterior.
+			</p>
+			<p>
+				<b>¿Y para qué necesitamos el código de 32 bits?</b> Por varias razones:
+			</p>
+			<ol>
+				<li>Porque GCC, y la mayoría de los compiladores de C que siguen vivos, no compilan código máquina de 16 bits. <b>Si escribimos en C, el modo real no es una opción sostenible.</b></li>
+				<li>Ya lo hemos mencionado, pero para usar más de 64 KB de RAM, necesitamos acceder a direcciones por encima de los 16 bits. <b>Desde los 32 bits, podemos acceder de forma segura a los primeros 4 GB de RAM.</b></li>
+			</ol>
+			<h3>La práctica: ya sabemos salir, ¿cómo volvemos a entrar en el modo real?</h3>
+			<p>
+				En el capítulo anterior, nuestro código termina llamando a la función <samp>pmode_print</samp> y deteniendo el sistema. Como siempre, vamos a empezar a escribir desde las lineas anteriores a <samp>jmp halt</samp>.
+			</p>
+			<p>
+				Recordemos nuestra GDT: estamos en el segmento <samp>0x08</samp> (código de 32 bits). Queremos ir al segmento <samp>0x18</samp> (código de 32 bits). De paso, también queremos saltar a otra sección del código para hacer más claro el salto. Eso es un <i>far jump</i>, y lo ejecutaremos así:
+			</p>
+			<pre><code class="language-x86asm">jmp dword 0x18:pmode16
+
+; El nombre 'pmode16' es arbitrario. Podemos llamar a la siguiente sección como queramos.</code></pre>
+			<p>
+				Ahora que volvemos a los 16 bits, podemos desactivar la <i>PE flag</i> sin causar ningún error. Para ello, en la sección a la que hemos saltado, desactivaremos el último bit del registro <samp>cr0</samp> tal que así:
+			</p>
+			<pre><code class="language-x86asm">pmode16:
+    [bits 16]       ; Emitir código de 16 bits
+
+    mov eax, cr0    ; Copiar 'cr0' a 'eax'
+    and al, ~1      ; Desactivar el último bit de 'eax'
+    mov cr0, eax    ; Copiar 'eax' a 'cr0'</code></pre>
+    		<p>
+    			<b>Con otro <i>far jump</i> podemos entrar otra vez al modo real.</b> Pero este salto lo haremos al segmento nulo de nuestra GDT (el segmento <samp>0x00</samp>). Esta es la forma de desactivar temporalmente el uso de la GDT.
+    		</p>
+    		<pre><code class="language-x86asm">jmp dword 0x00:rmode
+
+; No te lo vas a creer, pero el nombre 'rmode' es arbitrario. Puedes poner el que quieras.</code></pre>
+			<p>
+				Y ya hemos hecho el salto al modo real. Por último, para poder usar el stack y algunas instrucciones, nos queda asegurarnos de que todos los segmentos de datos también se mueven al <samp>0x00</samp>. Lo hemos hecho ya varias veces y es siempre así:
+			</p>
+			<pre><code class="language-x86asm">rmode:
+    mov ax, 0
+    mov ds, ax
+    mov ss, ax</code></pre>
+			<p>
+				Si quieres asegurarte de que todo funciona correctamente, puedes usar la función <samp>rmode_print</samp> de nuevo para poner un mensaje en pantalla. Así, por ejemplo:
+			</p>
+			<pre><code class="language-x86asm">mov si, msg_ejemplo
+call rmode_print
+
+; ... y donde declaremos nuestras variables ...
+
+msg_ejemplo:
+    db "Hemos vuelto al modo real!", 0x0D, 0x0A, 0</code></pre>
+    		<h3>Recordatorio: cómo volver al modo protegido</h3>
+    		<p>
+    			Es recomendable limitar al mínimo posible nuestro uso del modo real del procesador. Por eso, una vez terminemos de ejecutar el <i>BIOS interrupt</i> que necesitemos, tendremos que volver al modo protegido.
+    		</p>
+    		<p>
+    			Se trata de un proceso trivial porque los pasos más difíciles ya están hechos. Solo tienes que activar la <i>PE flag</i>, saltar al segmento de código de 32 bits, anotar la directiva <samp>[bits 32]</samp> y preparar los segmentos de datos:
+    		</p>
+    		<pre><code class="language-x86asm">; Activar la PE flag
+mov eax, cr0
+or al, 1
+mov cr0, eax
+
+; Saltar al segmento de código de 32 bits
+jmp dword 0x08:pmode_again
+
+pmode_again:
+    [bits 32]
+
+    ; Reestablecer segmentos de datos
+    mov ax, 0x10
+    mov ds, ax
+    mov ss, ax
+
+    ; ... nuestro código</code></pre>
+		</details>
+		<details id="Saltar_a_código_escrito_en_C" open>
+			<summary>
+				<h2>Saltar a código escrito en C</h2>
+				<hr>
+			</summary>
+			<p>
+				Antes de empezar el salto a C, <b>conviene borrar de nuestra <i>stage2</i> todo el código que hemos escrito para volver al modo real y, desde ahí, volver de nuevo al modo protegido</b>. Para ello, seguiremos los siguientes pasos:
+			</p>
+			<ul>
+				<li>Eliminar las secciones <samp>pmode16</samp>, <samp>rmode</samp> y <samp>pmode_again</samp>.</li>
+				<li>Eliminar la instrucción con la que comenzamos la vuelta al modo real (<samp>jmp dword 0x18:pmode16</samp>).</li>
+				<li>Eliminar la variable <samp>msg_ejemplo</samp>.</li>
+			</ul>
+			<p>
+				<b>Hecho esto, vamos a ejecutar el salto a C.</b> Para empezar, vamos a hacer un archivo con una función mínima escrita en C, y vamos a saltar a ella desde Assembly.
+			</p>
+    		<h3>Escribir un archivo en C</h3>
+    		<p>
+    			En la misma carpeta que <samp>entry.asm</samp>, vamos a crear el archivo <samp>main.c</samp>. <b>La primera función que declararemos en él será <samp>quit()</samp>, que detendrá el sistema</b>... o, más bien, meterá el código en un bucle <i>for</i> del que no podrá salir.
+    		</p>
+    		<pre><code class="language-c">void quit() {
+    for(;;);
+}</code></pre>
+			<p>
+				<b>La siguiente función se llamará <samp>putc()</samp> y nos servirá para poner una letra en la pantalla</b>. El método es el mismo que hemos usado en nuestra función <samp>rmode_print</samp> en Assembly.
+			</p>
+			<p>
+				Para empezar, en la parte superior de nuestro archivo, definiremos un puntero hacia la dirección del buffer VGA:
+			</p>
+			<pre><code class="language-c">char* VGA_BUFFER = (char*) 0xB8000;</code></pre>
+			<p>
+				Y en el sitio que queramos, colocaremos nuestra función, que recibirá tres datos:
+			</p>
+			<ul>
+				<li>El caracter que queremos escribir.</li>
+				<li>El código de color que queremos usar.</li>
+				<li>La posición del carácter <i>(0 para la esquina superior izquierda, 1 para el siguiente, 2 para el siguiente...)</i>.</li>
+			</ul>
+			<pre><code class="language-c">void putc(char character, char color, int pos) {
+    VGA_BUFFER[pos] = character;
+    VGA_BUFFER[pos+1] = color;
+}</code></pre>
+			<p>
+				La siguiente función, que llamaremos <samp>write()</samp> llamará a <i>putc()</i> repetidas veces para poner cadenas de texto enteras. Para ello, utilizará un bucle <i>while</i>:
+			</p>
+			<pre><code class="language-c">void write(char* message, char color, int pos) {
+    while(*message != 0) {
+        putc(*message, color, pos);
+
+        message++;
+        pos += 2;
+    }
+}</code></pre>
+			<p>
+				<b>Esta función irá poniendo cada caracter de la <i>string</i> que le demos</b>, y avanzará 2 bytes para escribir el siguiente, y el siguiente... hasta que encuentre el caracter nulo (representado en ASCII mediante el número <samp>0</samp>). Al encontrarlo, terminará de ejecutarse.
+			</p>
+			<p>
+				Un dato curioso de C es que si, en vez de una condición, solo escribes el nombre de una variable, eso se interpretará como una condición que niega que el valor de la variable sea 0. <b>En resumen, escribir <samp>while(*message != 0)</samp> es lo mismo que escribir <samp>while(*message)</samp></b>.
+			<p>
+				<b>Por último, crearemos nuestro punto de entrada: la función <samp>cstart()</samp>.</b> En ella, escribiremos un mensaje en la esquina superior de la pantalla y detendremos el sistema:
+			</p>
+			<pre><code class="language-c">void cstart() {
+    write("Hemos escrito este mensaje desde C! Tomaaa!", 0x0F, 0);
+    quit();
+}</code></pre>
+			<h3>Llamar a nuestra función <samp>cstart</samp> desde assembly</h3>
+			<p>
+				Vamos a importar esta función desde nuestro archivo <samp>entry.asm</samp>. Para ello, vamos a irnos al principio del archivo, y en la parte donde tenemos importadas las variables <samp>__bss_start</samp> y <samp>__end</samp>, <b>añadiremos una linea para importar nuestra función</b>:
+			</p>
+			<pre><code class="language-x86asm">; Funciones importadas de main.c
+extern cstart</code></pre>
+			<p>
+				Ahora que la hemos importado, podremos llamarla directamente desde nuestro código, como si fuera un símbolo en assembly. <b>Es decir, podemos llamar a <samp>cstart</samp> con una instrucción <samp>call</samp> al final de nuestra sección <samp>pmode32</samp></b> (justo antes de nuestro salto a <i>halt</i>):
+			</p>
+			<pre><code class="language-x86asm">pmode32:
+    ; ...
+
+    call cstart</code></pre>
+			<p>
+				La función <samp>cstart</samp> está diseñada para no volver nunca después de haberla llamado, pero si cometemos algún error y vuelve, deberíamos tener aquí código para detener el sistema. Por eso, <b>a la instrucción <samp>call cstart</samp> debería seguirla una desactivación de los interrupts y un salto a <samp>halt</samp></b>:
+			</p>
+			<pre><code class="language-x86asm">pmode32:
+    ; ...
+
+    call cstart
+
+    ; Detener el sistema si el código llega a volver
+    cli
+    jmp halt</code></pre>
+    		<h3>Compilar <samp>main.c</samp> y enlazarlo junto al resto del código</h3>
+    		<p>
+    			En nuestro script <samp>build.sh</samp>, usamos las siguientes lineas de código para compilar y enlazar nuestra <i>stage2</i>:
+    		</p>
+    		<pre><code class="language-bash">nasm -f elf -o build/obj/entry.obj src/stage2/entry.asm
+${GCC} -T src/stage2/linker.ld -nostdlib -o build/bin/stage2.bin build/obj/entry.obj -lgcc</code></pre>
+    		<ul>
+    			<li>La primera <b>compila <i>entry.asm</i></b> y lo convierte en un objeto binario llamado <i>entry.obj</i>.</li>
+    			<li>La segunda <b>vincula nuestros objetos binarios</b> (por ahora, solo <i>entry.obj</i>) para crear un ejecutable llamado <i>stage2.bin</i>. Además, tiene opciones para vincularlo obedeciendo a <i>linker.ld</i> (<samp>-T src/stage2/linker.ld</samp>), no usar la <i>C Standard Library</i> (<samp>-nostdlib</samp>) y sí usar <i>libgcc</i> (<samp>-lgcc</samp>).</li>
+    		</ul>
+    		<p>
+    			<b>Ahora tenemos un nuevo archivo que añadir a nuestro ejecutable: <i>main.c</i>.</b> Es decir, tenemos que compilarlo para crear <i>main.obj</i> y vincular ese objeto binario a nuestro ejecutable.
+    		</p>
+    		<p>
+    			Traducido a bash, eso significaría invocar a GCC para la arquitectura i686-elf, definido en nuestra variable <samp>${GCC}</samp>, y con él, compilar (<samp>-c</samp>) para un entorno sin sistema operativo (<samp>-ffreestanding</samp>), sin llamadas a la <i>C Standard Library</i> (<samp>-nostdlib</samp>).
+    		</p>
+    		<p>
+    			El archivo de código será <i>src/stage2/main.c</i> y el archivo de destino (el objeto binario) será <i>build/obj/main.obj</i>:
+    		</p>
+    		<pre><code class="language-bash">${GCC} -ffreestanding -nostdlib -c -o build/obj/main.obj src/stage2/main.c</code></pre>
+    		<p>
+    			Tras esto, tendremos 2 objetos binarios (<i>entry.obj</i> y <i>main.obj</i>). En el comando que usamos para vincular los objetos y crear el ejecutable, simplemente tendremos que añadir <i>main.obj</i> a la lista de objetos binarios. <b>Aquí tienes el comando actual dividido por lineas para entenderlo bien:</b>
+    		</p>
+    		<pre><code class="language-bash">${GCC} \
+-T src/stage2/linker.ld \    # Vincular usando 'linker.ld'
+-nostdlib \                  # Sin la C standard library
+-o build/bin/stage2.bin \    # Hacia el archivo 'stage2.bin'
+build/obj/entry.obj \        # Lista de objetos binarios que vincular
+-lgcc                        # Usando 'libgcc'</code></pre>
+			<p>
+				Lo único que hay que hacer es <b>añadir el nuevo objeto <samp>main.obj</samp> a la lista de objetos binarios que vincular</b>:
+			</p>
+			<pre><code class="language-bash">${GCC} \
+-T src/stage2/linker.ld \    # Vincular usando 'linker.ld'
+-nostdlib \                  # Sin la C standard library
+-o build/bin/stage2.bin \    # Hacia el archivo 'stage2.bin'
+build/obj/entry.obj \        # Lista de objetos binarios que vincular
+build/obj/main.obj \
+-lgcc                        # Usando 'libgcc'</code></pre>
+			<p>
+				Aquí lo tienes en una linea:
+			</p>
+			<pre><code class="language-bash">${GCC} -T src/stage2/linker.ld -nostdlib -o build/bin/stage2.bin build/obj/entry.obj build/obj/main.obj -lgcc</code></pre>
+			<p>
+				En el futuro cercano, nos mudaremos a una estructura de proyecto más sostenible a largo plazo, ya que nuestro script se está volviendo un poco enrevesado. Por ahora, como solo tenemos 2 archivos de código (<samp>entry.asm</samp> y <samp>main.c</samp>) nos sigue sirviendo.
+			</p>
+			<h3>Ejecución y resultados</h3>
+			<p>
+				Como siempre, puedes emular el sistema operativo (siempre que tengas instalado <i>qemu</i>) ejecutando el script <samp>build.sh</samp>. <b>Deberías ver en la primera linea de la pantalla el texto que hemos escrito en nuestra función <samp>cstart()</samp></b>.
+			</p>
+			<p>
+				<img class="block hcenter" width="75%" src="img/screenshot.png">
+			</p>
+			<p>
+				Como curiosidad, ha sobreescrito lo que escribimos en este mismo sitio en el capítulo anterior (el texto en azul que decía <i>Modo protegido</i>). Un mensaje de capítulos anteriores que sí podemos ver es ese <i>Hola</i>, que ponemos en pantalla al iniciar la <i>stage2</i>. <b>Estos mensajes sirven únicamente para depurar el programa y serán eliminados en capítulos posteriores.</b>
+			</p>
+		</details>
+		<details id="Resumen" open>
+			<summary>
+				<h2>Resumen</h2>
+				<hr>
+			</summary>
+			<p>
+				Este capítulo ha sido algo más corto y menos denso, y sienta el precedente para desarrollar partes algo más complejas de nuestro <i>bootloader</i>. <b>Hemos aprendido a volver al modo real y de ahí otra vez al modo protegido. También hemos saltado por primera vez a código escrito en C.</b>
+			</p>
+			<p>
+				A partir de aquí, podremos aprovechar el potencial de C para cargar, por fin, el primer programa de nuestro sistema operativo: el <i>kernel</i>. Para ello, tendremos que volver a repasar conceptos fundamentales de FAT12, instalar el kernel en nuestro sistema operativo, y saltar a su código.
+			</p>
+		</details>
+		<details id="Ejemplo_descargable" open>
+			<summary>
+				<h2>Ejemplo descargable</h2>
+				<hr>
+			</summary>
+			<p>
+				En el apartado sobre <a href="#Volver_al_modo_real">volver al modo real</a> hemos escrito algunos fragmentos de código que no estarán presentes en nuestro sistema final. Por esa razón, en este capítulo presentamos 2 ejemplos descargables:
+			</p>
+			<ul>
+				<li><a href="capitulo-8-cambios-de-modo.tar.gz">capitulo-8-cambios-de-modo.tar.gz</a>: nuestro código para entrar al modo protegido, volver al modo real y volver de nuevo al protegido.</li>
+				<li><a href="capitulo-8-salto-a-c.tar.gz">capitulo-8-salto-a-c.tar.gz</a>: nuestro código para saltar a código C.</li>
+			</ul>
+		</details>
+		<p id="footer">
+			<a href="../../"><button>Portada</button>
+			<a href="../capitulo-9"><button>Siguiente capítulo</button></a>
+		</p>
+	</div>
+
+	<!-- Library: highlight.js -->
+	<script src="../../assets/lib/highlight/highlight.min.js"></script>
+	<script>hljs.highlightAll();</script>
+</body>
