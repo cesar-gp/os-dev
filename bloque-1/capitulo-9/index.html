@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+
+<head>
+	<title>Manual de OSDev</title>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" type="text/css" href="../../assets/global.css">
+	<link rel="stylesheet" href="../../assets/lib/highlight/styles/github-dark-dimmed.css">
+</head>
+<body class="flex col spaced">
+	<a id="navigator" class="flex col hcentered vcentered fixed hleft" href="../capitulo-8">
+		<img width="40" height="40" src="../../assets/icons/chevron-left.svg">
+	</a>
+	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="../capitulo-10">
+		<img width="40" height="40" src="../../assets/icons/chevron-right.svg">
+	</a>
+	<div id="content">
+		<div class="navhelper">
+			<a href="../../">Manual</a>
+			&nbsp;→&nbsp;
+			<a href="../">Bloque 1</a>
+			&nbsp;→&nbsp;
+			<b>Capítulo 9</b>
+		</div>
+		<h1>Capítulo 9: Organizarse a prueba de balas</h1>
+		<hr>
+		<p>
+			<b>Nuestro bootloader se está haciendo mayor.</b> Dentro de él, tenemos dos subproyectos: <i>stage1</i> y <i>stage2</i>, cada uno en su carpeta, y dentro de stage2 tenemos código escrito en 2 lenguajes distintos. Pero eso no es ningún problema, <b>lo que debería preocuparnos es que con C, las cosas van a crecer mucho más rápido</b>, y actualizar <i>build.sh</i> una y otra vez va a ser cada vez más molesto.
+		</p>
+		<p>
+			Dentro de poco, empezaremos a crear distintos archivos de código C dentro de nuestra <i>stage2</i>. Después de eso, empezaremos con el kernel. A largo plazo, es probable que tengamos que hacer varias ediciones de cada proyecto según la arquitectura para la que queremos programar. Por todo esto, <b>es vital poder actualizar el proyecto con facilidad.</b>
+		</p>
+		<p>
+			En este capítulo exploraremos cómo mejorar la estructura de nuestro proyecto, y pasaremos nuestro script <i>build.sh</i> a una <a href="https://www.gnu.org/software/make/manual/make.html#Introduction">Makefile</a>.</p>
+		<details id="Tabla_de_contenidos" open>
+			<summary>
+				<h2>Tabla de contenidos</h2>
+				<hr>
+			</summary>
+			<ol>
+				<li><a href="#Estructura_del_proyecto">Estructura del proyecto</a></li>
+				<li><a href="#Empezar_a_usar_GNU_make">Empezar a usar GNU make</a></li>
+				<li><a href="#Escribir_las_Makefiles">Escribir las Makefiles</a></li>
+				<li><a href="#Extra_depurar_nuestro_sistema_con_Bochs">Extra: depurar nuestro sistema con Bochs</a></li>
+				<li><a href="#Resumen">Resumen</a></li>
+				<li><a href="#Ejemplo_descargable">Ejemplo descargable</a></li>
+			</ol>
+		</details>
+		<details id="Estructura_del_proyecto" open>
+			<summary>
+				<h2>Estructura del proyecto</h2>
+				<hr>
+			</summary>
+			<p>
+				Actualmente, nuestra estructura de proyecto es exactamente esta:
+			</p>
+			<pre><code>sistema
+|-- build
+|   |-- bin
+|   |   |-- stage1.bin
+|   |   |-- stage2.bin
+|   |-- obj
+|   |   |-- entry.obj
+|   |   |-- main.obj
+|   |-- disco.img
+|-- src
+|   |-- stage1
+|   |   |-- stage1.asm
+|   |-- stage2
+|   |   |-- entry.asm
+|   |   |-- linker.ld
+|   |   |-- main.c
+|-- build.sh</code></pre>
+			<p>
+				Esta estructura de proyecto tiene <b>tres fallos principales</b>:
+			</p>
+			<ul>
+				<li>Toda la compilación se hace desde un mismo archivo, que se puede volver ilegible si el proyecto crece mucho.</li>
+				<li>Nuestro script <i>build.sh</i> nos ofrece una sola opción: compilar todo y emularlo con <i>qemu</i>. Eso nos impide, por ejemplo, depurar fácilmente nuestro sistema con el emulador <a href="https://bochs.sourceforge.io/">bochs</a>.</li>
+				<li><i>stage1</i> y <i>stage2</i> forman parte del mismo proyecto, que es el bootloader, pero están en carpetas distintas.</li>
+			</ul>
+			<p>
+				Para solucionar esto, te propongo una estructura un poquito más compleja, pero mucho más útil:
+			</p>
+			<pre><code>sistema
+|-- build
+|   |-- bootloader
+|   |   |-- stage2
+|   |   |   |-- entry.obj
+|   |   |   |-- main.obj
+|   |   |-- stage1.bin
+|   |   |-- stage2.bin
+|   |-- disco.img
+|-- src
+|   |-- bootloader
+|       |-- stage1
+|       |   |-- stage1.asm
+|       |   |-- Makefile
+|       |-- stage2
+|       |   |-- entry.asm
+|       |   |-- linker.ld
+|       |   |-- main.c
+|       |   |-- Makefile
+|       |-- Makefile
+|-- Makefile</code></pre>
+			<p>
+				Esta estructura nos permitirá <b>dividir claramente el código del bootloader y el código del kernel</b> una vez empecemos a programarlo. También permite construir cada ejecutable desde su propia Makefile. Todo ello manteniendo la separación entre el código (<samp>src</samp>) y los archivos compilados (<samp>build</samp>).
+			</p>
+			<p>
+				Todas las carpetas dentro de <i>build</i> las generará cada Makefile según vayan siendo necesarias, siguiendo solo una norma: <b>las carpetas dentro de <i>build</i> deben seguir la misma estructura que las carpetas en <i>src</i></b>. 
+			</p>
+			<p>
+				<b>Cuando ejecutemos el comando <samp>make</samp> en la carpeta de nuestro proyecto, estaremos ejecutando el código de nuestra Makefile global</b>, la que está en la carpeta raíz. Esa Makefile ejecutará la de cada proyecto, esas ejecutarán las que estén por debajo de ellas, etc.
+			</p>
+		</details>
+		<details id="Empezar_a_usar_GNU_make" open>
+			<summary>
+				<h2>Empezar a usar <i>GNU make</i></h2>
+				<hr>
+			</summary>
+			<h3>La sintaxis de GNU make</h3>
+			<p>
+				Para familiarizarse rápido con la sintaxis de GNU make, recomiendo el tutorial <i><a href="https://makefiletutorial.com/">Makefile Tutorial By Example</a></i> escrito por <a href="https://x.com/chaselambda">Chase Lambert</a>. <b>Aquí solo voy a dar un par de <i>pistas</i> sobre la sintaxis para ponernos al día muy rápidamente</b>.
+			</p>
+			<p>
+				Una <i>Makefile</i> es un archivo que situaremos en la carpeta raíz de nuestro proyecto. Lo llamaremos tal que así: <samp>Makefile</samp>, y cuando ejecutemos el comando <samp>make</samp> se ejcutarán los comandos que escribamos en su interior. Pero los comandos no se puede escribir uno tras otro como si fuera un script, <b>dentro de la Makefile, dividiremos nuestras secciones de código en <i>recetas</i></b>.
+			</p>
+			<p>
+				A continuación, se van a mostrar varias recetas a modo de ejemplo para ir entendiendo su utilidad, su orden de ejecución, etc. Por motivos estéticos, las tabulaciones se han sustituido por 4 espacios seguidos. <b>Si quieres probar el código, asegúrate de sustituir por tabulaciones esos 4 espacios seguidos al principio de ciertas lineas. Si no, el comando <samp>make</samp> dará error.</b>
+			</p>
+			<p>
+				Esta es una receta que nos permite poner varias cosas en la consola ejecutando únicamente el comando <samp>make test</samp>:
+			</p>
+			<pre><code class="language-makefile">test:
+    echo "Esto es un test!"
+    echo "Y está sacado de un tutorial de sistemas operativos :)"</code></pre>
+    		<p>
+    			Esto es un archivo que contiene 2 recetas. <b>Puedes ejecutar una ejecutando <samp>make test1</samp>, y la otra ejecutando <samp>make test2</samp></b>. Si ponemos solamente <samp>make</samp>, se ejecutará únicamente la que esté escrita más arriba en el documento (en este caso, <samp>test1</samp>).
+    		</p>
+    		<pre><code class="language-makefile">test1:
+    echo "Este es el test número 1!"
+
+test2:
+    echo "Este es el test número 2!"</code></pre>
+    		<p>
+    			Si queremos que para ejecutar <i>test2</i> sea necesario primero haber ejecutado <i>test1</i>, <b>lo único que tenemos que hacer es anotarlo como pre-requisito en la receta</b>:
+    		</p>
+    		<pre><code class="language-makefile">test1:
+    echo "Este es nuestro primer test!"
+
+test2: test1
+    echo "Este es el segundo test!"
+    echo "Siempre que lo ejecutes (con make test2) se ejecutará test1 antes."</code></pre>
+    		<p>
+    			Vamos a trasladarlo al terreno práctico. Si vamos a la carpeta en la que tenemos nuestro archivo <i>stage1.asm</i> y creamos dentro de ella esta Makefile:
+    		</p>
+    		<pre><code class="language-makefile">build/stage1.bin: stage1.asm
+    nasm -f bin -o build/stage1.bin stage1.asm
+
+create: remove
+    # Recrear la carpeta 'build' para los archivos compilados
+    mkdir build
+
+remove:
+    # Eliminar archivos compilados de la versión anterior, si existen
+    rm -rf build</code></pre>
+    		<p>
+    			Con tan solo ejecutar el comando <samp>make</samp>, se ejecutará la receta <samp>build/stage1.bin</samp>, que requerirá antes la receta <samp>create</samp>, y esta a su vez la receta <samp>remove</samp>. Así habremos compilado nuestro código en un ejecutable, y además de forma mucho más entendible y mantenible que con un script.
+    		</p>
+    		<p>
+    			Esto tiene muchas ventajas. Por ejemplo, <b>si queremos que nuestra receta para fabricar <samp>stage1.bin</samp> se aplique a todos nuestros archivos de código assembly, podemos usar <i><a href="https://www.gnu.org/software/make/manual/html_node/Pattern-Rules.html">pattern rules</a></i></b>:
+    		</p>
+    		<pre><code class="language-makefile">build/%.bin: %.asm
+    nasm -f bin -o $@ $<</code></pre>
+    		<p>
+    			Esto ya es más difícil de entender. Me explico:
+    		</p>
+    		<ul>
+    			<li>La receta coge los archivos assembly de la carpeta, que pueden ser por ejemplo <samp>one.asm</samp> y <samp>two.asm</samp>, y genera binarios de su mismo nombre en la carpeta <i>build</i>: <samp>build/one.bin</samp> y <samp>build/two.bin</samp></li>
+    			<li>El símbolo <samp>%</samp> sirve para denotar un <i>patrón</i> (coge archivos que se llamen <i><span style="color: gray;">loquesea</span>.asm</i>, y conviértelos en <i>build/<span style="color: gray;">loquesea</span>.bin</i>).</li>
+    			<li>El símbolo <samp>$@</samp> equivale al archivo que queremos generar (<i>build/<span style="color: gray;">loquesea</span>.bin</i>), y el símbolo <samp>$<</samp> al archivo de procedencia (<i><span style="color: gray;">loquesea</span>.asm</i>).
+    		</ul>
+    		<p>
+    			Por último, podemos llamar a una Makefile de otra carpeta usando la opción <samp>-C [carpeta]</samp>. Por ejemplo, ejecutar en la raíz de nuestro proyecto <samp>make -C src/bootloader/stage1</samp> ejecutará la Makefile de la <i>stage1</i>.
+    		</p>
+    		<h3>Uso de variables y funciones</h3>
+    		<p>
+    			Para tener más a mano los nombres de archivos y carpetas, <b>es conveniente definirlos como variables al principio del archivo</b>:
+    		</p>
+    		<pre><code class="language-makefile">FOLDER=src/bootloader/stage1
+
+call-another-makefile:
+    make -C ${FOLDER}</code></pre>
+    		<p>
+    			Al entrar en la siguiente <i>Makefile</i> ya no podremos usar la variable <samp>${FOLDER}</samp>. <b>Si la queremos mantener, debemos declararla como variable global mediante el comando <samp>export</samp></b>:
+    		</p>
+    		<pre><code class="language-makefile">export FOLDER="src/bootloader/stage1"</code></pre>
+    		<p>
+    			Pero hay un problema: <b>la dirección <i>src/bootloader/stage1</i> es relativa</b>. Solo apunta a donde queremos que apunte si estamos operando desde la carpeta raíz de nuestro proyecto. Al cambiar de carpeta usando <samp>make -C [carpeta]</samp>, dejará de ser válida.
+    		</p>
+    		<p>
+    			Por suerte, podemos solucionar esto con la función <samp>$(abspath [dirección])</samp>. Esta función traducirá nuestro texto (<i>src/bootloader/stage1)</i> a la dirección completa, partiendo desde el directorio raíz del sistema (<i>/</i>):
+    		</p>
+    		<pre><code class="language-makefile">export FOLDER=$(abspath src/bootloader/stage1)</code></pre>
+    		<p>
+    			<b>El manual de GNU make es bastante fácil de leer y tiene secciones muy claras sobre los <a href="https://www.gnu.org/software/make/manual/html_node/Setting.html">operadores para declarar variables</a> y las <a href="https://www.gnu.org/software/make/manual/html_node/Functions.html">funciones para procesar texto</a></b>. No tienes por qué quedarte con toda esta información de golpe. Esta sección está más pensada como una referencia rápida a la que acudir si te pierdes en los siguientes apartados.
+    		</p>
+		</details>
+		<details id="Escribir_las_Makefiles" open>
+			<summary>
+				<h2>Escribir las Makefiles</h2>
+				<hr>
+			</summary>
+			<h3>La Makefile global</h3>
+			<p>
+				Estos son los pasos que vamos a seguir en la Makefile que vamos a situar en la raíz de nuestro proyecto:
+			</p>
+			<ul>
+				<li>Eliminar la anterior carpeta <i>build</i> si existe.</li>
+				<li>Crear otra vez, vacía, la carpeta <i>build</i>.</li>
+				<li>Crear una imagen de disco vacía para nuestro sistema operativo.</li>
+				<li>Llamar a la <i>Makefile</i> de cada uno de los proyectos que se encuentren en <i>src</i>.</li>
+				<li>Opcionalmente, emular nuestro sistema operativo usando QEMU.</li>
+			</ul>
+			<p>
+				<b>De esta forma, el código responsable de compilar cada proyecto está en la propia carpeta de cada proyecto</b>. La Makefile global solo se encarga de generar un disco vacío y llamar a cada Makefile para que lo llene. Esto hace el proceso mucho más claro, y la búsqueda de bugs relativamente más fácil.
+			</p>
+			<p>
+				En la Makefile global, también definiremos variables a las que podremos llamar desde cualquiera de las Makefiles <i>locales</i> de cada proyecto. Aquí tienes, a modo de propuesta, las variables que yo he definido:
+			</p>
+			<pre><code class="language-makefile"># Archivo: Makefile (en carpeta raíz del proyecto)
+
+# Carpetas de código y compilación
+export DIR_BUILD=$(abspath build)
+export DIR_SRC=$(abspath src)
+
+# Dirección de la imagen de disco final
+# Debe estar dentro de ${DIR_BUILD}, o puede provocar problemas
+export IMG=${DIR_BUILD}/disco.img
+
+# Proyectos: todos los nombres de carpeta bajo ${DIR_SRC}
+export PROJECTS=$(wildcard ${DIR_SRC}/*)
+
+# Compilador de Assembly
+export ASM=nasm
+
+# Compilador de C, y opciones que usamos siempre
+export CC=[dirección de nuestro cross-compiler de GCC para i686-elf]</code></pre>
+		<p>
+			<b>Tras estas definiciones viene el código, que yo he dividido en 5 fases: <samp>clean</samp>, <samp>create</samp>, imagen de disco, <samp>compile</samp> y <samp>qemu</samp></b>. Por costumbre personal, suelo redactar el código para que se ejecute de abajo a arriba. Siéntete libre de cambiar esto si te parece conveniente.
+		</p>
+		<pre><code class="language-makefile"># Archivo: Makefile (en carpeta raíz del proyecto)
+
+qemu: compile
+    # Emular el sistema con QEMU
+    qemu-system-i386 -fda ${IMG}
+
+compile: ${IMG}
+    # Ejecutar la Makefile de cada proyecto
+    for dir in ${PROJECTS}; do \
+        make -C $$dir; \
+    done
+
+${IMG}: create
+    # Crear y formatear imagen de disco
+    dd if="/dev/zero" of="$@" bs=512 count=2880
+    mkfs.fat -F 12 -n "EXAMPLE  OS" "$@"
+
+create: clean
+    # Recrear la carpeta 'build' y las necesarias para nuestro disco
+    mkdir -p ${DIR_BUILD}
+
+clean:
+    # Limpiar la carpeta 'build'
+    rm -rf ${DIR_BUILD}</code></pre>
+			<p>
+				De todas estas lineas, la única que no estaba en nuestro <i>build script</i> anteriormente es el bucle <samp>for</samp> que ejecuta las Makefiles de cada proyecto. En esas lineas, solamente se ejecuta el comando <samp>make -C [carpeta]</samp> con cada carpeta que se encuentre bajo nuestro directorio <i>src</i>.
+			</p>
+			<p>
+				Con esta configuración, cuando ejecutemos <samp>make</samp> se compilará todo y se ejecutará QEMU. Personalmente, yo prefiero que al ejecutar ese comando, tan solo se compile el sistema, y no abra el emulador. Para ello, podemos asignarle la receta <samp>compile</samp> como final predeterminado definiendo esta variable:
+			</p>
+			<pre><code class="language-makefile"># Archivo: Makefile (en carpeta raíz del proyecto)
+
+# Si solo se ejecuta 'make', se llegará solo hasta la receta 'compile'
+.DEFAULT_GOAL=compile</code></pre>
+			<h3>La Makefile local de nuestro primer proyecto: el <i>bootloader</i></h3>
+			<p>
+				<b>Esta Makefile, debido a la estructura del bootloader, es bastante simple.</b> Se encargará de realizar las siguientes tareas:
+			</p>
+			<ul>
+				<li>Definir como variable global la carpeta, dentro de <i>build</i>, donde se guardarán los archivos compilados. Y, si ya existe, eliminarla y recrearla vacía.</li>
+				<li>Hecho eso, llamar a la Makefile de nuestra <i>stage1</i> y luego a la de <i>stage2</i>. Es decir, todas las carpetas dentro de la del bootloader.</li>
+			</ul>
+			<p>
+				Aquí tienes mi propuesta para implementar esto en un código de 3 fases (<samp>clean</samp>, <samp>create</samp> y <samp>compile</samp>):
+			</p>
+			<pre><code class="language-makefile"># Archivo: Makefile (en src/bootloader)
+
+# Subproyectos (local): todos los archivos de la carpeta menos la Makefile
+SUBPROJECTS=$(filter-out Makefile, $(wildcard *))
+
+# Carpeta en la que se guardarán los archivos del proyecto en 'build'
+export DIR_PROJECTBUILD=${DIR_BUILD}/bootloader
+
+compile: create
+    # Ejecutar la Makefile de cada subproyecto
+    for dir in ${SUBPROJECTS}; do \
+        make -C $$dir; \
+    done
+
+create: clean
+    # Crear la carpeta para los archivos de compilación de 'bootloader'
+    mkdir -p ${DIR_PROJECTBUILD}
+
+clean:
+    # Borrar los archivos de compilación de 'bootloader'
+    rm -rf ${DIR_PROJECTBUILD}</code></pre>
+    	<h3>Compilar la <i>stage1</i> desde su propia Makefile</h3>
+    	<p>
+    		Esto ya lo hemos hecho antes. Aproximadamente, <b>tenemos que crear nuestro ejecutable</b> usando <samp>nasm -f bin -o stage1.bin stage1.asm</samp> <b>y luego instalarlo en el disco</b> usando <samp>dd if="stage1.bin" of="disco.img" conv="notrunc"</samp>. A esto, vamos a añadir una tarea llamada <samp>clean</samp>, que borrará la anterior versión de <i>stage1.bin</i> en caso de que exista.
+    	</p>
+    	<pre><code class="language-makefile"># Archivo: Makefile (en src/bootloader/stage1)
+
+BINARY=${DIR_PROJECTBUILD}/stage1.bin
+
+install: ${BINARY}
+    # Instalar archivo binario 'stage1.bin' al inicio del disco
+    dd if="${BINARY}" of="${IMG}" conv=notrunc
+
+${BINARY}: clean
+    # Compilar el código de 'stage1' a un archivo binario
+    ${ASM} -f bin -o ${BINARY} stage1.asm
+
+clean:
+    # Limpiar archivos de compilación de 'stage1'
+    rm -rf ${BINARY}</code></pre>
+    	<h3>Compilar la <i>stage2</i> en su propia Makefile</h3>
+    	<p>
+    		La <i>stage2</i> es más complicada. No solo tiene archivos escritos tanto en assembly como en C. Es que encima no sabemos la extensión que acabará teniendo, así que tendremos que irla actualizando junto con nuestro código cada vez que creemos un nuevo archivo. <b>Pero no te preocupes, gracias a nuestra estructura de proyecto podemos hacer esto en muy pocas lineas de código.</b>
+    	</p>
+    	<p>
+    		Estas son las tareas que tendrá que realizar nuestra Makefile:
+    	</p>
+    	<ul>
+    		<li>Definir un directorio, dentro de <i>build</i> y dentro de la carpeta de compilación del bootloader, en el que guardaremos los archivos de la <i>stage2</i>.</li>
+    		<li>Borrarlo si ya existe, y recrearlo vacío.</li>
+    		<li>Compilar nuestros archivos de assembly a objetos binarios y guardar los objetos en esa nueva carpeta.</li>
+    		<li>Compilar nuestros archivos de C a objetos binarios, y guardarlos en el mismo sitio.</li>
+    		<li>Enlazar todos los objetos binarios que hayamos generado, para crear un solo ejecutable llamado <i>stage2.bin</i></li>
+    		<li>Copiar el archivo <i>stage2.bin</i> a la carpeta raíz de nuestro sistema (es decir, a la imagen de disco).</li>
+    	</ul>
+    	<p>
+    		Esto ya son más tareas... <b>Mi implementación ha sido la siguiente:</b>
+    	</p>
+    	<pre><code class="language-makefile"># Archivo: Makefile (en src/bootloader/stage2)
+
+# Carpeta para los archivos de compilación
+DIR_OUTPUT=${DIR_PROJECTBUILD}/stage2
+
+# Dirección del ejecutable final
+BINARY=${DIR_PROJECTBUILD}/stage2.bin
+
+# Dirección del linker script
+LINKER=linker.ld
+
+# Lista de objetos binarios que tendremos que generar.
+#  - Si existe entry.asm, debe existir ${DIR_OUTPUT}/entry.obj
+#  - Si existe main.c, debe existir ${DIR_OUTPUT}/main.obj
+#  - etc.
+OBJECTS=\
+${DIR_OUTPUT}/entry.obj \
+${DIR_OUTPUT}/main.obj
+
+install: ${BINARY}
+    # Instalar 'stage2.bin' en nuestra imagen de disco
+    mcopy -i ${IMG} ${BINARY} "::stage2.bin"
+
+${BINARY}: ${OBJECTS}
+    # Vincular objetos binarios en el ejecutable 'stage2.bin'
+    ${CC} -T ${LINKER} -nostdlib -o $@ ${OBJECTS} -lgcc
+
+${DIR_OUTPUT}/%.obj: %.c create
+    # Compilar objetos de 'stage2' desde archivos de C... ($@)
+    ${CC} -ffreestanding -nostdlib -c -o $@ $<
+
+${DIR_OUTPUT}/%.obj: %.asm create
+    # Compilar objetos de 'stage2' desde archivos de assembly... ($@)
+    ${ASM} -f elf -o $@ $<
+
+create: clean
+    # Recrear la carpeta de archivos de compilación de 'stage2'
+    mkdir -p ${DIR_OUTPUT}
+
+clean:
+    # Limpiar archivos de compilación de 'stage2'
+    rm -rf ${DIR_OUTPUT}
+    rm -rf ${BINARY}</code></pre>
+    		<p>
+    			Este código, aunque es algo simple y mejorable, aprovecha elementos bastante avanzados de la sintaxis de GNU make para hacer muchas cosas distintas en muy pocas lineas. <b>Si no lo entiendes a la primera, no te preocupes.</b> Puedes investigar más sobre GNU make leyendo <a href="https://www.gnu.org/software/make/manual/html_node/index.html">el manual</a> o, si tienes menos tiempo, completando el tutorial <i><a href="https://makefiletutorial.com/">Makefile Tutorial By Example</a></i>.
+		</details>
+		<details id="Extra_depurar_nuestro_sistema_con_Bochs" open>
+			<summary>
+				<h2>Extra: depurar nuestro sistema con Bochs</h2>
+				<hr>
+			</summary>
+			<p>
+				Llegados a este punto, ya puedes ejecutar <samp>make clean</samp> para limpiar los archivos compilados, <samp>make compile</samp> para compilar todo el sistema sin emularlo, e incluso <samp>make qemu</samp> para compilarlo y emularlo directamente. <b>En esta sección, crearemos la receta <samp>make debug</samp> para depurar nuestro sistema operativo con el emulador Bochs</b>. Esto puede ser de mucha ayuda según avancemos en nuestro proyecto.
+			</p>
+			<p>
+				Para empezar, tendremos que instalar <samp>bochs</samp> en nuestro sistema. Por ejemplo, en Arch Linux se puede instalar como <a href="https://aur.archlinux.org/packages/bochs">paquete del AUR</a>. Consulta las instrucciones para tu distribución, y <b>asegúrate de saber en qué carpeta está instalado el programa</b>.
+			</p>
+			<p>
+				En la carpeta raíz de nuestro proyecto, vamos a crear la configuración con la que iniciaremos el emulador Bochs. Yo he llamado a la mía <samp>bochs_config</samp> y le he dado esta forma, basándome en la creada por <i>nanobyte</i> en <a href="https://youtu.be/7CrUM8Uf9ho?list=PLFjM7v6KGMpiH2G-kT781ByCNC_0pKpPN&t=3017">el capítulo 6 de su serie sobre desarrollo de sistemas operativos</a>.
+			</p>
+			<pre><code class="language-bash">megs: 128
+romimage: file=/usr/share/bochs/BIOS-bochs-latest
+vgaromimage: file=/usr/share/bochs/VGABIOS-elpin-2.40
+floppya: 1_44=build/disco.img, status=inserted
+boot: floppy
+mouse: enabled=0
+display_library: wx, options="gui_debug"
+magic_break: enabled=1</code></pre>
+			<p>
+				Para ejecutar Bochs correctamente, tienes que asegurarte de varias cosas:
+			</p>
+			<ul>
+				<li>La dirección del archivo en <i>romimage</i> apunta a una BIOS compatible con el emulador (se pueden encontrar varias en la carpeta de instalación).</li>
+				<li>La dirección del archivo en <i>vgaromimage</i> apunta a una VGA BIOS compatible (también se pueden encontrar varias en la carpeta de instalación).</li>
+				<li>En el atributo <i>floppya</i>, la variable <i>1_44</i> debe contener la dirección de la imagen de disco en la que hemos instalado nuestro sistema operativo.
+			</ul>
+			<p>
+				En un futuro, aprenderemos algo más sobre emulación con Bochs. Por ahora, tan solo tienes que preocuparte de añadir la siguiente receta en la Makefile global:
+			</p>
+			<pre><code class="language-makefile">debug: compile
+    bochs -f bochs_config</code></pre>
+			<p>
+				Esto bastará para poder ejecutar <samp>make debug</samp> y aprovechar las funciones de depuración de Bochs si necesitamos arreglar errores de nuestro sistema operativo. <b>Tras emular nuestro sistema, se creará el archivo <samp>bx_enh_dbg.ini</samp>, que contiene más atributos de configuración.</b> Este archivo se puede modificar a mano, pero no es recomendable hacerlo si no es totalmente necesario.
+			</p>
+		</details>
+		<details id="Resumen" open>
+			<summary>
+				<h2>Resumen</h2>
+				<hr>
+			</summary>
+			<p>
+				En este capítulo hemos comenzado a estructurar nuestro proyecto para poder expandirlo sin problemas en el futuro cercano. También hemos incorporado GNU make y hemos visto algunos conceptos fundamentales de su sintaxis.
+			</p>
+			<p>
+				Gracias a esta base, <b>los siguientes episodios podrán centrarse, por fin, en terminar la <i>stage2</i> de nuestro bootloader y saltar directamente a nuestro segundo subproyecto: el <i>kernel</i></b>. Para ello, crearemos un driver básico para soportar la lectura del sistema de archivos FAT12. También implementaremos una forma básica de la función <samp>printf()</samp>, que nos permitirá mostrar texto, números y más tipos de datos en la pantalla.
+			</p>
+		</details>
+		<details id="Ejemplo_descargable" open>
+			<summary>
+				<h2>Ejemplo descargable</h2>
+				<hr>
+			</summary>
+			<p>
+				El archivo <a href="capitulo-9.tar.gz">capitulo-9.tar.gz</a> contiene todo el código que llevamos hasta ahora, y se compila con GNU make, utilizando la nueva estructura que le hemos dado al proyecto.
+			</p>
+		</details>
+		<p id="footer">
+			<a href="../../"><button>Portada</button>
+			<a href="../capitulo-10"><button>Siguiente capítulo</button></a>
+		</p>
+	</div>
+
+	<!-- Library: highlight.js -->
+	<script src="../../assets/lib/highlight/highlight.min.js"></script>
+	<script>hljs.highlightAll();</script>
+</body>
