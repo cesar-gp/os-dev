@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+
+<head>
+	<title>Manual de OSDev</title>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" type="text/css" href="../../assets/global.css">
+	<link rel="stylesheet" href="../../assets/lib/highlight/styles/github-dark-dimmed.css">
+</head>
+<body class="flex col spaced">
+	<a id="navigator" class="flex col hcentered vcentered fixed hleft" href="../capitulo-9">
+		<img width="40" height="40" src="../../assets/icons/chevron-left.svg">
+	</a>
+	<a id="navigator" class="flex col hcentered vcentered fixed hright" href="../capitulo-11">
+		<img width="40" height="40" src="../../assets/icons/chevron-right.svg">
+	</a>
+	<div id="content">
+		<div class="navhelper">
+			<a href="../../">Manual</a>
+			&nbsp;→&nbsp;
+			<a href="../">Bloque 1</a>
+			&nbsp;→&nbsp;
+			<b>Capítulo 10</b>
+		</div>
+		<h1>Capítulo 10: Implementar <samp>printf()</samp></h1>
+		<hr>
+		<p>
+			Al aprender cualquier lenguaje de programación, una de las primeras cosas que se hacen es crear un <i>Hello, world!</i>, un programa que muestra un texto de bienvenida en la consola. Nosotros ya hicimos uno en assembly al comenzar con el bootloader. <b>Esto es el ejemplo más básico de "Hello, World!" en C</b>:
+		</p>
+		<pre><code class="language-c">#include &lt;stdio.h&gt;
+
+int main() {
+    printf("Hello, World!");
+    return 0;
+}</code></pre>
+		<p>
+			Actualmente, tenemos <i>muchos</i> problemas para ejecutar esto en nuestro bootloader, por ejemplo:
+		</p>
+		<ul>
+			<li>La primera linea incluye en nuestro ejecutable las funciones definidas en el archivo <i>stdio.h</i>. Ahí está definida, por ejemplo, la función <samp>printf()</samp>, pero <b>ese archivo no existe aún en nuestro disco</b>.</li>
+			<li>Luego se define la función <samp>main()</samp> como punto de entrada. Con esto, simplemente es importante tener en cuenta que en este manual, hemos llamado <samp>cstart()</samp> a nuestro punto de entrada a C, no <samp>main()</samp>.</li>
+			<li>La función <samp>printf()</samp>, tal y como se implementa en la mayoría de ocasiones, contiene llamadas a Linux o Windows, que en nuestro sistema son imposibles.</li>
+		</ul>
+		<p>
+			Estamos todavía en el bootloader, por lo que no deberíamos depender de que nuestro sistema operativo tenga instalada una biblioteca de C. <b>En general, cuantas menos suposiciones hagamos sobre el sistema operativo, mejor.</b> Por eso, mi propuesta es implementar nosotros mismos una versión reducida del header <samp>stdio.h</samp> en nuestro código.
+		</p>
+		<p>
+			Para ello, primero vamos a crear un archivo de código como tal, que he decidido llamar <i>stdio.c</i>. <b>Para mantener un mínimo orden, seguiremos la norma de que si un header se llama <i><span style="color: gray;">loquesea</span>.h</i>, el código de sus funciones se definirá en el archivo <i><span style="color: gray;">loquesea</span>.c</i></b>. Siéntete libre de usar cualquier otra estructura si esa no te convence. Por ejemplo, <a href="https://wiki.osdev.org/Meaty_Skeleton#libc_and_libk_Design">la usada por la OSDev Wiki en el tutorial <i>Meaty Skeleton</i></a>.
+		</p>
+		<p>
+			Antes de crear el archivo, también vamos a borrar las funciones <samp>putc()</samp> y <samp>write()</samp> de nuestro archivo <i>main.c</i>. Son funciones temporales, bastante inseguras, que creamos únicamente para demostrar que el salto a C se producía sin ningún problema. Nuestro archivo <i>main.c</i> debería quedar así:
+		</p>
+		<pre><code class="language-c">void quit() {
+    for(;;);
+}
+
+void cstart() {
+    quit();
+}</code></pre>
+		<details id="Fundamentos_de_C_headers_tamaño_de_variables_y_punteros" open>
+			<summary>
+				<h2>Fundamentos de C: headers, tamaño de variables y punteros</h2>
+				<hr>
+			</summary>
+			<p>
+				Al programar en C, te encontrarás principalmente con archivos de código (<i>loquesea.c</i>) y <a href="https://es.wikipedia.org/wiki/Archivo_de_cabecera">archivos de cabecera</a> o <i>headers</i> (<i>loquesea.h</i>). En los primeros, se definen variables y funciones y se redacta el código de estas últimas. Los <i>headers</i> son parecidos, con la única diferencia de que <b>no desarrollan código, solo declaraciones que pueden ser compartidas entre varios archivos <samp>.c</samp></b>.
+			</p>
+			<p>
+				Muchas de las funciones que los programadores usan rutinariamente en C están definidas en <i>headers</i> preinstalados en el sistema operativo. Estos headers forman la <b>biblioteca estándar de C</b>, y proveen utilidades muy básicas como <a href="https://es.wikipedia.org/wiki/Printf">imprimir texto en pantalla usando <samp>printf()</samp></a>.
+			</p>
+			<p>
+				Nuestro compilador, GCC para i686-elf, no soporta el uso de <i>toda la biblioteca estándar de C</i>, pero sí viene con algunos <i>headers</i> que podemos utilizar, como <samp>stdint.h</samp>, que define <a href="https://en.wikipedia.org/wiki/C_data_types#Fixed-width_integer_types">tipos de variable con tamaño fijo</a>. La OSDev Wiki tiene una lista de todos los headers a los que podemos acceder en nuestro proyecto en su artículo <a href="https://wiki.osdev.org/C_Library#Freestanding_and_Hosted"><i>C Library</i></a>.
+			</p>
+			<p>
+				El header <samp>stdint.h</samp> provee tipos de variable con tamaños determinados, aquí tienes una tabla con algunos de los tipos que más utilizaremos:
+			</p>
+			<p>
+				<div class="flex row hcentered">
+					<table class="stylized">
+						<tr>
+							<th>Nombre</th>
+							<th>Tamaño</th>
+							<th>Valor mín.</th>
+							<th>Valor máx.</th>
+						</tr>
+						<tr>
+							<td><samp>uint8_t</samp></td>
+							<td>8 bits</td>
+							<td>0</td>
+							<td>255</td>
+						</tr>
+						<tr>
+							<td><samp>uint16_t</samp></td>
+							<td>16 bits</td>
+							<td>0</td>
+							<td>65.535</td>
+						</tr>
+						<tr>
+							<td><samp>uint32_t</samp></td>
+							<td>32 bits</td>
+							<td>0</td>
+							<td>4.294.967.296</td>
+						</tr>
+						<tr>
+							<td><samp>uint64_t</samp></td>
+							<td>64 bits</td>
+							<td>0</td>
+							<td>18.446.744.073.709.551.616</td>
+						</tr>
+						<tr>
+							<td><samp>int8_t</samp></td>
+							<td>8 bits</td>
+							<td>-127</td>
+							<td>127</td>
+						</tr>
+						<tr>
+							<td><samp>int16_t</samp></td>
+							<td>16 bits</td>
+							<td>-32.767</td>
+							<td>32.767</td>
+						</tr>
+						<tr>
+							<td><samp>int32_t</samp></td>
+							<td>32 bits</td>
+							<td>-2.147.483.647</td>
+							<td>2.147.483.647</td>
+						</tr>
+						<tr>
+							<td><samp>int64_t</samp></td>
+							<td>64 bits</td>
+							<td>-9.223.372.036.854.775.807</td>
+							<td>9.223.372.036.854.775.807</td>
+						</tr>
+					</table>
+				</div>
+			</p>
+			<p>
+				Es muy importante ser consciente de qué tipo usamos en cada momento. Por ejemplo, para definir caracteres ASCII, lo mejor es usar variables del tipo <samp>uint8_t</samp>, porque ningún caracter tiene una ID negativa y el máximo es 255. Además, todos los caracteres codificados en ASCII ocupan un byte.
+			</p>
+			<p>
+				<b>Solo nos queda explicar una cosa: ¿qué tiene que ver esto con los punteros (o <i>pointers</i>)?</b> Pues verás, estas dos lineas declaran pointers que apuntan exactamente a la misma dirección de la memoria:
+			</p>
+			<pre><code class="language-c">uint8_t* screen8 = (uint8_t*) 0xB8000;
+uint32_t* screen32 = (uint32_t*) 0xB8000;</code></pre>
+			<p>
+				Lo que varía entre ellos es únicamente el tamaño de variable. <b>Mientras que <samp>screen8</samp> cuenta cada byte, <samp>screen32</samp> cuenta en unidades de 4 bytes.</b> Pongamos que el contenido de la memoria es el siguiente:
+			</p>
+			<table class="memory">
+				<tr>
+					<th>0xB8000</th>
+					<th>0xB8001</th>
+					<th>0xB8002</th>
+					<th>0xB8003</th>
+					<th>0xB8004</th>
+					<th>0xB8005</th>
+					<th>0xB8006</th>
+					<th>0xB8007</th>
+				</tr>
+				<tr>
+					<td>0x00</td>
+					<td>0x01</td>
+					<td>0x02</td>
+					<td>0x03</td>
+					<td>0x04</td>
+					<td>0x05</td>
+					<td>0x06</td>
+					<td>0x07</td>
+				</tr>
+			</table>
+			<p>
+				En este caso si desrreferenciamos los dos punteros, sus valores serán distintos:
+			</p>
+			<pre><code class="language-c">uint8_t a = *screen8; // la variable 'a' tendrá el valor '0x00'.
+uint16_t b = *screen16; // la variable 'b' tendrá el valor '0x03020100'</code></pre>
+			<p>
+				Al desrreferenciar el puntero <samp>screen8</samp> solo recogemos el valor del primer byte (<samp>0x00</samp>). Sin embargo, <b>al desrreferenciar <samp>screen32</samp> obtenemos el valor de los 4 primeros bytes a partir de la dirección a la que apunta</b>. Además, los obtenemos invertidos, porque al pasar bytes separados al valor de una única variable, se presentan en orden inverso (<samp>0x03020100</samp>).
+			</p>
+			<p>
+				La diferencia de tamaño tiene todavía más implicaciones. Por ejemplo, el puntero <samp>screen8</samp> apunta a la dirección <samp>0xB8000</samp>, si queremos sacar el valor almacenado en el siguiente byte de la memoria, podemos usar un <a href="https://en.cppreference.com/w/c/language/operator_member_access"><i>subscript operator</i></a> (<samp>screen8[1]</samp>), para el siguiente <samp>screen8[2]</samp>, <samp>screen8[3]</samp>, etc... <b>Si usamos este operador con el puntero de 32 bits, aumentará 32 bits cada vez</b>, produciendo este comportamiento:
+			</p>
+			<pre><code class="language-c">uint8_t a = screen8[0]; // tendrá el valor '0x00' (equivalente a '*screen8')
+uint8_t b = screen8[1]; // tendrá el valor '0x01'
+uint8_t c = screen8[2]; // tendrá el valor '0x02'
+uint8_t d = screen8[3]; // tendrá el valor '0x03'
+
+uint16_t e = screen16[0]; // tendrá el valor '0x03020100' (equivalente a '*screen16')
+uint16_t f = screen16[1]; // tendrá el valor '0x07060504'</code></pre>
+		<p>
+			En resumen: <b>es muy importante que los punteros tengan el mismo tamaño que los objetos a los que queremos apuntar</b>. Si son caracteres, 8 bits, si son números más grandes, 16 bits, 32... etc. Si has programado en otros lenguajes, puedes interpretar los punteros como <i>arrays</i> que empiezan en un punto fijo de la RAM. Es importante también destacar que, en nuestro caso, el puntero en sí (y no su contenido) siempre ocupará 32 bits, pongamos el tipo que pongamos.
+		</p>
+		</details>
+		<details id="Funciones_basicas_para_escribir_caracteres" open>
+			<summary>
+				<h2>Funciones básicas para escribir caracteres</h2>
+				<hr>
+			</summary>
+			<p>
+				Como ya hemos dicho antes, tenemos que tratar al <i>buffer VGA</i> como una cuadrícula de 80 caracteres de ancho y 25 de alto. Esto implica que se pueden usar coordenadas para escribir cualquier caracter (por ejemplo: el caracter 5 de la linea 2 sería equivalente a la posición <i>x=5; y=2</i>). Cada celda de la cuadrícula <a href="/bloque-1/capitulo-7/#Extra_poner_un_mensaje_desde_el_modo_protegido">ocupa exactamente 2 bytes en la memoria</a>.
+			</p>
+			<p>
+				Este planteamiento nos permitiría escribir palabras enteras, como <i>Hola</i>, escribiendo una <samp>H</samp> en la coordenada (0,0), una <samp>o</samp> en (1,0), una <samp>l</samp> en (2,0) y una <samp>a</samp> en (3,0). <b>Pero este no es el comportamiento esperado por el usuario.</b> El usuario espera que el terminal salte a la siguiente posición automáticamente cada vez que escriba una letra, y no tener que pensar en las coordenadas de la siguiente, sobre todo si estamos en un fin de linea o de pantalla.
+			</p>
+			<p>
+				Por todo esto, <b>nuestras primeras funciones, que nos permitirán escribir libremente usando coordenadas, serán <i>privadas</i></b>, solo para uso interno dentro de <i>stdio.c</i>, y servirán de base para funciones que se asemejan más al comportamiento esperado por el usuario.
+			</p>
+			<p>
+				<i><b>Nota importante:</b> durante este manual, pondremos una barrabaja (<samp>_</samp>) antes del nombre de las funciones privadas, para diferenciarlas de las globales, que sí se podrán usar desde cualquier archivo. Esto es una decisión arbitraria, puramente estética y organizativa.</i>
+			</p>
+			<h3>La sección de variables</h3>
+			<p>
+				Nuestro archivo <i>stdio.c</i> comenzará con una sección en la que declararemos nuestras variables. Por ahora, la única que necesitaremos es <b>un puntero hacia la dirección del buffer VGA</b>.
+			</p>
+			<p>
+				Dado que cada caracter, junto a sus colores de frente y fondo, ocupará 2 bytes, importamos el header <samp>stdint.h</samp> le asignamos el tipo <samp>uint16_t*</samp>. Además, como queremos usar la variable en distintas funciones de nuestro código, la declaramos con la <i>keyword</i> <samp>static</samp>:
+			</p>
+			<pre><code class="language-c">// Archivo: 'src/bootloader/stage2/stdio.c'
+
+#include &lt;stdint.h&gt;
+
+static uint16_t* screen = (uint16_t*) 0xB8000;</code></pre>
+			<p>
+				En esta sección incluiremos todos los headers necesarios para compilar nuestro código y todas las variables que pretendamos poder usar desde cualquier función declarada en este archivo.
+			</p>
+			<h3><samp>_vga_write()</samp>: imprimir caracteres usando coordenadas.</h3>
+			<p>
+				Nuestra primera función de escritura será <samp>vga_write(uint8_t c, uint16_t color, uint8_t x, uint8_t y)</samp>. Recibirá un caracter, un código de color, una coordenada X y una coordenada Y, y mostrará nuestra letra en la posición deseada.
+			</p>
+			<p>
+				Esto, en términos prácticos, es equivalente a <b>escribir en la dirección de memoria <samp>0xB8000 + x + y * 80</samp> 2 bytes que incluyan nuestro caracter y su código de color</b>. Estas dos variables se pueden "fusionar" moviendo 8 bits a la izquierda el código de color mediante un <i>LEFT SHIFT</i> (<samp>&lt;&lt;</samp>) y realizando un <i>OR</i> (<samp>|</samp>) entre el caracter y el color.
+			</p>
+			<p>
+				Antes de escribir la función en sí, vamos a crear una carpeta llamada <samp>include</samp>, y vamos a crear ahí el header <i>stdio.h</i> para definir un par de constantes que usaremos en nuestro código:
+			</p>
+			<pre><code class="language-c">// Archivo: 'src/bootloader/stage2/include/stdio.h'
+
+#pragma once
+
+#define VGA_WIDTH 80
+#define VGA_HEIGHT 25</code></pre>
+		<p>
+			Mediante la linea <samp>#pragma once</samp>, nos aseguramos de que si estas constantes ya están definidas en otra parte de nuestro código, no se redefinan aquí. El resto del código define macros y tipos que nos ayudan a no tener que recordar todos los números que necesitaremos.
+		</p>
+		<p>
+			Al inicio de nuestro archivo de código <i>stdio.c</i>, vamos a incluir este header para poder usar su contenido.
+		</p>
+		<pre><code class="language-c">// Archivo: 'src/bootloader/stage2/stdio.c'
+
+#include "include/stdio.h"</code></pre>
+		<p>
+			Con todas estas preparaciones ya terminadas, podemos implementar nuestra función <samp>_vga_write()</samp> como se muestra a continuación. Esta implementación puede considerarse imperfecta y se invita al lector a mejorarla como considere:
+		</p>
+		<pre><code class="language-c">void _vga_write(uint8_t c, uint16_t color, uint8_t x, uint8_t y) {
+    uint16_t pos = x + y * VGA_WIDTH;
+    screen[pos] = c | ((uint16_t) color << 8);
+}</code></pre>
+		<h3><samp>_vga_move()</samp>: mover el cursor al siguiente lugar.</h3>
+		<p>
+			Cuando escribimos en inglés o español (que son, por ahora, los únicos lenguajes que vamos a soportar) escribimos de izquierda a derecha, desde la parte superior de la página hasta la inferior. Esto se puede trasladar a un modelo en el que comenzamos en la coordenada (0,0) y, por el tamaño de la cuadrícula, terminamos en la (79,24). <b>Para implementar este modelo, debemos declarar la <samp>x</samp> y la <samp>y</samp> del cursor como variables globales:</b>
+		</p>
+		<pre><code class="language-c">static uint8_t vga_x = 0;
+static uint8_t vga_y = 0;
+static uint8_t vga_color = 0x0F;</code></pre>
+		<p>
+			Es fácil pensar que, tras escribir un caracter, lo único que tenemos que hacer es sumarle 1 a la <samp>x</samp>, pero, <b>¿qué pasa cuando llegamos al fin de linea? ¿y al fin de página?</b> Para cubrir esos casos, tendremos que dar soporte a los saltos de linea y al <i>scroll</i> de página.
+		</p>
+		<p>
+			Nuestra función <samp>_vga_move(uint8_t x, uint8_t y)</samp> recibirá un valor <samp>x</samp> y un valor <samp>y</samp>, y moverá el cursor hacia esa posición en la cuadrícula... pero con varias condiciones:
+		</p>
+		<ul>
+			<li>Si la <samp>x</samp> es igual al número de caracteres por linea (<i>80</i>), se producirá un <i>salto de linea</i>.</li>
+			<li>Si la <samp>y</samp> es igual al número de lineas de la pantalla (<i>25</i>), se producirá un <i>scroll</i> para arriba de todas las lineas.</li>
+		</ul>
+		<p>
+			Es importante recordar que esta es una <i>función privada</i>. No es accesible al usuario final y nosotros, como programadores, somos los responsables de no proporcionarle valores que puedan llevar a error, como <samp>x=81</samp> o <samp>y=26</samp>. Si crees que estas situaciones de error se podrán producir en tu código, dedica parte de tu implementación a prevenir estos <i>bugs</i>.
+		</p>
+		<p>
+			Esta es la implementación que propongo:
+		</p>
+		<pre><code class="language-c">void _vga_move(uint8_t x, uint8_t y) {
+    // Salto de linea
+    if(x == VGA_WIDTH) x = 0, y++;
+
+    // Scroll de página
+    if(y == VGA_HEIGHT) {
+        for(y = 0; y < VGA_HEIGHT; y++)
+            for(x = 0; x < VGA_WIDTH; x++) {
+            	// Copiar cada linea, excepto la primera, hacia la anterior.
+                if(y) _vga_write(screen[x+VGA_WIDTH*y], screen[x+VGA_WIDTH*y] >> 8, x, y - 1);
+
+                // Sustituir su contenido por espacios con fondo negro
+                _vga_write(' ', 0x07, x, y);
+            }
+
+        // Mover el cursor hacia el primer caracter de la última linea
+        x = 0, y = VGA_HEIGHT - 1;
+    }
+
+    // Guardar los cambios
+    vga_x = x, vga_y = y;
+}</code></pre>
+	</details>
+	<details id="Formatos_letras_numeros_y_strings" open>
+		<summary>
+			<h2>Formatos: letras, números y <i>strings</i>.</h2>
+			<hr>
+		</summary>
+		<h3><samp>_putc()</samp>: imprimir un caracter sin proporcionar coordenadas.</h3>
+		<p>
+			Poco a poco, nos vamos acercando a lo que espera el usuario final. La función <samp>_putc(uint8_t c)</samp> <b>escribirá un caracter en la posición actual del cursor y lo moverá automáticamente a la siguiente posición</b>.
+		</p>
+		<p>
+			Lo que se presenta a continuación es una implementación <i>naif</i>, que no tiene en cuenta muchos de los casos de uso de esta función:
+		</p>
+		<pre><code class="language-c">void _putc(uint8_t c) {
+    _vga_write(c, vga_color, vga_x, vga_y);
+    _vga_move(vga_x + 1, vga_y);
+}</code></pre>
+		<p>
+			Esta implementación es capaz de hacer lo que hemos dicho, pero no permite el uso de algunos caracteres especiales que son muy comunes, como el <i>retorno de carro</i> (<samp>\r</samp>), el <i>salto de linea</i> (<samp>\n</samp>) y el <i>tabulador</i> (<samp>\t</samp>). Para imprimir estos caracteres, que en realidad son instrucciones lógicas, vamos a tener que complicar nuestra función un poquito.
+		</p>
+		<ul>
+			<li>El caracter <samp>\n</samp> debe sumar 1 a la <samp>y</samp>.</li>
+			<li>El caracter <samp>\r</samp> debe asignar el valor <samp>0</samp> a la <samp>x</samp>.</li>
+			<li>El caracter <samp>\t</samp> debe escribir espacios hasta mover la <samp>x</samp> al siguiente múltiplo de 4 desde su posición actual, y producir un salto de linea si ese múltiplo excede el fin de linea.</li>
+		</ul>
+		<p>
+			<b>Además, la función <samp>printf()</samp> de la biblioteca estándar de C devuelve el número de caracteres leidos.</b> Para implementar esto correctamente, conviene devolver el número de caracteres leídos en cada función que pueda ser llamada desde <samp>printf()</samp>, por tanto, siempre que escribamos un caracter, devolveremos el valor <samp>1</samp>.
+		</p>
+		<p>
+			Esta sería la función si le incluimos todos los detalles mencionados:
+		</p>
+		<pre><code class="language-c">uint8_t _putc(uint8_t c) {
+    switch(c) {
+        case '\n':
+            _vga_move(vga_x, vga_y + 1);
+            return 1;
+        case '\r':
+            _vga_move(0, vga_y);
+            return 1;
+        case '\t':
+            uint16_t dst = vga_x + (4 - vga_x % 4);
+            for(; vga_x < dst && vga_x < VGA_WIDTH; vga_x++)
+            	_vga_write(' ', vga_color, vga_x, vga_y);
+
+            if(vga_x == VGA_WIDTH) vga_x = 0, vga_y++;
+            return 1;
+    }
+
+    _vga_write(c, vga_color, vga_x, vga_y);
+    _vga_move(vga_x + 1, vga_y);
+
+    return 1;
+}</code></pre>
+		<h3><samp>_puts()</samp>: imprimir cadenas de texto enteras.</h3>
+		<p>
+			Para imprimir una cadena de texto, solamente tenemos que pasar cada uno de sus caracteres por nuestra función <samp>_putc()</samp>. Adicionalmente, podemos ir contando los caracteres escritos para devolverlos como valor de la función:
+		</p>
+		<pre><code class="language-c">uint32_t _puts(const uint8_t* s) {
+    uint32_t written = 0;
+    for(; s[written]; written++) _putc(s[written]);
+    return written;
+}</code></pre>
+		<h3><samp>_putn()</samp>: imprimir números en el terminal.</h3>
+		<p>
+			<b>¿Cómo podemos convertir un número en un caracter?</b> Existen varias formas, pero una de las más intuitivas es guardar una lista de caracteres con todas las cifras numéricas en orden:
+		</p>
+		<pre><code class="language-c">const uint8_t digits[] = "01234566789";</code></pre>
+		<p>
+			A partir de ahí, si yo quiero convertir el número <samp>2</samp> a su caracter ASCII correspondiente, solo tengo que acceder al segundo caracter de la lista <samp>digits</samp> mediante la siguiente expresión:
+		</p>
+		<pre><code class="language-c">uint8_t two_as_ascii_character = digits[2];</code></pre>
+		<p>
+			El problema es que esto no nos vale para números de varias cifras. Para usar este método, <b>tendremos que extraer las cifras de cada número de una en una</b>. Para ello, dividiremos el número entre 10 hasta que de <samp>0</samp> e iremos guardando el resto de cada división.
+		</p>
+		<pre><code class="language-c">3456 / 10 = 345 // resto: 6
+ 345 / 10 = 34  // resto: 5
+  34 / 10 = 3   // resto: 4
+   3 / 10 = 0   // resto: 3
+
+// Lista de restos: 6, 5, 4, 3.</code></pre>
+		<p>
+			<b>Nuestra <i>lista de restos</i> almacena los caracteres en orden inverso.</b> A partir de realizar ese proceso, tan solo nos quedaría atravesar la lista en orden inverso, convertir cada cifra en un caracter ASCII e imprimirlo en pantalla.
+		</p>
+		<p>
+			A continuación se muestra una función (<samp>_num_to_str()</samp>) que convierte cualquier número decimal en una lista de caracteres ASCII y guarda el resultado en un buffer. Además, devuelve la longitud del número en cifras:
+		</p>
+		<pre><code class="language-c">uint8_t _num_to_str(uint8_t* str, uint64_t num) {
+    const uint8_t digits[] = "0123456789";
+    
+    // Si el número es 0, devolver una string con el caracter '0'.
+    if(num == 0) {
+        str[0] = '0';
+        str[1] = '\0';
+
+        return 1;
+    }
+
+    // Dividir entre 10 hasta que el número sea 0.
+    // Ir guardando los caracteres ASCII en 'reverse' y la longitud en 'numlen'
+    uint16_t numlen = 0;
+    uint8_t reverse[20]; // 20: máximo de cifras de un número de 64 bits.
+    while(num) {
+        reverse[numlen] = digits[num % 10];
+        numlen++;
+
+        num /= 10;
+    }
+
+    // Invertir los caracteres de 'reverse' y guardarlos en 'str'
+    for(uint8_t i = 1; i <= numlen; i++)
+        str[i - 1] = reverse[numlen - i];
+
+    // Apuntar un caracter nulo al final de 'str' para indicar el fin de string.
+    str[numlen] = '\0';
+
+    // Nota: si no se sabe la longitud que puede tener el núm. final,
+    // lo mejor es dejar 21 bytes de espacio en el buffer.
+
+    return numlen;
+}</code></pre>
+		<p>
+			Hecho esto, nuestra función <samp>_putn()</samp> solo tiene que convertir el número que reciba en una <i>string</i> usando <samp>_num_to_str()</samp> e imprimir esa misma cadena de texto usando <samp>_puts()</samp>. Si le indicamos que el número que debe imprimir es negativo, mostrará un signo negativo (<samp>-</samp>) antes del número.
+		</p>
+		<p>
+			La condición de si el número es negativo o positivo se transmitirá a través de una variable de tipo <samp>bool</samp>. Para usar este tipo de variable es necesario incluir el header <samp>&lt;stdbool.h&gt;</samp> al principio de nuestro archivo <i>stdio.c</i>.
+		</p>
+		<pre><code class="language-c">#include &lt;stdbool.h&gt;
+
+// ...
+
+uint16_t _putn(uint64_t num, bool negative) {
+    uint8_t written = 0;
+
+    uint8_t str[20];
+    _num_to_str(str, num);
+
+    if(negative) written += _putc('-');
+    written += _puts(str);
+    return written;
+}</code></pre>
+		</details>
+		<details id="La_funcion_final_implementar_printf" open>
+			<summary>
+				<h2>La función final: implementar <samp>printf()</samp></h2>
+				<hr>
+			</summary>
+			<h3><samp>stdarg.h</samp>: aceptar un número indefinido de argumentos.</h3>
+			<p>
+				La función <samp>printf()</samp> tiene un número indefinido de argumentos. Por ejemplo, se puede invocar con solo un argumento:
+			</p>
+			<pre><code class="language-c">printf("Hello, World!"); // Imprime: "Hello, World!"</code></pre>
+			<p>
+				Y también se puede invocar con varios formatos que requieran varios argumentos:
+			</p>
+			<pre><code class="language-c">printf("Let's count: %i, %i, %i...", 1, 2, 3); // Imprime: "Let's count: 1, 2, 3..."</code></pre>
+			<p>
+				La definición formal de este tipo de funciones (func. con argumentos variables o <i>variadic functions</i>) se hace con unos puntos suspensivos (<samp>...</samp>), tal que así:
+			</p>
+			<pre><code class="language-c">uint32_t printf(const uint8_t* fmt, ...) {
+    // nuestro código
+}</code></pre>
+			<p>
+				En este punto, el problema es que <b>no podemos usar el valor de esos argumentos</b>, porque no tienen nombre. La solución a ese problema nos la da el header <a href="https://en.wikipedia.org/wiki/Stdarg.h">stdarg.h</a>, que define varias funciones interesantes para nuestro caso.
+			</p>
+			<p>
+				Para mantener nuestro código ordenado, haremos que <samp>printf()</samp> solo inicie la lista de argumentos, y llame a una función llamada <samp>_vprintf()</samp>, encargada de hacer todo el trabajo. Este sistema de organización es una versión simplificada del seguido por la mayoría de implementaciones de la C Standard Library (y el <a href="https://wiki.osdev.org/Formatted_Printing#How_printf()_Works?">recomendado por la OSDev Wiki</a>).
+			</p>
+			<pre><code class="language-c">// Incluir stdarg.h al inicio de nuestro archivo
+#include &lt;stdarg.h&gt;
+// ...
+
+uint32_t printf(const uint8_t* fmt, ...) {
+    va_list args;                           // Declaramos una lista (va_list) de argumentos.
+    va_start(args, fmt);                    // Inicializamos la lista desde 'fmt' para alante.
+    uint32_t written = _vprintf(fmt, args); // Procesar los argumentos
+    va_end(args);                           // Cerrar la lista de argumentos.
+
+    return written;
+}</code></pre>
+			<p>
+				A partir de ahí, <samp>_vprintf()</samp> solo debe recibir como argumento una <samp>va_list</samp> e ir invocando sus elementos según sea necesario:
+			</p>
+			<pre><code class="language-c">uint32_t _vprintf(const uint8_t* fmt, va_list args) {
+    // Dentro de esta función, cada vez que necesitemos invocar el
+    // siguiente elemento de nuestra va_list, lo haremos con esta
+    // función, indicando la lista y el tipo del siguiente argumento.
+
+    uint16_t nextarg = va_arg(args, uint16_t);
+}</code></pre>
+			<h3><samp>_vprintf()</samp>: la implementación final.</h3>
+			<p>
+				Nuestra implementación va a ser <i>mínima</i>, dado que solo queremos poder poner letras, strings y números enteros de diferentes tamaños <i>(así que faltan, por ejemplo, los pointers y los decimales)</i>. <b>Estos son los formateadores que vamos a soportar</b>:
+			</p>
+			<p>
+				<div class="flex hcentered">
+					<div class="flex col vcentered w2">
+						<table class="stylized">
+							<tr>
+								<th>Formato</th>
+								<th>Descripción</th>
+							</tr>
+							<tr>
+								<td><samp>%c</samp></td>
+								<td>Caracter ASCII</td>
+							</tr>
+							<tr>
+								<td><samp>%d</samp>, <samp>%i</samp></td>
+								<td>Número en base 10 con signo</td>
+							</tr>
+							<tr>
+								<td><samp>%u</samp></td>
+								<td>Número en base 10 sin signo</td>
+							</tr>
+							<tr>
+								<td><samp>%s</samp></td>
+								<td>String</td>
+							</tr>
+							<tr>
+								<td><samp>%%</samp></td>
+								<td>Escape, para poder escribir el signo <samp>%</samp></td>
+							</tr>
+						</table>
+						<p style="font-size: 0.95em;">
+							Si te interesa implementar más formateadores, puedes ver una lista completa con todos los que hay en <a href="https://cplusplus.com/reference/cstdio/printf/">esta página</a> (<i>cplusplus.com</i>).
+						</p>
+					</div>
+				</div>
+			</p>
+			<p>
+				Para soportar números de distintos tamaños, tendremos que implementar también los especificadores de longitud. Es decir, poner <samp>%hhd</samp> mostrará un digito de 8 bits, <samp>%hd</samp> uno de 16 bits, <samp>%d</samp> y <samp>%ld</samp> mostrarán uno de 32 y <samp>%lld</samp> uno de 64 bits. Esto aplica a todos los formateadores de números. <b>Usar escrificadores incorrectos (como <samp>%hhd</samp> para un núm. de 64 bits) puede llevar a errores al representar la información</b>.
+			</p>
+			<p>
+				Nuestra función <samp>_vprintf()</samp> tendrá 3 estados. En el primero (<i>default</i>), irá imprimiendo cada caracter hasta encontrarse con un <samp>%</samp>. A partir de ahí, pasará al <b>estado <i>length</i></b>, en el que comprobará los especificadores de longitud (<samp>hh</samp>, <samp>h</samp>, <samp>l</samp>, <samp>ll</samp>). Por último, pasará al <b>estado <i>specifier</i></b> en el que comprobará el tipo de dato a mostrar (<samp>c</samp>, <samp>d</samp>, <samp>i</samp>, <samp>u</samp>, <samp>s</samp>, <samp>%</samp>). <b>Hechos todos los pasos, volverá al primer estado</b>.
+			</p>
+			<p>
+				Para evitar liarnos con IDs numéricas, vamos a anotar en nuestro header (<i>stdio.h</i>) identificadores para cada estado y cada longitud posible en printf:
+			</p>
+			<pre><code class="language-c">// Archivo: 'src/bootloader/stage2/include/stdio.h'
+
+#define PRINTF_STATE_DEF 0
+#define	PRINTF_STATE_LEN 1
+#define PRINTF_STATE_SPC 2
+
+#define PRINTF_LENGTH_HH 0
+#define PRINTF_LENGTH_H 1
+#define PRINTF_LENGTH_DF 2
+#define PRINTF_LENGTH_L 3
+#define PRINTF_LENGTH_LL 4</code></pre>
+			<p>
+				Y, sin más dilación, aquí está mi propuesta para implementar <samp>_vprintf()</samp>. Esta es una solución bastante rápida que solo nos servirá para nuestro <i>bootloader</i>. En nuestro kernel diseñaremos una función bastante más compleja.
+			</p>
+			<p>
+				<i><b>Nota importante:</b> esta función es usada por <samp>printf()</samp> y, por ello, debe ser declarada <b>antes que <samp>printf()</samp></b>. Si la declaras después, el compilador dará error.</i>
+			</p>
+			<pre><code class="language-c">// Archivo: 'src/bootloader/stage2/stdio.c'
+
+uint32_t _vprintf(const uint8_t* fmt, va_list args) {
+    uint32_t written = 0;
+
+    uint8_t state = PRINTF_STATE_DEF;
+    uint8_t length = PRINTF_LENGTH_DF;
+
+    while(*fmt) {
+    	// Este iterador examina cada letra de la string 'fmt' hasta su final.
+
+        switch(state) {
+            // Este switch cambia el comportamiento según el estado
+            // (DEFAULT, LENGTH o SPECIFIER).
+
+            case PRINTF_STATE_DEF:
+                // Estado DEFAULT: imprime caracteres y detecta '%'
+                switch(*fmt) {
+                    case '%':
+                        // Si hay un '%' pasa al estado LENGTH
+                        state = PRINTF_STATE_LEN;
+                        fmt++;
+                        break;
+                    default:
+                        written += _putc(*fmt);
+                        fmt++;
+                        break;
+                }
+                break;
+            case PRINTF_STATE_LEN:
+                // Estado LENGTH: detecta 'l', 'h', 'll' y 'hh'.
+                // Si termina o encuentra cualquier otra letra,
+                // salta al estado SPECIFIER.
+                switch(*fmt) {
+                    case 'l':
+                        // Si hay una 'l', aumenta longitud.
+                        if(length == PRINTF_LENGTH_L) {
+                            length = PRINTF_LENGTH_LL;
+                            state = PRINTF_STATE_SPC;
+                            fmt++;
+                        } else {
+                            length = PRINTF_LENGTH_L;
+                            fmt++;
+                        }
+                        break;
+                    case 'h':
+                        // Si hay una 'h', la disminuye.
+                        if(length == PRINTF_LENGTH_H) {
+                            length = PRINTF_LENGTH_HH;
+                            state = PRINTF_STATE_SPC;
+                            fmt++;
+                        } else {
+                            length = PRINTF_LENGTH_H;
+                            fmt++;
+                        }
+                        break;
+                    default:
+                        // Ante otro caracter, pasa al estado SPECIFIER.
+                        state = PRINTF_STATE_SPC;
+                        break;
+                }
+                break;
+            case PRINTF_STATE_SPC:
+                // Estado SPECIFIER: detecta formateadores e imprime los argumentos.
+                switch(*fmt) {
+                    case 'd':
+                    case 'i':
+                        // %d, %i: imprimir núm. con signo.
+                        if(length == PRINTF_LENGTH_LL) {
+                            int64_t num = va_arg(args, int64_t);
+
+                            // Si es negativo, lo detecta y lo apunta
+                            // pero pasa un positivo a la función _putn().
+                            bool negative = num < 0;
+                            if(negative) num *= -1;
+                            written += _putn(num, negative);
+                        } else {
+                            int32_t num = va_arg(args, int32_t);
+
+                            bool negative = num < 0;
+                            if(negative) num *= -1;
+                            written += _putn(num, negative);
+                        }
+                        break;
+                    case 'u':
+                        // %u: imprimir núm. sin signo.
+                        if(length == PRINTF_LENGTH_LL)
+                            written += _putn(va_arg(args, uint64_t), false);
+                        else
+                            written += _putn(va_arg(args, uint32_t), false);
+                        break;
+                    case 'c':
+                        // %c: imprimir caracter con _putc().
+                        written += _putc(va_arg(args, uint32_t));
+                        break;
+                    case 's':
+                        // %s: imprimir string con _puts().
+                        written += _puts(va_arg(args, const uint8_t*));
+                        break;
+                    case '%':
+                        // %%: imprimir '%'.
+                        written += _putc('%');
+                        break;
+                }
+
+                // Volver al estado DEFAULT.
+                state = PRINTF_STATE_DEF;
+                length = PRINTF_LENGTH_DF;
+                fmt++;
+                break;
+        }
+    }
+
+    return written;
+}</code></pre>
+			<p>
+				Esta función es algo limitada, pero nos sirve para muchas de las cosas que queremos hacer con nuestro bootloader. <b>A partir de aquí podremos hacer cosas algo más complejas.</b>
+			</p>
+			<p>
+				Si te interesa mejorar este <samp>printf()</samp>, te dejo un par de puntos de partida interesantes:
+			</p>
+			<ul>
+				<li>Encontrar situaciones que rompan los formatos que hemos creado o creen comportamientos inesperados.</li>
+				<li>Implementar formatos nuevos, como <samp>%p</samp>, <samp>%x</samp>, <samp>%o</samp>...</li>
+				<li>Añadir soporte para cambiar el color de las letras cada vez que imprimimos un texto nuevo.</li>
+			</ul>
+			<h3><samp>_vga_clear</samp>: limpiar la pantalla.</h3>
+			<p>
+				Durante el arranque, hemos ido poniendo textos de prueba. Además, la BIOS también ha llenado la pantalla de textos que ya no nos hacen falta. <b>Ha llegado el momento de borrar todos esos textos para poder ver únicamente los nuestros.</b>
+			</p>
+			<p>
+				El método para <i>limpiar</i> la pantalla es bastante menos sofisticado de lo que uno se podría imaginar. Consiste, sencillamente, en rellenar la pantalla de espacios manteniendo el color de fondo. Aquí te dejo una implementación básica:
+			</p>
+			<pre><code class="language-c">void vga_clear() {
+    // Rellenar la pantalla de espacios.
+    for(uint8_t y = 0; y < VGA_HEIGHT; y++)
+        for(uint8_t x = 0; x < VGA_WIDTH; x++)
+            _vga_write(' ', vga_color, x, y);
+
+    // Mover el cursor al punto de inicio.
+    _vga_move(0, 0);
+}</code></pre>
+		</details>
+		<details id="Usar_nuestro_printf_desde_cualquier_archivo" open>
+			<summary>
+				<h2>Usar nuestro <samp>printf()</samp> desde cualquier archivo</h2>
+				<hr>
+			</summary>
+			<p>
+				Nuestras funciones para imprimir texto están declaradas dentro del archivo <i>stdio.c</i>, pero fuera de él son inaccesibles. Sin embargo, <b>si declaramos funciones en un <i>header</i>, podremos usarlas desde cualquier archivo que haya incluido ese header</b>, como hemos hecho nosotros con <samp>va_start()</samp>, por citar una.
+			</p>
+			<p>
+				<b>¿Y cómo declaramos funciones en un header?</b> Pues basta con replicar la primera línea de la función, sin escribir su código. Por ejemplo, nuestra función <samp>vga_clear()</samp> está declarada así en <i>stdio.c</i>:
+			</p>
+			<pre><code class="language-c">void vga_clear() {
+    // código
+}</code></pre>
+			<p>
+				Pues si queremos hacer esta función accesible desde el exterior, en nuestro header (<i>stdio.h</i>), debemos poner lo siguiente:
+			</p>
+			<pre><code class="language-c">// Archivo: 'src/bootloader/stage2/include/stdio.h'
+
+void vga_clear();</code></pre>
+			<p>
+				A partir de ese momento, la función <samp>vga_clear()</samp> se podrá utilizar desde cualquier archivo que incluya el header (mediante la linea <samp>#include "include/stdio.h"</samp>).
+			</p>
+			<p>
+				Vamos a añadir también la declaración de nuestro <samp>printf()</samp> al header. Dado que devuelve un valor del tipo <samp>uint32_t</samp> y este tipo está definido en el header <samp>stdint.h</samp>, vamos a tener que incluirlo en el archivo tal que así:
+			</p>
+			<pre><code class="language-c">#include &lt;stdint.h&gt;
+
+// ...
+
+uint32_t printf(const uint8_t* fmt, ...);</code></pre>
+			<p>
+				Gracias a esto, desde nuestro archivo <i>main.c</i>, podremos llamar a estas funciones y poner un mensaje de bienvenida en la pantalla, probando las nuevas funciones de nuestro bootloader:
+			</p>
+			<pre><code class="language-c">// Archivo: 'src/bootloader/stage2/main.c'
+
+#include "include/stdio.h"
+
+void quit() {
+    for(;;);
+}
+
+void cstart() {
+    vga_clear();
+
+    printf("Bienvenido al bootloader!\n\r");
+    printf("\n");
+    printf("Prueba de formatos:\n\r");
+    printf("\n");
+    printf("Caracter ASCII: %c.\n\r", '$');
+    printf("Numeros con signo: %lld, %lld, %ld, %d, %hd, %hhd.\n\r", (int64_t) -1234, (int64_t) 5678, (int32_t) -90, (int32_t) 123, (int16_t) -4567, (int8_t) 89);
+    printf("Numeros sin signo: %llu, %lu, %u, %hu, %hhu.\n\r", (uint64_t) 123456, (uint32_t) 7890, (uint32_t) 1234, (uint16_t) 567, (uint8_t) 89);
+    printf("Cadena de texto: \"%s\".\n\r", "Holaa!");
+    printf("Escape: %%.\n\r");
+
+    quit();
+}</code></pre>
+		<details id="Compilar_nuestro_codigo_con_los_nuevos_archivos" open>
+			<summary>
+				<h2>Compilar nuestro código con los nuevos archivos</h2>
+				<hr>
+			</summary>
+			<p>
+				El código está terminado, <b>solamente nos queda añadir los nuevos archivos a la <i>Makefile</i> de la <i>stage2</i></b> para que los tenga en cuenta a la hora de compilar el proyecto. Ahora es cuando entra en juego esta parte tan interesante de la <i>Makefile</i> en cuestión:
+			</p>
+			<pre><code class="language-makefile"># Archivo: 'src/bootloader/stage2/Makefile'
+
+# Lista de objetos binarios que tendremos que generar.
+#  - Si existe entry.asm, debe existir ${DIR_OUTPUT}/entry.obj
+#  - Si existe main.c, debe existir ${DIR_OUTPUT}/main.obj
+#  - etc.
+OBJECTS=\
+${DIR_OUTPUT}/entry.obj \
+${DIR_OUTPUT}/main.obj</code></pre>
+			<p>
+				Tenemos un nuevo archivos de código, ya no solo existen <i>entry.asm</i> y <i>main.c</i>. Tenemos que añadir el archivo <i>stdio.c</i>, tal que así:
+			</p>
+			<pre><code class="language-makefile">OBJECTS=\
+${DIR_OUTPUT}/entry.obj \
+${DIR_OUTPUT}/main.obj \
+${DIR_OUTPUT}/stdio.obj</code></pre>
+			<p>
+				Hecho esto, podemos pasar a compilar nuestro código con <samp>make</samp>, emularlo con <samp>make qemu</samp>, depurarlo con <samp>make debug</samp> o limpiar los archivos de compilación con <samp>make clean</samp>. Recuerda siempre ejecutar el comando en la carpeta raíz de nuestro proyecto.
+			</p>
+		</details>
+		<details id="Resumen" open>
+			<summary>
+				<h2>Resumen</h2>
+				<hr>
+			</summary>
+			<p>
+				Este capítulo ha sido, probablemente, el más largo hasta ahora. Hemos aprendido a manejar tipos de variables y pointers en C, los contenidos de los headers <samp>stdint.h</samp>, <samp>stdbool.h</samp> y <samp>stdarg.h</samp> y los hemos usado para implementar una versión mínima de la función <samp>printf()</samp>, que trabaja con el buffer VGA de la memoria de nuestro equipo.
+			</p>
+			<p>
+				Es mucha información, y te recomiendo probar bien el código y asegurarte de que has hecho todos los pasos correctamente. <b>Los bugs silenciosos en <samp>printf()</samp> nos pueden llevar a buscar errores que no existen</b>, o incluso tener errores de memoria que se extiendan a otras partes de nuestro proyecto.
+			</p>
+			<p>
+				En el siguiente episodio, implementaremos algunas funciones básicas de la <i>C Standard Library</i> y comenzaremos a desarrollar nuestro driver para leer particiones formateadas con el sistema de archivos FAT12.
+			</p>
+		</details>
+		<details id="Ejemplo_descargable" open>
+			<summary>
+				<h2>Ejemplo descargable</h2>
+				<hr>
+			</summary>
+			<p>
+				En este capítulo te puede venir incluso mejor que en los anteriores usar el ejemplo descargable como referencia según avanzas con tu bootloader.
+			</p>
+			<p>
+				<b>El archivo es <a href="capitulo-10.tar.gz">capitulo-10.tar.gz</a></b>.
+			</p>
+		</details>
+		<p id="footer">
+			<a href="../../"><button>Portada</button>
+			<a href="../capitulo-11"><button>Siguiente capítulo</button></a>
+		</p>
+	</div>
+
+	<!-- Library: highlight.js -->
+	<script src="../../assets/lib/highlight/highlight.min.js"></script>
+	<script>hljs.highlightAll();</script>
+</body>

@@ -523,7 +523,7 @@ jmp start_read_stage2_loop</code></pre>
     ; stage2_lba (ax) = datasectionlba + (stage2_cluster - 2)
     mov ax, [data_stage2_cluster]
     sub ax, 2
-    add ax, cx
+    add ax, [data_datasectionlba]
 
     ; Leer el cluster usando la función disk_read
     mov cl, [bdb_sectors_per_cluster]
