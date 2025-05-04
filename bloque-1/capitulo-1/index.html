@@ -245,59 +245,26 @@ parte_dos:          ; parte_dos = 0x1504
 				Ten en cuenta que <b>ni las directivas ni los símbolos se escriben en el ejecutable final</b>. Lo que sí se va a escribir son nuestras variables (que hemos definido con la directiva <samp>db</samp> o <i>define byte</i>) y las instrucciones, como <samp>jmp</samp>. Por eso, los símbolos que hemos definido en este código, que son <samp>variable1</samp>, <samp>variable2</samp>, <samp>_entry</samp> y <samp>parte_dos</samp>, tienen los valores <samp>0x1500</samp>, <samp>0x1501</samp>, <samp>0x1502</samp> y <samp>0x1504</samp>, respectivamente.
 			</p>
 			<p>
-				La siguiente tabla muestra cómo se traduce un código assembly a un archivo binario básico. El código mostrado define una variable de 2 bytes con el valor 500 (<samp>dw 500</samp>) y salta a una sección llamada <samp>exit</samp>. <b>En el ejecutable final, no se reflejan ni las directivas ni los símbolos</b>:
+				El siguiente vídeo muestra cómo se traduce un código assembly a un archivo binario básico. El código mostrado define una variable de 2 bytes con el valor 500 (<samp>dw 500</samp>) y salta a una sección llamada <samp>exit</samp>. <b>En el ejecutable final, no se reflejan ni las directivas ni los símbolos, solo las instrucciones</b>:
 			</p>
 			<p>
-				<div class="flex row bigspaced nostretch hcentered vcentered">
-					<div class="square file asm">
-						<span class="filename">ejemplo.asm</span>
-						<pre><code class="language-x86asm">global _start
-
-section .data
-var:
-    dw 500
-
-section .text
-_start:
-    jmp exit
-
-exit:
-    ...</code></pre>
-					</div>
-					<img src="../../assets/icons/arrow-right.svg">
-					<div class="block">
-						<table class="memory">
-							<tr>
-								<th>var</th>
-								<th>+1</th>
-								<th>_start</th>
-								<th>+1</th>
-							</tr>
-							<tr>
-								<td colspan="2">500</td>
-								<td colspan="2">jmp exit</td>
-							</tr>
-							<tr>
-								<th>exit</th>
-								<th>+1</th>
-								<th>+2</th>
-								<th>+3</th>
-							</tr>
-							<tr>
-								<td colspan="4">...</td>
-							</tr>
-						</table>
-						<p>
-							*Al poner <samp>...</samp> simplemente indicamos que hay más código a continuación.
-						</p>
-					</div>
+				<div class="flex row hcentered">
+					<video width="455.33" hwight="256" controls>
+						<source src="de-assembly-a-maquina.mp4" type="video/mp4">
+					</video>
 				</div>
 			</p>
 			<p>
-				Puedes ver que las directivas <samp>global</samp> y <samp>section</samp> no se escriben en el código binario. Tampoco se escriben los símbolos <samp>_start</samp> y <samp>exit</samp>, simplemente nos sirven a nosotros y al compilador para guiarnos. El caso de la directiva <samp>dw</samp> es curioso: su función es escribir un valor directamente en el ejecutable, por lo que la directiva en sí no se traslada, pero <b>el valor que le hemos proporcionado como argumento sí</b>. También puedes ver que la instrucción <samp>jmp "dirección"</samp> ocupa exactamente 2 bytes.
+				El ejecutable final únicamente contendrá, en orden, el número <samp>500</samp>, que ocupa 2 bytes, la instrucción <samp>jmp exit</samp>, y luego las instrucciones de cierre (<samp>mov eax, 1</samp>, <samp>mov ebx, 5</samp> y <samp>int 0x80</samp>). En nuestro caso, cada instrucción ocupa 4 bytes. Tanto las secciones como los símbolos solo sirven y son visibles en <i>compile-time</i> (cuando estamos programando) y no en <i>run-time</i> (cuando se ejecuta el programa final).
 			</p>
 			<p>
-				Como curiosidad: <b>los símbolos proporcionados como argumentos a las instrucciones, cuando pasan al ejecutable, pierden el nombre</b>, y se convierten sencillamente en la dirección a la que apuntan. Por ejemplo: la instrucción <samp>jmp parte_dos</samp> acabará convertida en <samp>jmp 0x1504</samp>. Esto no está puesto así en la ilustración sería algo más difícil entenderla.
+				En otras palabras, las directivas <samp>global</samp> y <samp>section</samp> no se escriben en el código binario. Tampoco se escriben los símbolos <samp>points</samp>, <samp>_start</samp> y <samp>exit</samp>, simplemente nos sirven a nosotros y al compilador para guiarnos. El caso de la directiva <samp>dw</samp> es curioso: su función es escribir un valor directamente en el ejecutable, por lo que la directiva en sí no se traslada, pero <b>el valor que le hemos proporcionado como argumento sí</b>.
+			</p>
+			<p>
+				Como curiosidad: <b>los símbolos proporcionados como argumentos a las instrucciones, cuando pasan al ejecutable, pierden el nombre</b>, y se convierten sencillamente en la dirección a la que apuntan. Por ejemplo: si la sección <samp>exit</samp> se encuentra en el byte nº <samp>0x1200</samp> del código de nuestro ejecutable, la instrucción <samp>jmp exit</samp> se escribirá al ejecutable así: <samp>jmp 0x1200</samp>.
+			</p>
+			<p>
+				Es importante también aclarar que existen distintos tipos de ejecutable. Un <a href="https://es.wikipedia.org/wiki/Archivo_binario">archivo binario plano</a> (es decir, que solo contenga el código) no incluirá los nombres de las secciones ni los símbolos, pero un <a href="https://es.wikipedia.org/wiki/Executable_and_Linkable_Format">ejecutable en formato ELF</a> como el que estamos creando sí contiene sus nombres al final del ejecutable. He reducido mi explicación a los archivos binarios planos, pero todo depende del formato final del ejecutable.
 			</p>
 		</details>
 		<details id="Las_instrucciones_movimientos_y_operaciones" open>
