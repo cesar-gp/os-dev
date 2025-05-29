@@ -605,7 +605,7 @@ push 'a'</code></pre>
 				El registro <samp>sp</samp> (o <samp>esp</samp> en su versión de 32 bits) <b>es un puntero que apunta al <i>tope</i> del stack</b>, que siempre contiene la dirección del último valor guardado en el stack. Cuando ejecutas <i>push</i>, el procesador le resta 4 a su valor, y cuando ejecutas <i>pop</i> le suma 4.
 			</p>
 			<p>
-				El registro <samp>bp</samp> (o <samp>ebp</samp>) <b>suele apuntar a la <i>base del stack</i></b> (es decir, si el stack no está vacío, recoge el primer valor que mandes mediante <samp>push</samp>). Sin embargo, declararlo es opcional y hay veces en las que no se puede asumir que tenga un valor válido. Se usa, sobre todo, para crear un nuevo stack en una parte distinta de la memoria. El valor de <samp>sp</samp> nunca debería ser mayor que el de <samp>bp</samp>.
+				El registro <samp>bp</samp> (o <samp>ebp</samp>) <b>suele apuntar a la <i>base del stack</i></b>. Es decir, la dirección de la memoria que está junto delante del primer valor que hayamos mandado mediante la instrucción <samp>push</samp>. Declararlo es opcional y hay veces en las que no se puede asumir que tenga un valor válido. Se usa, sobre todo, para crear un nuevo stack en una parte distinta de la memoria. El valor de <samp>sp</samp> nunca debería ser mayor que el de <samp>bp</samp>.
 			</p>
 			<h3>Instrucciones <samp>push</samp> y <samp>pop</samp></h3>
 			<p>

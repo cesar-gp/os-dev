@@ -417,7 +417,7 @@ vgaromimage: file=/usr/share/bochs/VGABIOS-elpin-2.40
 floppya: 1_44=build/disco.img, status=inserted
 boot: floppy
 mouse: enabled=0
-display_library: wx, options="gui_debug"
+display_library: x, options="gui_debug"
 magic_break: enabled=1</code></pre>
 			<p>
 				Para ejecutar Bochs correctamente, tienes que asegurarte de varias cosas:
@@ -431,7 +431,10 @@ magic_break: enabled=1</code></pre>
 				En un futuro, aprenderemos algo más sobre emulación con Bochs. Por ahora, tan solo tienes que preocuparte de añadir la siguiente receta en la Makefile global:
 			</p>
 			<pre><code class="language-makefile">debug: compile
-    bochs -f bochs_config</code></pre>
+    bochs -f bochs_config -q -debugger</code></pre>
+    		<p>
+    			La opción <samp>-f</samp> sirve para especificar nuestro archivo de configuración (en este caso, <i>bochs_config</i>). La opción <samp>-q</samp> evita la configuración inicial del programa. Por último, la opción <samp>-debugger</samp> habilita la ventana de depuración. No siempre es necesario escribir la opción, pero conviene hacerlo.
+    		</p>
 			<p>
 				Esto bastará para poder ejecutar <samp>make debug</samp> y aprovechar las funciones de depuración de Bochs si necesitamos arreglar errores de nuestro sistema operativo. <b>Tras emular nuestro sistema, se creará el archivo <samp>bx_enh_dbg.ini</samp>, que contiene más atributos de configuración.</b> Este archivo se puede modificar a mano, pero no es recomendable hacerlo si no es totalmente necesario.
 			</p>
