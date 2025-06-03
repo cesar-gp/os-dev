@@ -21,23 +21,341 @@
 			&nbsp;→&nbsp;
 			<b>Capítulo 11</b>
 		</div>
-		<h1>Capítulo 11: asdf</h1>
+		<h1>Capítulo 11: La biblioteca estándar de C</h1>
 		<hr>
 		<p>
-			asdf
+			El estándar de C define su sintaxis, sus operadores, y las funciones que deben incluirse en la <i>C Standard Library</i>, tanto para entornos <i>hosted</i> como para <a href="http://localhost/bloque-1/#Conceptos_basicos_para_crear_programas_ejecutables">entornos <i>freestanding</i></a>. Existen varias versiones, la última es la <i>ISO/IEC 9899:2024</i> o, para entendernos, <b>C23</b>.
 		</p>
-		<details id="test" open>
+		<p>
+			<a href="https://gcc.gnu.org/onlinedocs/gcc/Standards.html#C-Language">El capítulo 2.1 de la documentación de GCC</a> explica que, desde la especificación C11, estos son los <i>headers</i> incluidos en una instalación <i>freestanding</i> de GCC:
+		</p>
+		<ul>
+			<li><a href="https://en.cppreference.com/w/c/header/float.html" target="_blank"><samp>&lt;float.h&gt;</samp></a></li>
+			<li><a href="https://en.cppreference.com/w/c/header/limits.html" target="_blank"><samp>&lt;limits.h&gt;</samp></a></li>
+			<li><a href="https://en.cppreference.com/w/c/header/stdarg.html" target="_blank"><samp>&lt;stdarg.h&gt;</samp></a></li>
+			<li><a href="https://en.cppreference.com/w/c/header/stddef.html" target="_blank"><samp>&lt;stddef.h&gt;</samp></a></li>
+			<li><a href="https://en.cppreference.com/w/c/header/iso646.html" target="_blank"><samp>&lt;iso646.h&gt;</samp></a></li>
+			<li><a href="https://en.cppreference.com/w/c/header/stdbool.html" target="_blank"><samp>&lt;stdbool.h&gt;</samp></a></li>
+			<li><a href="https://en.cppreference.com/w/c/header/stdint.html" target="_blank"><samp>&lt;stdint.h&gt;</samp></a></li>
+			<li><a href="https://en.cppreference.com/w/c/header/stdalign.html" target="_blank"><samp>&lt;stdalign.h&gt;</samp></a> <i>(obsoleto desde C23)</i></li>
+			<li><a href="https://en.cppreference.com/w/c/header/stdnoreturn.html" target="_blank"><samp>&lt;stdnoreturn.h&gt;</samp></a> <i>(obsoleto desde C23)</i></li>
+		</ul>
+		<p>
+			También explica algo más importante aún: <b>el compilador podría emitir llamadas a las funciones <samp>memcpy</samp>, <samp>memmove</samp>, <samp>memset</samp> y <samp>memcmp</samp>, y es nuestra responsabilidad implementarlas</b>. Todas estas funciones se encuentran en el header <samp>&lt;string.h&gt;</samp>, junto a dos más: <samp>strcpy</samp> y <samp>strlen</samp>.
+		</p>
+		<p>
+			Vamos a dedicar el principio de este capítulo a crear nuestra propia implementación de este header, incluyendo sus 6 funciones.
+		</p>
+		<details id="Tabla_de_contenidos" open>
 			<summary>
-				<h2>test</h2>
+				<h2>Tabla de contenidos</h2>
+				<hr>
+			</summary>
+			<ol>
+				<li><a href="#Implementar_string_h">Implementar <samp>string.h</samp></a></li>
+				<li><a href="#Implementar_ctype_h">Implementar <samp>ctype.h</samp></a></li>
+				<li><a href="#Añadir_los_nuevos_headers_al_proyecto">Añadir los nuevos headers al proyecto</a></li>
+				<li><a href="#Resumen">Resumen</a></li>
+				<li><a href="#Ejemplo_descargable">Ejemplo descargable</a></li>
+			</ol>
+		</details>
+		<details id="Implementar_string_h" open>
+			<summary>
+				<h2>Implementar <samp>&lt;string.h&gt;</samp></h2>
 				<hr>
 			</summary>
 			<p>
-				asdf
+				Para crear nuestra implementación, primero <b>desarrollaremos el código de las funciones en un archivo llamado <i>string.c</i></b>.
+			</p>
+			<h3><samp>memcpy()</samp></h3>
+			<p>
+				Esta función copia un número determinado de bytes (<samp>len</samp>) localizados en una dirección de la memoria (<samp>src</samp>) hacia otra dirección (<samp>dst</samp>). Devuelve un <i>pointer</i> hacia la dirección de destino.
+			</p>
+			<p>
+				A continuación se muestra una implementación <b>muy simple</b> de esta función:
+			</p>
+			<pre><code class="language-c">/* Archivo: string.c (en stage2) */
+
+void* memcpy(void* dst, const void* src, size_t len) {
+    uint8_t* u8dst = (uint8_t*) dst;
+    uint8_t* u8src = (uint8_t*) src;
+
+    for(size_t i = 0; i < len; i++) u8dst[i] = u8src[i];
+    return dst;
+}</code></pre>
+			<h3><samp>memmove()</samp></h3>
+			<p>
+				Esta función es muy parecida a <samp>memcpy()</samp>. La única diferencia es que <samp>memmove()</samp> también funciona cuando las áreas de memoria <samp>src</samp> y <samp>dst</samp> se solapan.
+			</p>
+			<p>
+				<a href="https://youtu.be/DGwdAQauEV4">Este vídeo del canal <i>Portfolio Courses</i></a> explica bastante bien el fenómeno. <b>El siguiente mapa de memoria muestra 2 áreas de memoria que se solapan</b>. La primera va desde la dirección <samp>0x00</samp> hasta la dirección <samp>0x07</samp>, la segunda va de <samp>0x02</samp> a <samp>0x09</samp>.
+			</p>
+			<p>
+				<table class="memory">
+					<tr>
+						<th>0x00</th>
+						<th>0x01</th>
+						<th>0x02</th>
+						<th>0x03</th>
+						<th>0x04</th>
+						<th>0x05</th>
+						<th>0x06</th>
+						<th>0x07</th>
+						<th>0x08</th>
+						<th>0x09</th>
+					</tr>
+					<tr>
+						<td colspan="2" style="background-color: blue;"></td>
+						<td colspan="6" style="background-color: #0000ff; opacity: 0.8; background: repeating-linear-gradient( -45deg, #ffa500, #ffa500 10px, #0000ff 10px, #0000ff 20px );"></td>
+						<td colspan="2" style="background-color: orange;"></td>
+					</tr>
+				</table>
+			</p>
+			<p>
+				Si copiamos los contenidos de la zona azul a la zona naranja con <samp>memcpy()</samp>, el comportamiento de la función será indefinido, <b>pero si usamos <samp>memmove()</samp> el comportamiento será el esperado</b>. Esto se puede conseguir leyendo los bytes al revés si el solapamiento es posterior a <samp>src</samp>, y leyéndolos del derecho en caso contrario.
+			</p>
+			<p>
+				Aquí tienes una implementación simple, bastante eficiente en velocidad y uso de memoria. Siéntete libre de modificarla si prefieres hacerlo de otra manera:
+			</p>
+			<pre><code class="language-c">void* memmove(void* dst, const void* src, size_t len) {
+    uint8_t* u8dst = (uint8_t*) dst;
+    uint8_t* u8src = (uint8_t*) src;
+
+    if(src + len >= dst) {
+        for(size_t i = 0; i > len; i++)
+            u8dst[len - i] = u8src[len - i];
+    } else {
+        for(size_t i = 0; i < len; i++)
+            u8dst[i] = u8src[i];
+    }
+
+    return dst;
+}</code></pre>
+			<h3><samp>memset()</samp></h3>
+			<p>
+				Esta función sustituye todos los bytes en un área de memoria por un valor concreto. El área de memoria se define usando la dirección en la que empieza (<samp>dst</samp>) y su tamaño en bytes (<samp>len</samp>). En esta implementación, el valor por el que se sustituirán los bytes se llama <samp>src</samp>.
+			</p>
+			<pre><code class="language-c">void* memset(void* dst, uint8_t src, size_t len) {
+    uint8_t* u8dst = (uint8_t*) dst;
+
+    for(size_t i = 0; i < len; i++)
+        u8dst[i] = src;
+
+    return dst;
+}</code></pre>
+			<h3><samp>memcmp()</samp></h3>
+			<p>
+				Esta función <i>compara</i> el contenido de dos áreas de memoria. Para usarla, se debe definir la dirección en la que empieza el primer área (<samp>src</samp>), la segunda (<samp>dst</samp>), y la cantidad de bytes a comparar (<samp>len</samp>).
+			</p>
+			<p>
+				Si la función encuentra 2 bytes que no coincidan, devuelve la diferencia entre sus valores (<samp>byte en dst - byte en src</samp>). Si no encuentra ninguna diferencia, devuelve <samp>0</samp>.
+			</p>
+			<pre><code class="language-c">uint8_t memcmp(const void* dst, const void* src, size_t len) {
+    uint8_t* u8dst = (uint8_t*) dst;
+    uint8_t* u8src = (uint8_t*) src;
+
+    for(size_t i = 0; i < len; i++)
+        if(u8src[i] != u8dst[i]) return u8dst[i] - u8src[i];
+
+    return 0;
+}</code></pre>
+			<h3><samp>strcpy()</samp></h3>
+			<p>
+				Esta función es también muy parecida a <samp>memcpy()</samp>, aunque está adaptada para copiar <i>cadenas de texto</i> concretamente. La diferencia principal es que, debido a que las strings marcan su final con el byte <samp>0x00</samp>, no es necesario indicar ningún tamaño (<samp>len</samp>).
+			</p>
+			<p>
+				Al llamar a <samp>strcpy()</samp>, se especifica el punto de inicio de una <i>string</i> (<samp>src</samp>) y el punto de inicio del área de memoria a la que copiarla (<samp>dst</samp>). <b>La función copia cada byte hasta encontrar un <i>0</i> en <samp>src</samp></b>. En ese momento, se detiene, copia un <i>0</i> a <samp>dst</samp> y devuelve un puntero hacia <samp>dst</samp>.
+			</p>
+			<pre><code class="language-c">uint8_t* strcpy(uint8_t* dst, const uint8_t* src) {
+    uint8_t len = 0;
+    for(; src[len]; len++) dst[len] = src[len];
+    dst[len] = '\0';
+    return dst;
+}</code></pre>
+			<h3><samp>strlen()</samp></h3>
+			<p>
+				<b>Esta función mide la longitud de una cadena de texto</b>. Su funcionamiento es muy simple: cuenta bytes de uno en uno hasta encontrar un <i>0</i>.
+			</p>
+			<pre><code class="language-c">size_t strlen(const uint8_t* str) {
+    size_t len = 0;
+    while(str[len]) len++;
+    return len;
+}</code></pre>
+			<h3>Importar los <i>headers</i> necesarios</h3>
+			<p>
+				En nuestro código, hemos utilizado el tipo de variable <samp>uint8_t</samp>, definido en el header <samp>&lt;stdint.h&gt;</samp>. También hemos usado el tipo <samp>size_t</samp>, definido en el header <samp>&lt;stddef.h&gt;</samp>. <b>Al principio de nuestro archivo de código debemos incluir los 2 headers</b> para que el compilador sepa a qué hacemos referencia cuando nombramos esos tipos:
+			</p>
+			<pre><code class="language-c">/* Al principio del archivo 'string.c' (en stage2) */
+
+#include &lt;stdint.h&gt;
+#include &lt;stddef.h&gt;</code></pre>
+			<h3>Crear el header</h3>
+			<p>
+				Ahora que tenemos definido todo el código, vamos a crear el <i>header</i> como tal. En nuestra carpeta <samp>include</samp> crearemos el archivo <samp>string.h</samp>, y copiaremos la declaración de nuestras 6 funciones tal que así:
+			</p>
+			<pre><code class="language-c">/* Archivo: include/string.h (en stage2) */
+
+#pragma once
+
+#include &lt;stdint.h&gt;
+#include &lt;stddef.h&gt;
+
+uint8_t memcmp(const void* dst, const void* src, size_t len);
+void* memcpy(void* dst, const void* src, size_t len);
+void* memmove(void* dst, const void* src, size_t len);
+void* memset(void* dst, uint8_t src, size_t len);
+
+uint8_t* strcpy(uint8_t* dst, const uint8_t* src);
+size_t strlen(const uint8_t* str);</code></pre>
+		</details>
+		<details id="Implementar_ctype_h" open>
+			<summary>
+				<h2>Implementar <samp>ctype.h</samp></h2>
+				<hr>
+			</summary>
+			<p>
+				La biblioteca estándar de C está compuesta de <a href="https://en.cppreference.com/w/c/header.html">32 headers</a>. Algunos de ellos contienen funciones que no nos interesa implementar en nuestro bootloader (como el procesamiento de números imaginarios en <samp><a href="https://en.cppreference.com/w/c/header/complex.html">&lt;complex.h&gt;</a></samp>), pero sí que nos puede interesar hacer una <i>implementación parcial</i> de algunos de ellos, como, por ejemplo, del header <samp><a href="https://en.cppreference.com/w/c/header/ctype.html">ctype.h</a></samp>.
+			</p>
+			<p>
+				Este header contiene funciones que <b>nos permiten saber si una variable de 4 bytes (o <i>int</i>) es un caracter alfabético, numérico, etc.</b> Esto se hace, habitualmente, comparando el caracter con valores de la <a href="https://www.utf8-chartable.de/">tabla de caracteres UTF-8</a>.
+			</p>
+			<p>
+				Para simplificar las cosas, nosotros trataremos cada caracter como una variable de un solo byte (o <i>char</i>), y usaremos la <a href="https://www.ascii-code.com/">tabla de caracteres ASCII</a>. No renunciamos a mucho, puesto que las limitaciones gráficas del modo VGA tampoco nos permiten imprimir caracteres de más de 1 byte, o de fuera de la tabla ASCII.
+			</p>
+			<p>
+				En nuestra implementación parcial, el archivo <i>include/ctype.h</i> debería quedar así:
+			</p>
+			<pre><code class="language-c">/* Archivo: include/ctype.h (en stage2) */
+
+#pragma once
+
+#include &lt;stdint.h&gt;
+#include &lt;stdbool.h&gt;
+
+bool isalpha(uint8_t c);
+bool isdigit(uint8_t c);
+bool isprint(uint8_t c);
+bool islower(uint8_t c);
+bool isupper(uint8_t c);
+uint8_t tolower(uint8_t c);
+uint8_t toupper(uint8_t c);</code></pre>
+			<h3><samp>isalpha()</samp></h3>
+			<p>
+				<b>Esta función nos permite comprobar si un byte representa un caracter alfabético</b>. Si está entre la <i>A mayúscula</i> (<samp>0x41</samp>) y la <i>Z mayúscula</i> (<samp>0x5A</samp>), o si está entre la <i>a minúscula</i> (<samp>0x61</samp>) y la <i>z minúscula</i> (<samp>0x7A</samp>) en la tabla ASCII.
+			</p>
+			<p>
+				Por suerte, GCC ya realiza las traducciones de las letras a hexadecimal por nosotros, así que el código resulta bastante simple y entendible:
+			</p>
+			<pre><code class="language-c">/* Archivo: ctype.c (en stage2) */
+
+#include &lt;stdbool.h&gt;
+#include &lt;stdint.h&gt;
+
+bool isalpha(uint8_t c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c >= 'Z');
+}</code></pre>
+			<h3><samp>isdigit()</samp></h3>
+			<p>
+				<b>Con esta función podemos comprobar si el byte representa un caracter númerico.</b> Es decir, si está entre el 0 y el 9 en la tabla ASCII:
+			</p>
+			<pre><code class="language-c">bool isdigit(uint8_t c) {
+    return c >= '0' && c <= '9';
+}</code></pre>
+			<h3><samp>isprint()</samp></h3>
+			<p>
+				La tabla ASCII contiene caracteres <i>imprimibles</i> (las letras, números, signos de puntuación y símbolos), pero también incluye caracteres de control (como el <i>salto de línea</i> o la <i>tabulación</i>). <b>Esta función comprueba si un byte representa un caracter imprimible.</b>
+			</p>
+			<pre><code class="language-c">bool isprint(uint8_t c) {
+    return c >= 0x20 && c <= 0x7E;
+}</code></pre>
+			<p>
+				<i><b>Nota:</b> si miras la tabla ASCII, puedes comprobar que existen caracteres imprimibles con valores mayores a <samp>0x7C</samp> (como <samp>'€'</samp>, que tiene el valor <samp>0x80</samp>). No nos molestamos en incluirlos porque nosotros solo estamos trabajando con los primeros 128 caracteres de la tabla. Los otros caracteres pueden variar de código dependiendo del comportamiento del modo VGA en cada equipo.</i>
+			</p>
+			<h3><samp>islower()</samp></h3>
+			<p>
+				Permite comprobar si un byte representa una letra minúscula.
+			</p>
+			<pre><code class="language-c">bool islower(uint8_t c) {
+    return c >= 'a' && c <= 'z';
+}</code></pre>
+			<h3><samp>isupper()</samp></h3>
+			<p>
+				Como <samp>islower()</samp>, pero para mayúsculas.
+			</p>
+			<pre><code class="language-c">bool isupper(uint8_t c) {
+    return c >= 'A' && c <= 'Z';
+}</code></pre>
+			<h3><samp>tolower()</samp></h3>
+			<p>
+				<b>Convierte una letra mayúscula en una minúscula</b>: esto se puede conseguir sumando <samp>0x20</samp> a su valor. Se puede utilizar con bytes que no representen letras mayúsculas, pero no tiene mucho sentido.
+			</p>
+			<pre><code class="language-c">bool tolower(uint8_t c) {
+    return c + 0x20;
+}</code></pre>
+			<h3><samp>toupper()</samp></h3>
+			<p>
+				Convierte una letra minúscula en una mayúscula. En este caso, se resta <samp>0x20</samp> al byte.
+			</p>
+			<pre><code class="language-c">bool toupper(uint8_t c) {
+    return c - 0x20;
+}</code></pre>
+		</details>
+		<details id="Añadir_los_nuevos_headers_al_proyecto" open>
+			<summary>
+				<h2>Añadir los nuevos headers al proyecto</h2>
+				<hr>
+			</summary>
+			<p>
+				Hemos creado 2 nuevos headers, con su correspondiente código: <samp>include/string.h</samp> y <samp>include/ctype.h</samp>. <b>Estos headers, por ahora, no se incluyen en el proyecto final</b>, porque nuestra Makefile no los enlaza junto con el resto de nuestro código.
+			</p>
+			<p>
+				Para solucionar eso, simplemente debemos decirle a nuestra Makefile que compile 2 objetos binarios más: <samp>string.obj</samp> y <samp>ctype.obj</samp>. Lo podemos hacer añadiendolos a la lista <samp>OBJECTS</samp>:
+			</p>
+			<pre><code class="makefile-language">OBJECTS=\
+${DIR_OUTPUT}/entry.obj \
+${DIR_OUTPUT}/main.obj \
+${DIR_OUTPUT}/stdio.obj \
+${DIR_OUTPUT}/string.obj \
+${DIR_OUTPUT}/ctype.obj
+</code></pre>
+		</details>
+		<details id="Notas_sobre_la_implementación" open>
+			<summary>
+				<h2>Notas sobre la implementación</h2>
+				<hr>
+			</summary>
+			<p>
+				A lo mejor has notado que algunas de las funciones que hemos incluido en esta <i>mini biblioteca estándar</i> <b>son suficientemente simples como para convertirlas en <a href="https://gcc.gnu.org/onlinedocs/cpp/Macros.html">macros</a></b>. Si prefieres hacerlo así, siéntete libre. De hecho, tu implementación se parecerá más a la de GNU (<i><a href="https://sourceware.org/glibc/manual/latest/html_node/index.html">glibc</a></i>).
+			</p>
+			<p>
+				Es posible que también eches en falta funciones muy básicas, como <samp><a href="https://en.cppreference.com/w/c/numeric/math/pow.html">pow()</a></samp>... o funciones que podrían ser útiles para nuestro sistema, como <samp><a href="https://en.cppreference.com/w/c/program/abort.html">abort()</a></samp>. De nuevo, siéntete libre de implementarlas por tu cuenta. Yo prefiero esperar a programar el kernel para hacerlo.
+			</p>
+		</details>
+		<details id="Resumen" open>
+			<summary>
+				<h2>Resumen</h2>
+				<hr>
+			</summary>
+			<p>
+				Este capítulo ha sido algo más simple que los anteriores. <b>Hemos visto un ejemplo de implementación de varias funciones de la <i>C Standard Library</i></b>, algunas de ellas son requerimientos directos de GCC mientras que otras solamente simplifican el desarollo de la parte final del bootloader.
+			</p>
+			<p>
+				En el siguiente capítulo, veremos cómo crear un driver escrito en C para leer el sistema de archivos FAT12 y poder saltar, por fin, al kernel. <b>El kernel será la primera pieza de nuestro sistema operativo</b>, y, como tal, comenzará a incluir funciones con algo más de 
+				utilidad para el usuario final.
+			</p>
+		</details>
+		<details id="Ejemplo_descargable" open>
+			<summary>
+				<h2>Ejemplo descargable</h2>
+				<hr>
+			</summary>
+			<p>
+				Como siempre que modificamos código, puedes descargar lo que llevamos en un archivo comprimido. <b>Aquí tienes el link para descargar el archivo: <a href="capitulo-11.tar.gz">capitulo-11.tar.gz</a></b>.
 			</p>
 		</details>
 		<p id="footer">
-			<a href="../../"><button>Portada</button>
-			<a href="../capitulo-11"><button>Siguiente capítulo</button></a>
+			<a href="../../"><button>Portada</button></a>
+			<a href="../capitulo-12"><button>Siguiente capítulo</button></a>
 		</p>
 	</div>
 

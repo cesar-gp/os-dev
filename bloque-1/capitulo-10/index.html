@@ -56,6 +56,22 @@ int main() {
 void cstart() {
     quit();
 }</code></pre>
+		<details id="Tabla_de_contenidos" open>
+			<summary>
+				<h2>Tabla de contenidos</h2>
+				<hr>
+			</summary>
+			<ol>
+				<li><a href="#Fundamentos_de_C_headers_tamaño_de_variables_y_punteros">Fundamentos de C: headers, tamaño de variables y punteros</a></li>
+				<li><a href="#Funciones_basicas_para_escribir_caracteres">Funciones para escribir caracteres</a></li>
+				<li><a href="#Formatos_letras_numeros_y_strings">Formatos: letras, números y <i>strings</i></a></li>
+				<li><a href="#La_funcion_final_implementar_printf">La función final: implementar <samp>printf()</samp></a></li>
+				<li><a href="#Usar_nuestro_printf_desde_cualquier_archivo">Usar nuestro <samp>printf()</samp> desde cualquier archivo</a></li>
+				<li><a href="#Compilar_nuestro_codigo_con_los_nuevos_archivos">Compilar nuestro código con los nuevos archivos</a></li>
+				<li><a href="#Resumen">Resumen</samp></a></li>
+				<li><a href="#Ejemplo_descargable">Ejemplo descargable</a></li>
+			</ol>
+		</details>
 		<details id="Fundamentos_de_C_headers_tamaño_de_variables_y_punteros" open>
 			<summary>
 				<h2>Fundamentos de C: headers, tamaño de variables y punteros</h2>
@@ -308,7 +324,7 @@ static uint8_t vga_color = 0x0F;</code></pre>
 			Poco a poco, nos vamos acercando a lo que espera el usuario final. La función <samp>_putc(uint8_t c)</samp> <b>escribirá un caracter en la posición actual del cursor y lo moverá automáticamente a la siguiente posición</b>.
 		</p>
 		<p>
-			Lo que se presenta a continuación es una implementación <i>naif</i>, que no tiene en cuenta muchos de los casos de uso de esta función:
+			Lo que se presenta a continuación es una implementación <i>naíf</i>, que no tiene en cuenta muchos de los casos de uso de esta función:
 		</p>
 		<pre><code class="language-c">void _putc(uint8_t c) {
     _vga_write(c, vga_color, vga_x, vga_y);
@@ -709,7 +725,7 @@ uint32_t _vprintf(const uint8_t* fmt, va_list args) {
     // código
 }</code></pre>
 			<p>
-				Pues si queremos hacer esta función accesible desde el exterior, en nuestro header (<i>stdio.h</i>), debemos poner lo siguiente:
+				Pues si queremos hacer esta función accesible desde el exterior, en nuestro header (<i>stdio.h</i>) debemos poner lo siguiente:
 			</p>
 			<pre><code class="language-c">// Archivo: 'src/bootloader/stage2/include/stdio.h'
 
@@ -791,7 +807,7 @@ ${DIR_OUTPUT}/stdio.obj</code></pre>
 				Es mucha información, y te recomiendo probar bien el código y asegurarte de que has hecho todos los pasos correctamente. <b>Los bugs silenciosos en <samp>printf()</samp> nos pueden llevar a buscar errores que no existen</b>, o incluso tener errores de memoria que se extiendan a otras partes de nuestro proyecto.
 			</p>
 			<p>
-				En el siguiente episodio, implementaremos algunas funciones básicas de la <i>C Standard Library</i> y comenzaremos a desarrollar nuestro driver para leer particiones formateadas con el sistema de archivos FAT12.
+				En los siguientes capítulos implementaremos algunas funciones básicas de la <i>C Standard Library</i> y comenzaremos a desarrollar nuestro driver para leer particiones formateadas con el sistema de archivos FAT12.
 			</p>
 		</details>
 		<details id="Ejemplo_descargable" open>
@@ -807,7 +823,7 @@ ${DIR_OUTPUT}/stdio.obj</code></pre>
 			</p>
 		</details>
 		<p id="footer">
-			<a href="../../"><button>Portada</button>
+			<a href="../../"><button>Portada</button></a>
 			<a href="../capitulo-11"><button>Siguiente capítulo</button></a>
 		</p>
 	</div>
