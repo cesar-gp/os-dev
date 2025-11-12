@@ -494,7 +494,35 @@ mov ebx, number</code></pre>
 				<img class="block hcenter" src="img/term.png">
 			</p>
 			<p>
-				Hemos conseguido apuntar a la variable, y no mandar simplemente su dirección. Por ese motivo, <b>el código de salida ahora es el que queríamos: <samp>4</samp></b>. <i style="opacity: 0.8">Como apunte final: la razón por la que el código de salida antes era <samp>0</samp> y no <samp>0x804a000</samp> es porque Linux no acepta códigos de salida mayores a <samp>255</samp>. Si detecta uno, devuelve directamente el valor <samp>0</samp></i>.
+				Hemos conseguido apuntar a la variable, y no mandar simplemente su dirección. Por ese motivo, <b>el código de salida ahora es el que queríamos: <samp>4</samp></b>.
+			</p>
+			<h3>Tamaños de variable y riesgo de <i>overflow</i></h3>
+			<p>
+				A lo mejor te preguntas: <b>¿y entonces por qué el código de salida antes era <samp>0</samp>, y no <samp>0x804a000</samp>?</b> Para resolver esa duda, tendremos que repasar qué tamaño tiene nuestra variable y qué valor estamos asignándole:
+			</p>
+			<ul>
+				<li>Estamos usando una <i>variable de 1 byte</i>. Sus valores posibles van de 0 (<samp>0x0</samp>) a 255 (<samp>0xFF</samp>).</li>
+				<li>Estamos asignándole el valor decimal 134.520.832 (<samp>0x804a000</samp>), que <i>ocupa 4 bytes</i>.</li>
+			</ul>
+			<p>
+				Cuando intentamos asignar a una variable de 1 byte un valor de mayor tamaño, se produce un <i>overflow</i>. La variable se queda únicamente con el <b>byte menos significativo</b> del valor... es decir, del número hexadecimal <samp>08 04 a0 00</samp> está recogiendo el último byte: <samp>00</samp>.
+			</p>
+			<p>
+				Dicho de otra forma, una variable de 1 byte siempre recogerá <b>el resto de la división entre nuestro valor y 256</b> (el total de valores que puede recoger).
+			</p>
+			<ul>
+				<li>Si le asignamos el valor <b>256</b>, se quedará con <samp>256 % 256</samp>, que es <b>0</b>.</li>
+				<li>Si le asignamos el valor <b>600</b>, se quedará con <samp>600 % 256</samp>, que es <b>88</b>.
+				<li>Si le asignamos el valor <b>100</b>, se quedará con <samp>100 % 256</samp>, que es <b>100</b>.
+			</ul>
+			<p>
+				El espacio de memoria que Linux ha asignado a <samp>number</samp> se sitúa en la dirección de memoria 134.520.832 (<samp>0x804a000</samp>). Ese número es múltiplo de 256, o, dicho de otra manera:
+			</p>
+			<p class="centered-text">
+				<samp>134.520.832 % 256 = 0</samp>
+			</p>
+			<p>
+				Es por esa razón que el código de salida de nuestro programa es <samp>0</samp>.
 			</p>
 		</details>
 		<details id="El_stack_la_memoria_mas_alla_de_los_registros" open>
